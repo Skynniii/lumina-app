@@ -54,19 +54,6 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onDeleteTask, isExpan
   }, [isExpanded]);
 
   useEffect(() => {
-    if (!isExpanded || showDatePicker) return;
-
-    const handlePointerDownOutside = (e: PointerEvent) => {
-      if (liRef.current && !liRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-
-    document.addEventListener('pointerdown', handlePointerDownOutside, true);
-    return () => document.removeEventListener('pointerdown', handlePointerDownOutside, true);
-  }, [isExpanded, showDatePicker, onClose]);
-
-  useEffect(() => {
     const resizeTextarea = () => {
       if (titleRef.current) {
         titleRef.current.style.height = 'auto';
@@ -159,22 +146,37 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onDeleteTask, isExpan
         transition={{ duration: 0.3, ease: "easeInOut" }}
         className={`flex flex-col transition-colors duration-300 ${
           isExpanded ? 'bg-white rounded-[20px] my-2 shadow-[0_12px_40px_rgba(0,0,0,0.08)] border border-[#eaeaea] z-10 relative overflow-hidden' 
-            : (task.isImportant && !isCompletedView) ? 'bg-[#fff9e6] rounded-[16px] my-1 px-1' 
-            : 'bg-transparent px-1'
+            : (task.isImportant && !isCompletedView) ? 'bg-[#fff9e6] rounded-[16px] my-1' 
+            : 'bg-transparent'
         }`}
       >
-        <div onClick={() => { if (!isAnyExpanded) onExpand(task.id); }} className="flex items-center py-3.5 px-2 cursor-pointer w-full select-none group min-h-[50px]">
+        <div onClick={() => { if (!isAnyExpanded) onExpand(task.id); }} className="flex items-center py-3.5 px-1.5 cursor-pointer w-full select-none group min-h-[50px]">
           
-          <motion.div 
-            animate={{ width: isExpanded ? 0 : 22, opacity: isExpanded ? 0 : 1, marginRight: isExpanded ? 14 : 14 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="relative flex items-center justify-center h-[22px] flex-none overflow-hidden"
-            onClick={(e) => handleComplete('checkbox', e)}
-          >
-            {sparkleTarget === 'checkbox' && <Sparkles />}
-            <input type="checkbox" readOnly checked={isChecked} className="peer appearance-none min-w-[22px] h-[22px] border-[1.5px] border-[#d1d1d6] rounded-full cursor-pointer checked:bg-[#7f70ff] checked:border-[#7f70ff] transition-all group-hover:border-[#b0a5ff]" />
-            <svg className={`absolute w-3.5 h-3.5 text-white pointer-events-none transition-opacity duration-200 ${isChecked ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-          </motion.div>
+          <div className="relative flex items-center justify-center w-[22px] h-[22px] flex-none mr-3">
+            <motion.div
+              animate={{ opacity: (isExpanded && !isCompletedView) ? 0 : 1, scale: (isExpanded && !isCompletedView) ? 0 : 1 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="absolute inset-0 flex items-center justify-center"
+              onClick={(e) => handleComplete('checkbox', e)}
+            >
+              {sparkleTarget === 'checkbox' && <Sparkles />}
+              <input type="checkbox" readOnly checked={isChecked} className="peer appearance-none min-w-[22px] h-[22px] border-[1.5px] border-[#d1d1d6] rounded-full cursor-pointer checked:bg-[#7f70ff] checked:border-[#7f70ff] transition-all group-hover:border-[#b0a5ff]" />
+              <svg className={`absolute w-3.5 h-3.5 text-white pointer-events-none transition-opacity duration-200 ${isChecked ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            </motion.div>
+            {!isCompletedView && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0, rotate: -180 }}
+                animate={{ opacity: isExpanded ? 1 : 0, scale: isExpanded ? 1 : 0, rotate: isExpanded ? 0 : -180 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="absolute inset-0 flex items-center justify-center cursor-pointer"
+                onClick={handleImportantToggle}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? "#ffcc00" : "none"} stroke={task.isImportant ? "#ffcc00" : "#d1d1d6"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-300">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              </motion.div>
+            )}
+          </div>
 
           <textarea
             ref={titleRef}
@@ -200,12 +202,33 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onDeleteTask, isExpan
             style={{ alignSelf: 'center', paddingTop: isExpanded ? '2px' : '0' }}
           />
 
-          {!isCompletedView && (
-            <button onClick={handleImportantToggle} className="flex-none p-2 ml-2 cursor-pointer rounded-full hover:bg-black/5 transition-colors">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? "#ffcc00" : "none"} stroke={task.isImportant ? "#ffcc00" : "#d1d1d6"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-300">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-            </button>
+          {(!isCompletedView || isExpanded) && (
+            <div className="relative flex-none ml-2 w-[38px] h-[38px]">
+              {!isCompletedView && (
+                <motion.button
+                  animate={{ opacity: isExpanded ? 0 : 1, scale: isExpanded ? 0 : 1 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  className="absolute inset-0 flex items-center justify-center p-2 cursor-pointer rounded-full hover:bg-black/5"
+                  onClick={handleImportantToggle}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? "#ffcc00" : "none"} stroke={task.isImportant ? "#ffcc00" : "#d1d1d6"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-300">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                </motion.button>
+              )}
+              <motion.button
+                initial={{ opacity: 0, scale: 0, rotate: 180 }}
+                animate={{ opacity: isExpanded ? 1 : 0, scale: isExpanded ? 1 : 0, rotate: isExpanded ? 0 : 180 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="absolute inset-0 flex items-center justify-center p-2 cursor-pointer rounded-full hover:bg-[#fff5f5]"
+                onClick={(e) => { e.stopPropagation(); setShowDatePicker(false); onClose(); }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </motion.button>
+            </div>
           )}
         </div>
 
