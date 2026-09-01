@@ -1,3 +1,5 @@
+export type ViewType = 'cronometro' | 'habitos';
+
 export interface SubTask {
   id: string;
   text: string;

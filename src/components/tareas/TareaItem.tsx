@@ -15,7 +15,7 @@ interface Props {
   onClose: () => void;
 }
 
-export const TareaItem = memo(({ task, lists, onToggle, onUpdate, onDeleteTask, isExpanded, isAnyExpanded, onExpand, onClose }: Props) => {
+export const TareaItem = memo(({ task, onToggle, onUpdate, onDeleteTask, isExpanded, isAnyExpanded, onExpand, onClose }: Props) => {
   const [optimisticCheck, setOptimisticCheck] = useState(false);
   const [sparkleTarget, setSparkleTarget] = useState<'checkbox' | 'button' | null>(null);
   
