@@ -16,7 +16,7 @@ export interface Task {
   dueTime?: string;
   isImportant?: boolean;
   subtasks?: SubTask[];
-  completedAt?: string; // NUEVO: Fecha en que se completó
+  completedAt?: string;
 }
 
 export interface TaskList {
