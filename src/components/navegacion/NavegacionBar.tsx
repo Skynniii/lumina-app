@@ -25,7 +25,7 @@ const ICONS: Record<ViewType, React.ReactNode> = {
 };
 
 const TABS: { id: ViewType; label: string }[] = [
-  { id: 'cronometro', label: 'Reloj' },
+  { id: 'cronometro', label: 'Timer' },
   { id: 'habitos', label: 'Tasks' },
 ];
 

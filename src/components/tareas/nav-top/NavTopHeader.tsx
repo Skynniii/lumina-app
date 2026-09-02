@@ -88,7 +88,7 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
   }, [lists.length]);
 
   return (
-    <div className="relative w-full bg-white z-[999] pb-0 shadow-[0_4px_12px_rgba(0,0,0,0.04)] shrink-0 box-border">
+    <div className="relative w-full bg-white z-[999] pt-5 pb-0 shadow-[0_4px_12px_rgba(0,0,0,0.04)] shrink-0 box-border">
       <TopBar title="Tasks" onMenuClick={onMenuClick} />
 
       <div className="relative">

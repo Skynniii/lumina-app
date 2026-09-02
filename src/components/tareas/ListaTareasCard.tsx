@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { Task, TaskList } from '../../types';
 import { TareaItem } from './TareaItem';
@@ -7,27 +7,18 @@ import { DesplegableMenu } from '../ui/DesplegableMenu';
 interface Props {
   list: TaskList;
   tasks: Task[];
-  allLists: TaskList[];
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onToggleTask: (id: string) => void;
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
-  onDeleteTask?: (id: string) => void;
+  onExpandTask: (id: string) => void;
 }
 
-export function ListaTareasCard({ list, tasks, allLists, onRename, onDelete, onToggleTask, onUpdateTask, onDeleteTask }: Props) {
+export function ListaTareasCard({ list, tasks, onRename, onDelete, onToggleTask, onUpdateTask, onExpandTask }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const active = tasks.filter((t) => !t.completed);
   const completed = tasks.filter((t) => t.completed);
-  const anyExpanded = expandedId !== null;
-
-  const handleExpand = useCallback((id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
-  }, []);
-
-  const handleClose = useCallback(() => setExpandedId(null), []);
 
   return (
     <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[130px]" data-lista={list.id}>
@@ -55,14 +46,9 @@ export function ListaTareasCard({ list, tasks, allLists, onRename, onDelete, onT
                 <TareaItem
                   key={task.id}
                   task={task}
-                  lists={allLists}
                   onToggle={onToggleTask}
                   onUpdate={onUpdateTask}
-                  onDeleteTask={onDeleteTask}
-                  isExpanded={expandedId === task.id}
-                  isAnyExpanded={anyExpanded}
-                  onExpand={handleExpand}
-                  onClose={handleClose}
+                  onExpand={onExpandTask}
                 />
               ))}
             </AnimatePresence>
@@ -87,14 +73,9 @@ export function ListaTareasCard({ list, tasks, allLists, onRename, onDelete, onT
                       <TareaItem
                         key={task.id}
                         task={task}
-                        lists={allLists}
                         onToggle={onToggleTask}
                         onUpdate={onUpdateTask}
-                        onDeleteTask={onDeleteTask}
-                        isExpanded={expandedId === task.id}
-                        isAnyExpanded={anyExpanded}
-                        onExpand={handleExpand}
-                        onClose={handleClose}
+                        onExpand={onExpandTask}
                       />
                     ))}
                   </AnimatePresence>
