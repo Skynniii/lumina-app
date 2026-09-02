@@ -6,10 +6,12 @@ import { NavegacionBar } from './components/navegacion/NavegacionBar';
 import { Cronometro } from './components/cronometro/Cronometro';
 import { TareasDashboard } from './components/tareas/TareasDashboard';
 import { Sidebar } from './components/ui/Sidebar';
+import { SettingsPage } from './components/ui/SettingsPage';
 
 export default function App() {
   const [view, setView] = useState<ViewType>('cronometro');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   return (
     <SettingsProvider>
@@ -33,7 +35,12 @@ export default function App() {
           onClose={() => setSidebarOpen(false)}
           activeView={view}
           onNavigate={(v) => { setView(v); setSidebarOpen(false); }}
+          onOpenSettings={() => { setSidebarOpen(false); setShowSettings(true); }}
         />
+
+        <AnimatePresence>
+          {showSettings && <SettingsPage onBack={() => setShowSettings(false)} />}
+        </AnimatePresence>
       </main>
     </SettingsProvider>
   );

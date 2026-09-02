@@ -1,48 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ViewType } from '../../types';
-import { useSettings, type Settings } from '../../context/SettingsContext';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   activeView: ViewType;
   onNavigate: (v: ViewType) => void;
-}
-
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!on)}
-      className={`w-[44px] h-[26px] rounded-full transition-colors duration-200 flex items-center ${on ? 'bg-[#7f70ff]' : 'bg-[#d1d1d6]'}`}
-    >
-      <span className={`block w-[22px] h-[22px] bg-white rounded-full shadow-sm transition-transform duration-200 ${on ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} />
-    </button>
-  );
-}
-
-function PillSelector<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
-  return (
-    <div className="flex gap-1 bg-[#f0f0f0] rounded-lg p-1">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          onClick={() => onChange(opt.value)}
-          className={`px-3 py-1 rounded-md text-[13px] font-medium transition-all ${value === opt.value ? 'bg-white shadow-sm text-[#7f70ff]' : 'text-[#888]'}`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between py-2">
-      <span className="text-[15px] text-[#444]">{label}</span>
-      {children}
-    </div>
-  );
+  onOpenSettings: () => void;
 }
 
 const SECTIONS: { id: ViewType; label: string; icon: React.ReactNode }[] = [
@@ -58,9 +22,7 @@ const SECTIONS: { id: ViewType; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-export function Sidebar({ isOpen, onClose, activeView, onNavigate }: Props) {
-  const { settings, update } = useSettings();
-
+export function Sidebar({ isOpen, onClose, activeView, onNavigate, onOpenSettings }: Props) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -80,6 +42,7 @@ export function Sidebar({ isOpen, onClose, activeView, onNavigate }: Props) {
             className="fixed top-0 left-0 h-full w-[280px] bg-white z-[201] overflow-y-auto no-scrollbar shadow-2xl"
           >
             <div className="p-5 pt-[60px]">
+              {/* Logo */}
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] flex items-center justify-center">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8 5.8 21.3l2.4-7.4L2 9.4h7.6z" /></svg>
@@ -87,6 +50,8 @@ export function Sidebar({ isOpen, onClose, activeView, onNavigate }: Props) {
                 <h2 className="text-xl font-bold text-[#2b2b2b]">Lumina</h2>
               </div>
 
+              {/* Secciones */}
+              <h3 className="text-xs font-bold text-[#999] uppercase tracking-wider mb-2 px-1">Secciones</h3>
               <div className="space-y-1 mb-6">
                 {SECTIONS.map((s) => {
                   const active = activeView === s.id;
@@ -105,39 +70,25 @@ export function Sidebar({ isOpen, onClose, activeView, onNavigate }: Props) {
 
               <hr className="border-[#f0f0f0] mb-5" />
 
+              {/* Configuración */}
               <h3 className="text-xs font-bold text-[#999] uppercase tracking-wider mb-2 px-1">Configuración</h3>
-              <div className="px-1">
-                <SettingRow label="Temas">
-                  <PillSelector
-                    options={[{ value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }]}
-                    value={settings.theme}
-                    onChange={(v) => update('theme', v as Settings['theme'])}
-                  />
-                </SettingRow>
-                <SettingRow label="Formato de horas">
-                  <PillSelector
-                    options={[{ value: '24h', label: '24h' }, { value: '12h', label: '12h' }]}
-                    value={settings.timeFormat}
-                    onChange={(v) => update('timeFormat', v as Settings['timeFormat'])}
-                  />
-                </SettingRow>
-                <SettingRow label="Idioma">
-                  <PillSelector
-                    options={[{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }]}
-                    value={settings.language}
-                    onChange={(v) => update('language', v as Settings['language'])}
-                  />
-                </SettingRow>
-                <SettingRow label="Sonidos">
-                  <Toggle on={settings.sounds} onChange={(v) => update('sounds', v)} />
-                </SettingRow>
-                <SettingRow label="Notificaciones">
-                  <Toggle on={settings.notifications} onChange={(v) => update('notifications', v)} />
-                </SettingRow>
+              <div className="space-y-1 mb-6">
+                <button
+                  onClick={onOpenSettings}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[#555] hover:bg-[#f8f9fa] transition-colors"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                  <span className="text-[15px] font-medium">Ajustes</span>
+                </button>
               </div>
 
-              <hr className="border-[#f0f0f0] my-5" />
+              <hr className="border-[#f0f0f0] mb-5" />
 
+              {/* Otras opciones */}
+              <h3 className="text-xs font-bold text-[#999] uppercase tracking-wider mb-2 px-1">Más</h3>
               <div className="space-y-1">
                 <button className="w-full text-left px-3 py-2.5 rounded-xl text-[15px] text-[#555] hover:bg-[#f8f9fa] transition-colors">Ayuda</button>
                 <button className="w-full text-left px-3 py-2.5 rounded-xl text-[15px] text-[#555] hover:bg-[#f8f9fa] transition-colors">Acerca de</button>
