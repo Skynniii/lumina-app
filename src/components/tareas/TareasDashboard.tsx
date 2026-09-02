@@ -5,7 +5,11 @@ import { NavTopHeader } from './nav-top/NavTopHeader';
 import { ListaTareasCard } from './ListaTareasCard';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
 
-export function TareasDashboard() {
+interface Props {
+  onMenuClick: () => void;
+}
+
+export function TareasDashboard({ onMenuClick }: Props) {
   const { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, deleteTask, modalConfig } = useTasks();
   const [activeListId, setActiveListId] = useState(lists[0]?.id || '');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -32,7 +36,7 @@ export function TareasDashboard() {
 
   return (
     <section className="absolute top-0 left-0 w-full h-full flex flex-col p-0 bg-[#f7f6f9]">
-      <NavTopHeader lists={lists} activeListId={activeListId} onSelectList={scrollTo} onAddList={addList} />
+      <NavTopHeader lists={lists} activeListId={activeListId} onSelectList={scrollTo} onAddList={addList} onMenuClick={onMenuClick} />
 
       <div
         id="visor-de-listas"

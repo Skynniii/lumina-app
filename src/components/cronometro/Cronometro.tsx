@@ -1,12 +1,17 @@
 import { motion } from 'framer-motion';
 import { useTimer } from '../../hooks/useTimer';
+import { TopBar } from '../ui/TopBar';
 
-export function Cronometro() {
+interface Props {
+  onMenuClick: () => void;
+}
+
+export function Cronometro({ onMenuClick }: Props) {
   const { tiempoFormateado, progresoGrados, isActivo, toggleTimer, resetTimer } = useTimer(720);
 
   return (
     <section className="absolute top-0 left-0 w-full h-full p-5 pb-[100px] overflow-y-auto no-scrollbar">
-      <h1 className="text-2xl text-[#333333] font-bold mb-5">Lumina Focus</h1>
+      <TopBar title="Lumina Focus" onMenuClick={onMenuClick} />
 
       <div className="bg-white p-[30px] rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] flex flex-col items-center gap-[25px] mt-5">
         <div

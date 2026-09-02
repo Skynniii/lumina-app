@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react';
 import type { TaskList } from '../../../types';
+import { TopBar } from '../../ui/TopBar';
 
 interface Props {
   lists: TaskList[];
   activeListId: string;
   onSelectList: (id: string) => void;
   onAddList: () => void;
+  onMenuClick: () => void;
 }
 
-export function NavTopHeader({ lists, activeListId, onSelectList, onAddList }: Props) {
+export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onMenuClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
@@ -73,7 +75,6 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList }: P
     };
 
     const onResize = () => { measure(); update(); };
-
     const init = setTimeout(() => { measure(); update(); }, 50);
 
     visor.addEventListener('scroll', onScroll, { passive: true });
@@ -87,8 +88,8 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList }: P
   }, [lists.length]);
 
   return (
-    <div className="relative w-full bg-white z-[999] pt-[15px] pb-0 shadow-[0_4px_12px_rgba(0,0,0,0.04)] shrink-0 box-border">
-      <h1 className="text-center my-2.5 mx-0 w-full text-[#2b2b2b] font-bold text-2xl">Tasks</h1>
+    <div className="relative w-full bg-white z-[999] pb-0 shadow-[0_4px_12px_rgba(0,0,0,0.04)] shrink-0 box-border">
+      <TopBar title="Tasks" onMenuClick={onMenuClick} />
 
       <div className="relative">
         <div ref={containerRef} className="flex gap-3 overflow-x-auto pt-1 px-4 pb-3 relative z-10 no-scrollbar">
