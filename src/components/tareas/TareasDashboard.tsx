@@ -64,21 +64,22 @@ export function TareasDashboard({ onMenuClick }: Props) {
             />
           ))}
         </div>
-
-        <AnimatePresence>
-          {expandedTask && (
-            <TaskDetailView
-              key={expandedTask.id}
-              task={expandedTask}
-              lists={lists}
-              onBack={() => setExpandedTaskId(null)}
-              onToggle={toggleTask}
-              onUpdate={updateTask}
-              onDelete={deleteTask}
-            />
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* TaskDetailView - cubre toda la parte superior incluyendo el título */}
+      <AnimatePresence>
+        {expandedTask && (
+          <TaskDetailView
+            key={expandedTask.id}
+            task={expandedTask}
+            lists={lists}
+            onBack={() => setExpandedTaskId(null)}
+            onToggle={toggleTask}
+            onUpdate={updateTask}
+            onDelete={deleteTask}
+          />
+        )}
+      </AnimatePresence>
 
       {!expandedTaskId && (
         <button

@@ -19,14 +19,14 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const { settings } = useSettings();
   const [sparkle, setSparkle] = useState(false);
   const [showListMenu, setShowListMenu] = useState(false);
-  const [showSubtasks, setShowSubtasks] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [newSubtask, setNewSubtask] = useState('');
   const [editingTitle, setEditingTitle] = useState(false);
+  const [editingSubId, setEditingSubId] = useState<string | null>(null);
 
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const listMenuRef = useRef<HTMLDivElement>(null);
+  const subInputRef = useRef<HTMLInputElement>(null);
 
   const currentList = lists.find((l) => l.id === task.listId) || lists[0];
   const isCompleted = task.completed;
@@ -64,6 +64,13 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
     return () => document.removeEventListener('click', handler);
   }, [showListMenu]);
 
+  // Auto-focus en subtarea nueva
+  useEffect(() => {
+    if (editingSubId && subInputRef.current) {
+      subInputRef.current.focus();
+    }
+  }, [editingSubId, task.subtasks]);
+
   const handleComplete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!task.completed) {
@@ -79,17 +86,31 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
     }
   };
 
+  const handleImportant = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUpdate(task.id, { isImportant: !task.isImportant });
+  };
+
   const handleNotes = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onUpdate(task.id, { notes: e.target.value });
     e.target.style.height = 'auto';
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
-  const addSubtask = () => {
-    if (!newSubtask.trim()) return;
-    const sub: SubTask = { id: Date.now().toString(), text: newSubtask.trim(), completed: false };
+  const handleAddSubtask = () => {
+    const subId = Date.now().toString();
+    const sub: SubTask = { id: subId, text: '', completed: false };
     onUpdate(task.id, { subtasks: [...(task.subtasks || []), sub] });
-    setNewSubtask('');
+    setEditingSubId(subId);
+  };
+
+  const saveSubtask = (subId: string, text: string) => {
+    if (text.trim()) {
+      onUpdate(task.id, { subtasks: (task.subtasks || []).map((s) => (s.id === subId ? { ...s, text: text.trim() } : s)) });
+    } else {
+      onUpdate(task.id, { subtasks: (task.subtasks || []).filter((s) => s.id !== subId) });
+    }
+    setEditingSubId(null);
   };
 
   const toggleSub = (subId: string) => {
@@ -120,9 +141,9 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.92 }}
       transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-      className="absolute left-0 right-0 top-0 bottom-[70px] z-50 bg-white flex flex-col origin-top"
+      className="absolute left-0 right-0 top-0 bottom-[70px] z-[1000] bg-white flex flex-col origin-top"
     >
-      {/* Header: back + list selector */}
+      {/* Header: back + star + list selector */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f0f5] shrink-0">
         <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -131,36 +152,47 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
           </svg>
         </button>
 
-        {/* Selector de lista */}
-        <div className="relative" ref={listMenuRef}>
-          <button onClick={() => setShowListMenu(!showListMenu)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-[#f5f5f7] transition-colors">
-            <span className="text-[14px] font-medium text-[#555]">{currentList.name}</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showListMenu ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9" /></svg>
-          </button>
-          <AnimatePresence>
-            {showListMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.95 }}
-                transition={{ duration: 0.15 }}
-                className="absolute right-0 top-full mt-1 bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[#eaeaea] py-1.5 w-[160px] z-10 origin-top-right"
-              >
-                {lists.map((list) => (
-                  <button
-                    key={list.id}
-                    onClick={() => { onUpdate(task.id, { listId: list.id }); setShowListMenu(false); }}
-                    className="w-full flex items-center justify-between px-3 py-2 text-[14px] text-[#555] hover:bg-[#f8f9fa] transition-colors"
-                  >
-                    <span>{list.name}</span>
-                    {list.id === task.listId && (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                    )}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className="flex items-center gap-2">
+          {/* Estrella importante */}
+          {!isCompleted && (
+            <button onClick={handleImportant} className="p-2 rounded-full hover:bg-black/5 transition-colors">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? '#ffcc00' : 'none'} stroke={task.isImportant ? '#ffcc00' : '#d1d1d6'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-300">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+            </button>
+          )}
+
+          {/* Selector de lista */}
+          <div className="relative" ref={listMenuRef}>
+            <button onClick={() => setShowListMenu(!showListMenu)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-[#f5f5f7] transition-colors">
+              <span className="text-[14px] font-medium text-[#555]">{currentList.name}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showListMenu ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9" /></svg>
+            </button>
+            <AnimatePresence>
+              {showListMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-1 bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[#eaeaea] py-1.5 w-[160px] z-10 origin-top-right"
+                >
+                  {lists.map((list) => (
+                    <button
+                      key={list.id}
+                      onClick={() => { onUpdate(task.id, { listId: list.id }); setShowListMenu(false); }}
+                      className="w-full flex items-center justify-between px-3 py-2 text-[14px] text-[#555] hover:bg-[#f8f9fa] transition-colors"
+                    >
+                      <span>{list.name}</span>
+                      {list.id === task.listId && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                      )}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
@@ -191,45 +223,49 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         {/* Subtareas */}
         {(!isCompleted || hasSubtasks) && (
           <div className="border-b border-[#f0f0f5]">
-            <div onClick={() => setShowSubtasks(!showSubtasks)} className="flex items-center gap-3 py-3 cursor-pointer">
-              <span className={`transition-colors ${showSubtasks || hasSubtasks ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
+            <div className="flex items-center gap-3 py-3">
+              <span className={`transition-colors ${hasSubtasks ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
               </span>
-              <span className={`flex-1 text-[15px] ${showSubtasks || hasSubtasks ? 'text-[#7f70ff] font-medium' : 'text-[#555]'}`}>
-                Subtareas {hasSubtasks && `(${(task.subtasks ?? []).filter((s) => s.completed).length}/${task.subtasks?.length ?? 0})`}
+              <span className={`flex-1 text-[15px] ${hasSubtasks ? 'text-[#7f70ff] font-medium' : 'text-[#555]'}`}>
+                Subtareas
               </span>
-              <motion.svg animate={{ rotate: showSubtasks ? 180 : 0 }} className="text-[#a0a0a0] w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></motion.svg>
-            </div>
-            <AnimatePresence>
-              {showSubtasks && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                  <div className="pb-4 pl-[32px] pr-2">
-                    <ul className="list-none p-0 m-0 space-y-3 mb-3">
-                      {task.subtasks?.map((sub) => (
-                        <li key={sub.id} className="flex items-center group cursor-pointer">
-                          <div onClick={() => toggleSub(sub.id)} className="relative flex items-center justify-center w-[16px] h-[16px] flex-none mr-3">
-                            <input type="checkbox" readOnly checked={sub.completed} className="peer appearance-none w-full h-full border-[1.5px] border-[#d1d1d6] rounded-full cursor-pointer checked:bg-[#7f70ff] checked:border-[#7f70ff] transition-all" />
-                            <svg className={`absolute w-2.5 h-2.5 text-white pointer-events-none transition-opacity ${sub.completed ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                          </div>
-                          <span className={`flex-1 text-[14px] transition-colors ${sub.completed ? 'text-[#a0a0a0] line-through' : 'text-[#444]'}`}>{sub.text}</span>
-                          {!isCompleted && (
-                            <button onClick={() => deleteSub(sub.id)} className="p-1.5 ml-2 rounded-md text-[#ccc] hover:text-[#ff4d4d] hover:bg-[#fff5f5] transition-all">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                            </button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    {!isCompleted && (
-                      <div className="flex items-center mt-2">
-                        <span className="w-[16px] h-[16px] rounded-full border-[1.5px] border-[#e0e0e0] mr-3 flex-none" />
-                        <input type="text" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSubtask()} placeholder="Añadir subtarea" className="w-full bg-transparent outline-none text-[14px] text-[#444] placeholder-[#a0a0a0]" />
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
+              {!isCompleted && (
+                <button onClick={handleAddSubtask} className="w-7 h-7 flex items-center justify-center rounded-full text-[#7f70ff] hover:bg-[#f0edff] transition-colors">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                </button>
               )}
-            </AnimatePresence>
+            </div>
+            {/* Lista de subtareas - sin sangría */}
+            <div className="pb-4">
+              <ul className="list-none p-0 m-0 space-y-2">
+                {task.subtasks?.map((sub) => (
+                  <li key={sub.id} className="flex items-center gap-3 py-1">
+                    <div onClick={() => toggleSub(sub.id)} className="relative flex items-center justify-center w-[16px] h-[16px] flex-none cursor-pointer">
+                      <input type="checkbox" readOnly checked={sub.completed} className="peer appearance-none w-full h-full border-[1.5px] border-[#d1d1d6] rounded-full cursor-pointer checked:bg-[#7f70ff] checked:border-[#7f70ff] transition-all" />
+                      <svg className={`absolute w-2.5 h-2.5 text-white pointer-events-none transition-opacity ${sub.completed ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                    {editingSubId === sub.id ? (
+                      <input
+                        ref={subInputRef}
+                        defaultValue={sub.text}
+                        onBlur={(e) => saveSubtask(sub.id, e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                        placeholder="Escribe la subtarea..."
+                        className="flex-1 bg-transparent outline-none text-[14px] text-[#444] placeholder-[#bbb]"
+                      />
+                    ) : (
+                      <span className={`flex-1 text-[14px] transition-colors ${sub.completed ? 'text-[#a0a0a0] line-through' : 'text-[#444]'}`}>{sub.text}</span>
+                    )}
+                    {!isCompleted && editingSubId !== sub.id && (
+                      <button onClick={() => deleteSub(sub.id)} className="p-1 rounded-md text-[#ccc] hover:text-[#ff4d4d] hover:bg-[#fff5f5] transition-all">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
 

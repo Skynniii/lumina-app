@@ -89,7 +89,9 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
 
   return (
     <div className="relative w-full bg-white z-[999] pt-5 pb-0 shadow-[0_4px_12px_rgba(0,0,0,0.04)] shrink-0 box-border">
-      <TopBar title="Tasks" onMenuClick={onMenuClick} />
+      <div className="px-5">
+        <TopBar title="Tasks" onMenuClick={onMenuClick} />
+      </div>
 
       <div className="relative">
         <div ref={containerRef} className="flex gap-3 overflow-x-auto pt-1 px-4 pb-3 relative z-10 no-scrollbar">
