@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { RepeatConfig } from '../../types';
+import { useSettings } from '../../context/SettingsContext';
 import { TimePickerModal } from './TimePickerModal';
 import { RepeatModal } from './RepeatModal';
 
@@ -16,13 +17,15 @@ const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 export function CalendarModal({ initialDate, initialTime, initialRepeat, onClose, onSave }: Props) {
+  const { settings } = useSettings();
   const [month, setMonth] = useState(() => (initialDate ? new Date(initialDate) : new Date()));
   const [date, setDate] = useState<string | undefined>(initialDate);
   const [time, setTime] = useState<string | undefined>(initialTime);
   const [repeat, setRepeat] = useState<RepeatConfig | undefined>(initialRepeat);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showRepeat, setShowRepeat] = useState(false);
-  const dragStart = useRef(0);
+  const [direction, setDirection] = useState(0);
+  const touchStart = useRef(0);
 
   const y = month.getFullYear();
   const m = month.getMonth();
@@ -30,15 +33,18 @@ export function CalendarModal({ initialDate, initialTime, initialRepeat, onClose
   let firstDow = new Date(y, m, 1).getDay();
   firstDow = firstDow === 0 ? 6 : firstDow - 1;
 
-  const prevMonth = () => setMonth(new Date(y, m - 1, 1));
-  const nextMonth = () => setMonth(new Date(y, m + 1, 1));
+  const prevMonth = () => { setDirection(-1); setMonth(new Date(y, m - 1, 1)); };
+  const nextMonth = () => { setDirection(1); setMonth(new Date(y, m + 1, 1)); };
 
   const formatTimeDisplay = () => {
     if (!time) return null;
     const [h, min] = time.split(':').map(Number);
-    const period = h >= 12 ? 'PM' : 'AM';
-    const h12 = h % 12 || 12;
-    return `${h12}:${String(min).padStart(2, '0')} ${period}`;
+    if (settings.timeFormat === '12h') {
+      const period = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${String(min).padStart(2, '0')} ${period}`;
+    }
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
   };
 
   const formatRepeatDisplay = () => {
@@ -48,11 +54,7 @@ export function CalendarModal({ initialDate, initialTime, initialRepeat, onClose
     return `Cada ${repeat.interval} ${freqLabel}${plural}`;
   };
 
-  const handleSave = () => {
-    onSave(date, time, repeat);
-    onClose();
-  };
-
+  const handleSave = () => { onSave(date, time, repeat); onClose(); };
   const timeDisplay = formatTimeDisplay();
   const repeatDisplay = formatRepeatDisplay();
 
@@ -75,59 +77,65 @@ export function CalendarModal({ initialDate, initialTime, initialRepeat, onClose
           <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#f5f5f7] transition-colors">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
-          <button onClick={onClose} className="absolute right-3 top-3 w-7 h-7 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-          </button>
         </div>
 
-        {/* Calendario con swipe */}
+        {/* Calendario con swipe animado */}
         <div
           className="px-5 pb-3"
-          onTouchStart={(e) => { dragStart.current = e.touches[0].clientX; }}
+          onTouchStart={(e) => { touchStart.current = e.touches[0].clientX; }}
           onTouchEnd={(e) => {
-            const diff = dragStart.current - e.changedTouches[0].clientX;
+            const diff = touchStart.current - e.changedTouches[0].clientX;
             if (Math.abs(diff) > 50) { if (diff > 0) nextMonth(); else prevMonth(); }
           }}
         >
           <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
             {DOW.map((d) => <span key={d} className="text-[11px] font-bold text-[#aaa] py-1">{d}</span>)}
           </div>
-          <div className="grid grid-cols-7 gap-0.5 text-center">
-            {Array.from({ length: firstDow }).map((_, i) => <div key={`b${i}`} />)}
-            {Array.from({ length: days }, (_, i) => i + 1).map((day) => {
-              const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const isSelected = date === ds;
-              const isToday = ds === new Date().toISOString().slice(0, 10);
-              return (
-                <button key={day} onClick={() => setDate(ds)} className={`w-9 h-9 mx-auto rounded-full text-[14px] flex items-center justify-center transition-colors ${isSelected ? 'bg-[#7f70ff] text-white font-bold' : isToday ? 'bg-[#f0edff] text-[#7f70ff] font-bold' : 'text-[#444] hover:bg-[#f0f0f0]'}`}>
-                  {day}
-                </button>
-              );
-            })}
+          <div className="relative overflow-hidden">
+            <AnimatePresence custom={direction} mode="popLayout">
+              <motion.div
+                key={`${y}-${m}`}
+                custom={direction}
+                variants={{
+                  enter: (d: number) => ({ x: d > 0 ? '100%' : d < 0 ? '-100%' : 0, opacity: 0.5 }),
+                  center: { x: 0, opacity: 1 },
+                  exit: (d: number) => ({ x: d > 0 ? '-100%' : '100%', opacity: 0.5 }),
+                }}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ type: 'tween', ease: 'easeInOut', duration: 0.25 }}
+              >
+                <div className="grid grid-cols-7 gap-0.5 text-center">
+                  {Array.from({ length: firstDow }).map((_, i) => <div key={`b${i}`} />)}
+                  {Array.from({ length: days }, (_, i) => i + 1).map((day) => {
+                    const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const isSelected = date === ds;
+                    const isToday = ds === new Date().toISOString().slice(0, 10);
+                    return (
+                      <button key={day} onClick={() => setDate(ds)} className={`w-9 h-9 mx-auto rounded-full text-[14px] flex items-center justify-center transition-colors ${isSelected ? 'bg-[#7f70ff] text-white font-bold' : isToday ? 'bg-[#f0edff] text-[#7f70ff] font-bold' : 'text-[#444] hover:bg-[#f0f0f0]'}`}>{day}</button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
 
         {/* Set time + Repeat */}
         <div className="border-t border-[#f0f0f5] px-5 py-3 space-y-1">
-          {/* Set time */}
           <div className="flex items-center gap-3 py-2">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={timeDisplay ? '#7f70ff' : '#aaa'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-            <button onClick={() => setShowTimePicker(true)} className="flex-1 text-left text-[15px] font-medium" style={{ color: timeDisplay ? '#7f70ff' : '#555' }}>
-              {timeDisplay || 'Establecer hora'}
-            </button>
+            <button onClick={() => setShowTimePicker(true)} className="flex-1 text-left text-[15px] font-medium" style={{ color: timeDisplay ? '#7f70ff' : '#555' }}>{timeDisplay || 'Establecer hora'}</button>
             {timeDisplay && (
               <button onClick={() => setTime(undefined)} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#fff5f5] transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             )}
           </div>
-
-          {/* Repeat */}
           <div className="flex items-center gap-3 py-2">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={repeatDisplay ? '#7f70ff' : '#aaa'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
-            <button onClick={() => setShowRepeat(true)} className="flex-1 text-left text-[15px] font-medium" style={{ color: repeatDisplay ? '#7f70ff' : '#555' }}>
-              {repeatDisplay || 'Repetir'}
-            </button>
+            <button onClick={() => setShowRepeat(true)} className="flex-1 text-left text-[15px] font-medium" style={{ color: repeatDisplay ? '#7f70ff' : '#555' }}>{repeatDisplay || 'Repetir'}</button>
             {repeatDisplay && (
               <button onClick={() => setRepeat(undefined)} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#fff5f5] transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
@@ -145,15 +153,13 @@ export function CalendarModal({ initialDate, initialTime, initialRepeat, onClose
         {/* Sub-modals */}
         <AnimatePresence>
           {showTimePicker && (() => {
-            const h = time ? parseInt(time.split(':')[0]) : 12;
-            const min = time ? parseInt(time.split(':')[1]) : 0;
-            const period: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
-            const h12 = h % 12 || 12;
+            const now = new Date();
+            const h = time ? parseInt(time.split(':')[0]) : now.getHours();
+            const min = time ? parseInt(time.split(':')[1]) : now.getMinutes();
             return (
               <TimePickerModal
-                initialHour12={h12}
+                initialHour={h}
                 initialMinute={min}
-                initialPeriod={period}
                 onClose={() => setShowTimePicker(false)}
                 onSave={(h24, m) => setTime(`${h24}:${m}`)}
                 onClear={() => setTime(undefined)}
