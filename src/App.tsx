@@ -5,6 +5,8 @@ import { SettingsProvider } from './context/SettingsContext';
 import { NavegacionBar } from './components/navegacion/NavegacionBar';
 import { Cronometro } from './components/cronometro/Cronometro';
 import { TareasDashboard } from './components/tareas/TareasDashboard';
+import { Tracker } from './components/tracker/Tracker';
+import { CalendarView } from './components/calendar/CalendarView';
 import { Sidebar } from './components/ui/Sidebar';
 import { SettingsPage } from './components/ui/SettingsPage';
 
@@ -17,15 +19,12 @@ export default function App() {
     <SettingsProvider>
       <main className="w-full h-screen max-h-screen overflow-hidden relative">
         <AnimatePresence mode="wait">
-          {view === 'cronometro' ? (
-            <motion.div key="cronometro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="w-full h-full">
-              <Cronometro onMenuClick={() => setSidebarOpen(true)} />
-            </motion.div>
-          ) : (
-            <motion.div key="habitos" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="w-full h-full">
-              <TareasDashboard onMenuClick={() => setSidebarOpen(true)} />
-            </motion.div>
-          )}
+          <motion.div key={view} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="w-full h-full">
+            {view === 'cronometro' && <Cronometro onMenuClick={() => setSidebarOpen(true)} />}
+            {view === 'habitos' && <TareasDashboard onMenuClick={() => setSidebarOpen(true)} />}
+            {view === 'tracker' && <Tracker onMenuClick={() => setSidebarOpen(true)} />}
+            {view === 'calendar' && <CalendarView onMenuClick={() => setSidebarOpen(true)} />}
+          </motion.div>
         </AnimatePresence>
 
         <NavegacionBar activeView={view} onViewChange={setView} />

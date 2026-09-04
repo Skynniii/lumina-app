@@ -11,6 +11,11 @@ interface Props {
 
 const SECTIONS: { id: ViewType; label: string; icon: React.ReactNode }[] = [
   {
+    id: 'tracker',
+    label: 'Tracker',
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" /></svg>,
+  },
+  {
     id: 'cronometro',
     label: 'Timer',
     icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
@@ -19,6 +24,11 @@ const SECTIONS: { id: ViewType; label: string; icon: React.ReactNode }[] = [
     id: 'habitos',
     label: 'Tasks',
     icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v1H8V3a1 1 0 0 1 1-1z" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M9 14l2 2 4-4" /></svg>,
+  },
+  {
+    id: 'calendar',
+    label: 'Calendar',
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
   },
 ];
 
@@ -32,14 +42,14 @@ export function Sidebar({ isOpen, onClose, activeView, onNavigate, onOpenSetting
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[200]"
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[1200]"
           />
           <motion.aside
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed top-0 left-0 h-full w-[280px] bg-white z-[201] overflow-y-auto no-scrollbar shadow-2xl"
+            className="fixed top-0 left-0 h-full w-[280px] bg-white z-[1201] overflow-y-auto no-scrollbar shadow-2xl"
           >
             <div className="p-5 pt-[60px]">
               {/* Logo */}

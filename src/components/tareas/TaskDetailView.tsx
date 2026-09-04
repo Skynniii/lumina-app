@@ -4,7 +4,7 @@ import type { Task, TaskList, SubTask } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
 import { Sparkles } from './Sparkles';
-import { DateTimePicker } from './DateTimePicker';
+import { CalendarModal } from './CalendarModal';
 
 interface Props {
   task: Task;
@@ -19,7 +19,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const { settings } = useSettings();
   const [sparkle, setSparkle] = useState(false);
   const [showListMenu, setShowListMenu] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
 
@@ -122,7 +122,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   };
 
   const formatDate = () => {
-    if (!task.dueDate) return 'Sin fecha';
+    if (!task.dueDate) return 'Seleccionar fecha y hora';
     const d = new Date(task.dueDate);
     const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
     let str = d.toLocaleDateString('es-CO', opts);
@@ -132,6 +132,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
       const h12 = h % 12 || 12;
       str += ` · ${h12}:${String(min).padStart(2, '0')} ${period}`;
     }
+    if (task.repeat?.enabled) str += ' · 🔁';
     return str;
   };
 
@@ -272,25 +273,17 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         {/* Fecha y Hora */}
         {!isCompleted && (
           <div className="border-b border-[#f0f0f5]">
-            <div onClick={() => setShowDatePicker(!showDatePicker)} className="flex items-center gap-3 py-3 cursor-pointer">
+            <div onClick={() => setShowCalendar(true)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${task.dueDate ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
               </span>
               <span className={`flex-1 text-[15px] ${task.dueDate ? 'text-[#7f70ff] font-medium' : 'text-[#555]'}`}>{formatDate()}</span>
-              <motion.svg animate={{ rotate: showDatePicker ? 180 : 0 }} className="text-[#a0a0a0] w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></motion.svg>
-            </div>
-            <AnimatePresence>
-              {showDatePicker && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                  <DateTimePicker
-                    initialDate={task.dueDate}
-                    initialTime={task.dueTime}
-                    onSave={(date, time) => { onUpdate(task.id, { dueDate: date, dueTime: time }); setShowDatePicker(false); }}
-                    onClear={() => { onUpdate(task.id, { dueDate: undefined, dueTime: undefined }); setShowDatePicker(false); }}
-                  />
-                </motion.div>
+              {task.dueDate && (
+                <button onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { dueDate: undefined, dueTime: undefined, repeat: undefined }); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#fff5f5] transition-colors">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
               )}
-            </AnimatePresence>
+            </div>
           </div>
         )}
 
@@ -326,6 +319,19 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
           </button>
         )}
       </div>
+
+      {/* Modal flotante de calendario */}
+      <AnimatePresence>
+        {showCalendar && (
+          <CalendarModal
+            initialDate={task.dueDate}
+            initialTime={task.dueTime}
+            initialRepeat={task.repeat}
+            onClose={() => setShowCalendar(false)}
+            onSave={(date, time, repeat) => onUpdate(task.id, { dueDate: date, dueTime: time, repeat })}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

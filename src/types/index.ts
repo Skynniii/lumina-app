@@ -1,9 +1,20 @@
-export type ViewType = 'cronometro' | 'habitos';
+export type ViewType = 'cronometro' | 'habitos' | 'tracker' | 'calendar';
 
 export interface SubTask {
   id: string;
   text: string;
   completed: boolean;
+}
+
+export interface RepeatConfig {
+  enabled: boolean;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval: number;
+  daysOfWeek?: number[];
+  startDate?: string;
+  endType: 'never' | 'on' | 'after';
+  endDate?: string;
+  occurrences?: number;
 }
 
 export interface Task {
@@ -17,6 +28,7 @@ export interface Task {
   isImportant?: boolean;
   subtasks?: SubTask[];
   completedAt?: string;
+  repeat?: RepeatConfig;
 }
 
 export interface TaskList {
