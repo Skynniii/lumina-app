@@ -22,7 +22,6 @@ export function NotesToolbar({ onCommand }: Props) {
   return (
     <div className="flex items-center bg-[#fafafa] border-t border-[#e8e8ed] px-3 py-2 overflow-x-auto no-scrollbar">
       <Btn cmd="formatBlock" value="H1">H1</Btn>
-      <Btn cmd="formatBlock" value="H2">H2</Btn>
       <Divider />
       <Btn cmd="strikeThrough">Aa</Btn>
       <Btn cmd="bold">B</Btn>

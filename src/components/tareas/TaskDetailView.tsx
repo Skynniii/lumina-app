@@ -23,7 +23,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const [showCalendar, setShowCalendar] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
-  const [notesExpanded, setNotesExpanded] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(() => !!task.notes?.replace(/<[^>]*>/g, '').trim());
   const [notesEditing, setNotesEditing] = useState(false);
 
   const titleRef = useRef<HTMLTextAreaElement>(null);
@@ -143,7 +143,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   };
 
   const formatDate = () => {
-    if (!task.dueDate) return 'Seleccionar fecha y hora';
+    if (!task.dueDate) return 'Seleccionar fecha/hora';
     const d = new Date(task.dueDate);
     const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
     let str = d.toLocaleDateString('es-CO', opts);
@@ -254,7 +254,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
                     onInput={handleNotesInput}
                     onFocus={() => { if (!isCompleted) setNotesEditing(true); }}
                     onBlur={() => setNotesEditing(false)}
-                    className="w-full min-h-[100px] pb-4 pt-1 outline-none text-[15px] text-[#444] leading-relaxed [&_h1]:text-[22px] [&_h1]:font-bold [&_h1]:my-2 [&_h2]:text-[18px] [&_h2]:font-semibold [&_h2]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                    className="w-full min-h-[100px] pb-4 pt-1 outline-none text-[15px] text-[#444] leading-relaxed [&_h1]:text-[18px] [&_h1]:font-bold [&_h1]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
                   />
                 </motion.div>
               )}
@@ -279,7 +279,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
               )}
             </div>
             {/* Lista de subtareas - sin sangría */}
-            <div className="pb-4">
+            <div className={hasSubtasks ? "pb-4" : ""}>
               <ul className="list-none p-0 m-0 space-y-2">
                 {task.subtasks?.map((sub) => (
                   <li key={sub.id} className="flex items-center gap-3 py-1">

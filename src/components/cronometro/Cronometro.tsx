@@ -11,7 +11,7 @@ export function Cronometro({ onMenuClick }: Props) {
 
   return (
     <section className="absolute top-0 left-0 w-full h-full p-5 pb-[100px] overflow-y-auto no-scrollbar">
-      <TopBar title="Time tracker" onMenuClick={onMenuClick} />
+      <TopBar title="Timer" onMenuClick={onMenuClick} />
 
       <div className="bg-white p-[30px] rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] flex flex-col items-center gap-[25px] mt-5">
         <div
