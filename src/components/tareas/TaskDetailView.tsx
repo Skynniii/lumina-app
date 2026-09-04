@@ -5,6 +5,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
 import { Sparkles } from './Sparkles';
 import { CalendarModal } from './CalendarModal';
+import { NotesToolbar } from './NotesToolbar';
 
 interface Props {
   task: Task;
@@ -22,16 +23,18 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const [showCalendar, setShowCalendar] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const [notesEditing, setNotesEditing] = useState(false);
 
   const titleRef = useRef<HTMLTextAreaElement>(null);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const notesEditRef = useRef<HTMLDivElement>(null);
   const listMenuRef = useRef<HTMLDivElement>(null);
   const subInputRef = useRef<HTMLInputElement>(null);
 
   const currentList = lists.find((l) => l.id === task.listId) || lists[0];
   const isCompleted = task.completed;
   const hasSubtasks = (task.subtasks?.length || 0) > 0;
-  const hasNotes = !!task.notes?.trim();
+  const hasNotes = !!task.notes?.replace(/<[^>]*>/g, '').trim();
 
   // Auto-resize del título
   useEffect(() => {
@@ -46,13 +49,25 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
     return () => clearTimeout(t);
   }, [task.text, editingTitle]);
 
-  // Auto-resize de notas
+  // Inicializar contentEditable de notas al expandir
   useEffect(() => {
-    if (notesRef.current) {
-      notesRef.current.style.height = 'auto';
-      notesRef.current.style.height = `${notesRef.current.scrollHeight}px`;
+    if (notesExpanded && notesEditRef.current) {
+      notesEditRef.current.innerHTML = task.notes || '';
+      if (!isCompleted) {
+        setTimeout(() => {
+          const el = notesEditRef.current;
+          if (!el) return;
+          el.focus();
+          const sel = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          range.collapse(false);
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }, 100);
+      }
     }
-  }, [task.notes]);
+  }, [notesExpanded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cerrar menú de lista al hacer click fuera
   useEffect(() => {
@@ -91,10 +106,16 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
     onUpdate(task.id, { isImportant: !task.isImportant });
   };
 
-  const handleNotes = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onUpdate(task.id, { notes: e.target.value });
-    e.target.style.height = 'auto';
-    e.target.style.height = `${e.target.scrollHeight}px`;
+  const handleNotesInput = (e: React.FormEvent<HTMLDivElement>) => {
+    onUpdate(task.id, { notes: e.currentTarget.innerHTML });
+  };
+
+  const execCommand = (cmd: string, value?: string) => {
+    notesEditRef.current?.focus();
+    document.execCommand(cmd, false, value);
+    if (notesEditRef.current) {
+      onUpdate(task.id, { notes: notesEditRef.current.innerHTML });
+    }
   };
 
   const handleAddSubtask = () => {
@@ -211,13 +232,33 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
           className={`w-full bg-transparent outline-none resize-none border-none text-[20px] font-bold leading-snug mb-4 ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#2b2b2b]'} ${editingTitle ? 'cursor-text' : 'cursor-pointer'}`}
         />
 
-        {/* Notas */}
+        {/* Notas expandible */}
         {(!isCompleted || hasNotes) && (
-          <div className="flex items-start gap-3 py-3 border-b border-[#f0f0f5]">
-            <span className={`mt-0.5 ${hasNotes ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
-            </span>
-            <textarea ref={notesRef} value={task.notes || ''} onChange={handleNotes} placeholder="Añadir detalles" readOnly={isCompleted} className="w-full bg-transparent outline-none resize-none text-[15px] text-[#444] placeholder-[#a0a0a0] min-h-[24px] overflow-hidden" rows={1} />
+          <div className="border-b border-[#f0f0f5]">
+            <div onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
+              <span className={`transition-colors ${hasNotes ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+              </span>
+              <span className={`flex-1 text-[15px] ${hasNotes ? 'text-[#7f70ff] font-bold' : 'text-[#555]'}`}>
+                {hasNotes ? 'Notas' : 'Añadir notas'}
+              </span>
+              <motion.svg animate={{ rotate: notesExpanded ? 180 : 0 }} className="text-[#a0a0a0] w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></motion.svg>
+            </div>
+            <AnimatePresence>
+              {notesExpanded && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                  <div
+                    ref={notesEditRef}
+                    contentEditable={!isCompleted}
+                    suppressContentEditableWarning
+                    onInput={handleNotesInput}
+                    onFocus={() => { if (!isCompleted) setNotesEditing(true); }}
+                    onBlur={() => setNotesEditing(false)}
+                    className="w-full min-h-[100px] pb-4 pt-1 outline-none text-[15px] text-[#444] leading-relaxed [&_h1]:text-[22px] [&_h1]:font-bold [&_h1]:my-2 [&_h2]:text-[18px] [&_h2]:font-semibold [&_h2]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
@@ -299,6 +340,15 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         {/* Espacio en blanco para futuras funciones */}
         <div className="min-h-[60px]" />
       </div>
+
+      {/* Toolbar de formato cuando se editan notas */}
+      <AnimatePresence>
+        {notesEditing && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <NotesToolbar onCommand={execCommand} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Barra inferior: eliminar + completar */}
       <div className="flex justify-between items-center px-5 py-4 border-t border-[#f0f0f5] shrink-0">
