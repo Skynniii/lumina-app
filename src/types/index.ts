@@ -43,6 +43,17 @@ export interface Activity {
   color: string;
 }
 
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  start: string; // HH:MM (24h)
+  end: string; // HH:MM (24h)
+  color: string;
+  location?: string;
+  notes?: string;
+}
+
 export interface TimeEntry {
   id: string;
   activityId: string;
