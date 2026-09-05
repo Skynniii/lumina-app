@@ -6,6 +6,7 @@ import { playCompleteSound } from '../../utils/sound';
 import { Sparkles } from './Sparkles';
 import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
+import { DatePickerModal } from './DatePickerModal';
 
 interface Props {
   task: Task;
@@ -21,6 +22,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const [sparkle, setSparkle] = useState(false);
   const [showListMenu, setShowListMenu] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [notesExpanded, setNotesExpanded] = useState(() => !!task.notes?.replace(/<[^>]*>/g, '').trim());
@@ -140,6 +142,14 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
 
   const deleteSub = (subId: string) => {
     onUpdate(task.id, { subtasks: (task.subtasks || []).filter((s) => s.id !== subId) });
+  };
+
+  const formatDeadline = () => {
+    if (!task.deadline) return 'Fecha límite';
+    const d = new Date(task.deadline + 'T00:00:00');
+    const opts: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
+    if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString('es-CO', opts);
   };
 
   const formatDate = () => {
@@ -311,6 +321,26 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
           </div>
         )}
 
+        {/* Fecha límite */}
+        {!isCompleted && (
+          <div className="border-b border-[#f0f0f5]">
+            <div onClick={() => setShowDeadlinePicker(true)} className="flex items-center gap-3 py-3 cursor-pointer">
+              <span className={`transition-colors ${task.deadline ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                  <line x1="4" y1="22" x2="4" y2="15" />
+                </svg>
+              </span>
+              <span className={`flex-1 text-[15px] ${task.deadline ? 'text-[#7f70ff] font-medium' : 'text-[#555]'}`}>{formatDeadline()}</span>
+              {task.deadline && (
+                <button onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { deadline: undefined }); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#fff5f5] transition-colors">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Fecha y Hora */}
         {!isCompleted && (
           <div className="border-b border-[#f0f0f5]">
@@ -369,6 +399,15 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
           </button>
         )}
       </div>
+
+      {/* Modal de fecha límite (solo fecha, sin hora) */}
+      {showDeadlinePicker && (
+        <DatePickerModal
+          initialDate={task.deadline}
+          onClose={() => setShowDeadlinePicker(false)}
+          onSave={(d) => onUpdate(task.id, { deadline: d })}
+        />
+      )}
 
       {/* Modal flotante de calendario */}
       <AnimatePresence>

@@ -26,6 +26,7 @@ export interface Task {
   notes?: string;
   dueDate?: string;
   dueTime?: string;
+  deadline?: string;
   isImportant?: boolean;
   subtasks?: SubTask[];
   completedAt?: string;
