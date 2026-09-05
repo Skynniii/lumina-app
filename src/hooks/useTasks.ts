@@ -1,6 +1,18 @@
 import { useState, useCallback } from 'react';
 import { useLocalStorage } from './useLocalStorage';
-import type { Task, TaskList } from '../types';
+import type { Task, TaskList, RepeatConfig } from '../types';
+
+function calculateNextDate(currentDate: string | undefined, repeat: RepeatConfig): string | undefined {
+  if (!currentDate) return undefined;
+  const d = new Date(currentDate + 'T00:00:00');
+  switch (repeat.frequency) {
+    case 'daily': d.setDate(d.getDate() + repeat.interval); break;
+    case 'weekly': d.setDate(d.getDate() + repeat.interval * 7); break;
+    case 'monthly': d.setMonth(d.getMonth() + repeat.interval); break;
+    case 'yearly': d.setFullYear(d.getFullYear() + repeat.interval); break;
+  }
+  return d.toISOString().slice(0, 10);
+}
 
 const SEED_LISTS: TaskList[] = [
   { id: 'general', name: 'General' },
@@ -110,13 +122,27 @@ export function useTasks() {
   }, [setTasks, closeModal]);
 
   const toggleTask = useCallback((taskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== taskId) return t;
-        const completing = !t.completed;
-        return { ...t, completed: completing, completedAt: completing ? new Date().toISOString() : undefined };
-      }),
-    );
+    setTasks((prev) => {
+      const task = prev.find(t => t.id === taskId);
+      if (!task) return prev;
+      const completing = !task.completed;
+      if (completing && task.repeat?.enabled && task.repeat?.hideUntilNextRepeat) {
+        const nextDate = calculateNextDate(task.dueDate, task.repeat);
+        const newTask: Task = {
+          ...task,
+          id: Date.now().toString(),
+          completed: false,
+          completedAt: undefined,
+          dueDate: nextDate,
+          subtasks: task.subtasks?.map(s => ({ ...s, completed: false })),
+        };
+        return [
+          ...prev.map(t => t.id === taskId ? { ...t, completed: true, completedAt: new Date().toISOString() } : t),
+          newTask,
+        ];
+      }
+      return prev.map(t => t.id === taskId ? { ...t, completed: completing, completedAt: completing ? new Date().toISOString() : undefined } : t);
+    });
   }, [setTasks]);
 
   const updateTask = useCallback((taskId: string, updates: Partial<Task>) => {
@@ -136,5 +162,18 @@ export function useTasks() {
     });
   }, [setTasks, closeModal]);
 
-  return { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, deleteTask, modalConfig: modal };
+  const deleteCompletedTasks = useCallback((listId: string) => {
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: '¿Eliminar todas las tareas completadas de esta lista?',
+      onConfirm: () => {
+        setTasks((prev) => prev.filter(t => !(t.listId === listId && t.completed)));
+        closeModal();
+      },
+      onCancel: closeModal,
+    });
+  }, [setTasks, closeModal]);
+
+  return { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, deleteTask, deleteCompletedTasks, modalConfig: modal };
 }

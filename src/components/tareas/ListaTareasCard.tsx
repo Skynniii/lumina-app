@@ -9,12 +9,13 @@ interface Props {
   tasks: Task[];
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
+  onDeleteCompleted: (id: string) => void;
   onToggleTask: (id: string) => void;
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
   onExpandTask: (id: string) => void;
 }
 
-export function ListaTareasCard({ list, tasks, onRename, onDelete, onToggleTask, onUpdateTask, onExpandTask }: Props) {
+export function ListaTareasCard({ list, tasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onExpandTask }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
 
   const active = tasks.filter((t) => !t.completed);
@@ -32,7 +33,7 @@ export function ListaTareasCard({ list, tasks, onRename, onDelete, onToggleTask,
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 14 18 17 21 14" /><line x1="18" y1="7" x2="18" y2="17" /><polyline points="9 10 6 7 3 10" /><line x1="6" y1="17" x2="6" y2="7" /></svg>
               </button>
               <h3 className="flex-1 text-center leading-none m-0 p-0 text-[22px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
-              <DesplegableMenu onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} />
+              <DesplegableMenu onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} />
             </div>
             <hr className="border-t border-[#f0f0f5] m-0 mx-1 flex-none" />
           </div>

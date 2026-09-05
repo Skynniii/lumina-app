@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function TareasDashboard({ onMenuClick }: Props) {
-  const { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, deleteTask, modalConfig } = useTasks();
+  const { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
   const [activeListId, setActiveListId] = useState(lists[0]?.id || '');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -58,6 +58,7 @@ export function TareasDashboard({ onMenuClick }: Props) {
               tasks={tasks.filter((t) => t.listId === list.id)}
               onRename={renameList}
               onDelete={deleteList}
+              onDeleteCompleted={deleteCompletedTasks}
               onToggleTask={toggleTask}
               onUpdateTask={updateTask}
               onExpandTask={setExpandedTaskId}

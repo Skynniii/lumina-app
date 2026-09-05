@@ -41,6 +41,7 @@ export function RepeatModal({ initialRepeat, startDate, onClose, onSave }: Props
   const [endType, setEndType] = useState<RepeatConfig['endType']>(initialRepeat?.endType || 'never');
   const [endDate, setEndDate] = useState(initialRepeat?.endDate || '');
   const [occurrences, setOccurrences] = useState(initialRepeat?.occurrences || 10);
+  const [hideUntilNextRepeat, setHideUntilNextRepeat] = useState(initialRepeat?.hideUntilNextRepeat || false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
@@ -69,6 +70,7 @@ export function RepeatModal({ initialRepeat, startDate, onClose, onSave }: Props
       endType,
       endDate: endType === 'on' ? endDate : undefined,
       occurrences: endType === 'after' ? occurrences : undefined,
+      hideUntilNextRepeat,
     });
     onClose();
   };
@@ -208,6 +210,20 @@ export function RepeatModal({ initialRepeat, startDate, onClose, onSave }: Props
               </label>
             </div>
           </div>
+        </div>
+
+        {/* Ocultar hasta la próxima repetición */}
+        <div className="px-5 pb-5">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <button
+              type="button"
+              onClick={() => setHideUntilNextRepeat(!hideUntilNextRepeat)}
+              className={`relative w-[44px] h-[26px] rounded-full transition-colors ${hideUntilNextRepeat ? 'bg-[#7f70ff]' : 'bg-[#e0e0e0]'}`}
+            >
+              <span className={`absolute top-[3px] w-[20px] h-[20px] bg-white rounded-full shadow-sm transition-transform ${hideUntilNextRepeat ? 'left-[21px]' : 'left-[3px]'}`} />
+            </button>
+            <span className="text-[15px] text-[#444]">Ocultar hasta la próxima repetición</span>
+          </label>
         </div>
 
         {/* Actions */}

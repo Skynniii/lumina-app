@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface Props {
   onRename: () => void;
   onDelete: () => void;
+  onDeleteCompleted: () => void;
 }
 
-export function DesplegableMenu({ onRename, onDelete }: Props) {
+export function DesplegableMenu({ onRename, onDelete, onDeleteCompleted }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -38,6 +39,9 @@ export function DesplegableMenu({ onRename, onDelete }: Props) {
           >
             <button onClick={() => { setOpen(false); onRename(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#555] hover:bg-[#f8f9fa] transition-colors">
               Renombrar lista
+            </button>
+            <button onClick={() => { setOpen(false); onDeleteCompleted(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#555] hover:bg-[#f8f9fa] transition-colors">
+              Eliminar tareas completadas
             </button>
             <button onClick={() => { setOpen(false); onDelete(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#ff4d4d] font-medium hover:bg-[#fff5f5] transition-colors">
               Eliminar lista

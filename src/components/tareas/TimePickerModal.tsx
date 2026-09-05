@@ -15,15 +15,17 @@ type Mode = 'hour' | 'minute';
 const SIZE = 280;
 const CENTER = SIZE / 2;
 const OUTER_R = 112;
-const INNER_R = 76;
-const MINUTE_R = 112;
+const NUM_R = 95;
+const NUM_INNER_R = 65;
+const MINUTE_R = 95;
+const RING_THRESHOLD = 80;
 
 function getPos(value: number, total: number, radius: number) {
   const angle = ((value * (360 / total) - 90) * Math.PI) / 180;
   return { x: CENTER + Math.cos(angle) * radius, y: CENTER + Math.sin(angle) * radius };
 }
 
-export function TimePickerModal({ initialHour, initialMinute, onClose, onSave, onClear }: Props) {
+export function TimePickerModal({ initialHour, initialMinute, onClose, onSave }: Props) {
   const { settings } = useSettings();
   const is12h = settings.timeFormat === '12h';
 
@@ -65,7 +67,7 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave, o
     if (mode === 'hour') {
       const h12 = Math.round(angle / (Math.PI / 6)) % 12;
       if (is12h) return h12 === 0 ? 12 : h12;
-      return dist < (OUTER_R + INNER_R) / 2 ? h12 + 12 : h12;
+      return dist < RING_THRESHOLD ? h12 + 12 : h12;
     }
     return Math.round(angle / (Math.PI / 30)) % 60;
   };
@@ -102,7 +104,7 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave, o
           <circle cx={CENTER} cy={CENTER} r={OUTER_R + 12} fill="#f0f0f5" />
           {Array.from({ length: 12 }, (_, i) => {
             const h = i === 0 ? 12 : i;
-            const pos = getPos(i, 12, OUTER_R);
+            const pos = getPos(i, 12, NUM_R);
             const sel = displayHour12 === h;
             return (
               <g key={h}>
@@ -111,7 +113,7 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave, o
               </g>
             );
           })}
-          {(() => { const p = getPos(displayHour12 % 12, 12, OUTER_R); return <line x1={CENTER} y1={CENTER} x2={p.x} y2={p.y} stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" />; })()}
+          {(() => { const p = getPos(displayHour12 % 12, 12, NUM_R); return <line x1={CENTER} y1={CENTER} x2={p.x} y2={p.y} stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" />; })()}
         </svg>
       );
     }
@@ -120,7 +122,7 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave, o
         onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
         <circle cx={CENTER} cy={CENTER} r={OUTER_R + 12} fill="#f0f0f5" />
         {Array.from({ length: 12 }, (_, i) => {
-          const pos = getPos(i, 12, OUTER_R);
+          const pos = getPos(i, 12, NUM_R);
           const sel = hour24 === i;
           return (
             <g key={`o${i}`}>
@@ -131,7 +133,7 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave, o
         })}
         {Array.from({ length: 12 }, (_, i) => {
           const h = i + 12;
-          const pos = getPos(i, 12, INNER_R);
+          const pos = getPos(i, 12, NUM_INNER_R);
           const sel = hour24 === h;
           return (
             <g key={`i${h}`}>
@@ -140,7 +142,7 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave, o
             </g>
           );
         })}
-        {(() => { const inner = hour24 >= 12; const p = getPos(hour24 % 12, 12, inner ? INNER_R : OUTER_R); return <line x1={CENTER} y1={CENTER} x2={p.x} y2={p.y} stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" />; })()}
+        {(() => { const inner = hour24 >= 12; const p = getPos(hour24 % 12, 12, inner ? NUM_INNER_R : NUM_R); return <line x1={CENTER} y1={CENTER} x2={p.x} y2={p.y} stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" />; })()}
       </svg>
     );
   };
@@ -148,10 +150,10 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave, o
   const renderMinuteClock = () => (
     <svg ref={svgRef} width={SIZE} height={SIZE} className="touch-none select-none"
       onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
-      <circle cx={CENTER} cy={CENTER} r={MINUTE_R + 12} fill="#f0f0f5" />
+      <circle cx={CENTER} cy={CENTER} r={OUTER_R + 12} fill="#f0f0f5" />
       {Array.from({ length: 60 }, (_, i) => {
         const pos = getPos(i, 60, MINUTE_R);
-        return <circle key={`d${i}`} cx={pos.x} cy={pos.y} r={i % 5 === 0 ? 3 : 1.5} fill="#c0c0c0" />;
+        return <circle key={`d${i}`} cx={pos.x} cy={pos.y} r={i % 5 === 0 ? 3 : 1.5} fill="transparent" />;
       })}
       {Array.from({ length: 12 }, (_, i) => {
         const m = i * 5;
@@ -226,7 +228,6 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave, o
                   className="w-[120px] text-center text-[24px] font-bold bg-[#f5f5f7] rounded-xl border-2 border-[#7f70ff] px-3 py-2 text-[#333] outline-none"
                   autoFocus
                 />
-                <span className="text-[13px] text-[#999]">{mode === 'hour' ? (is12h ? 'Horas (1-12)' : 'Horas (0-23)') : 'Minutos (0-59)'}</span>
                 <button onClick={() => setKeyboardMode(false)} className="text-[14px] font-medium text-[#7f70ff] hover:bg-[#f0edff] px-4 py-2 rounded-lg transition-colors">Volver al reloj</button>
               </motion.div>
             ) : (
@@ -238,12 +239,9 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave, o
         </div>
 
         {/* Actions */}
-        <div className="flex justify-between items-center px-5 py-4 border-t border-[#f0f0f5]">
-          <button onClick={() => { onClear(); onClose(); }} className="text-[14px] font-medium text-[#ff4d4d] hover:bg-[#fff5f5] px-3 py-1.5 rounded-lg transition-colors">Borrar hora</button>
-          <div className="flex gap-3">
-            <button onClick={onClose} className="text-[14px] font-medium text-[#888] hover:bg-[#f5f5f7] px-3 py-1.5 rounded-lg transition-colors">Cancelar</button>
-            <button onClick={handleSave} className="text-[14px] font-medium text-[#7f70ff] hover:bg-[#f0edff] px-3 py-1.5 rounded-lg transition-colors">OK</button>
-          </div>
+        <div className="flex justify-end gap-3 px-5 py-4 border-t border-[#f0f0f5]">
+          <button onClick={onClose} className="text-[14px] font-medium text-[#888] hover:bg-[#f5f5f7] px-3 py-1.5 rounded-lg transition-colors">Cancelar</button>
+          <button onClick={handleSave} className="text-[14px] font-medium text-[#7f70ff] hover:bg-[#f0edff] px-3 py-1.5 rounded-lg transition-colors">OK</button>
         </div>
       </motion.div>
     </div>

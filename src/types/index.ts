@@ -15,6 +15,7 @@ export interface RepeatConfig {
   endType: 'never' | 'on' | 'after';
   endDate?: string;
   occurrences?: number;
+  hideUntilNextRepeat?: boolean;
 }
 
 export interface Task {
