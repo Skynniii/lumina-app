@@ -1,34 +1,28 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
-export const useTimer = (duracionObjetivoSegundos: number = 720) => {
-  const [segundosAcumulados, setSegundosAcumulados] = useState(0);
-  const [isActivo, setIsActivo] = useState(false);
-  const timerRef = useRef<number | null>(null);
+export function useTimer(duracionObjetivoSegundos = 720) {
+  const [segundos, setSegundos] = useState(0);
+  const [activo, setActivo] = useState(false);
+  const ref = useRef<number | null>(null);
 
   useEffect(() => {
-    if (isActivo) {
-      timerRef.current = window.setInterval(() => {
-        setSegundosAcumulados((prev) => prev + 1);
-      }, 1000);
-    } else if (timerRef.current !== null) {
-      window.clearInterval(timerRef.current);
-    }
+    if (!activo) return;
+    ref.current = window.setInterval(() => setSegundos((s) => s + 1), 1000);
     return () => {
-      if (timerRef.current !== null) window.clearInterval(timerRef.current);
+      if (ref.current) window.clearInterval(ref.current);
     };
-  }, [isActivo]);
+  }, [activo]);
 
-  const toggleTimer = () => setIsActivo(!isActivo);
+  const toggle = useCallback(() => setActivo((a) => !a), []);
+  const reset = useCallback(() => {
+    setActivo(false);
+    setSegundos(0);
+  }, []);
 
-  const resetTimer = () => {
-    setIsActivo(false);
-    setSegundosAcumulados(0);
-  };
+  const minutos = Math.floor(segundos / 60);
+  const restantes = segundos % 60;
+  const tiempoFormateado = `${String(minutos).padStart(2, '0')}:${String(restantes).padStart(2, '0')}`;
+  const progresoGrados = Math.min(360, (segundos / duracionObjetivoSegundos) * 360);
 
-  const minutos = Math.floor(segundosAcumulados / 60);
-  const segundos = segundosAcumulados % 60;
-  const tiempoFormateado = `${minutos < 10 ? '0' + minutos : minutos}:${segundos < 10 ? '0' + segundos : segundos}`;
-  const progresoGrados = Math.min(360, (segundosAcumulados / duracionObjetivoSegundos) * 360);
-
-  return { tiempoFormateado, progresoGrados, isActivo, toggleTimer, resetTimer };
-};
+  return { tiempoFormateado, progresoGrados, isActivo: activo, toggleTimer: toggle, resetTimer: reset };
+}
