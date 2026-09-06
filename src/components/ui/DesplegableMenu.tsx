@@ -5,9 +5,10 @@ interface Props {
   onRename: () => void;
   onDelete: () => void;
   onDeleteCompleted: () => void;
+  isProtected?: boolean;
 }
 
-export function DesplegableMenu({ onRename, onDelete, onDeleteCompleted }: Props) {
+export function DesplegableMenu({ onRename, onDelete, onDeleteCompleted, isProtected }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -37,15 +38,19 @@ export function DesplegableMenu({ onRename, onDelete, onDeleteCompleted }: Props
             transition={{ duration: 0.15 }}
             className="absolute top-[40px] right-0 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.12)] rounded-lg py-1.5 flex flex-col z-[100] border border-[#eaeaea] min-w-[140px] origin-top-right"
           >
-            <button onClick={() => { setOpen(false); onRename(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#555] hover:bg-[#f8f9fa] transition-colors">
-              Renombrar lista
-            </button>
+            {!isProtected && (
+              <button onClick={() => { setOpen(false); onRename(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#555] hover:bg-[#f8f9fa] transition-colors">
+                Renombrar lista
+              </button>
+            )}
             <button onClick={() => { setOpen(false); onDeleteCompleted(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#555] hover:bg-[#f8f9fa] transition-colors">
               Eliminar tareas completadas
             </button>
-            <button onClick={() => { setOpen(false); onDelete(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#ff4d4d] font-medium hover:bg-[#fff5f5] transition-colors">
-              Eliminar lista
-            </button>
+            {!isProtected && (
+              <button onClick={() => { setOpen(false); onDelete(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#ff4d4d] font-medium hover:bg-[#fff5f5] transition-colors">
+                Eliminar lista
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

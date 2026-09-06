@@ -32,6 +32,8 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const notesEditRef = useRef<HTMLDivElement>(null);
   const listMenuRef = useRef<HTMLDivElement>(null);
   const subInputRef = useRef<HTMLInputElement>(null);
+  // Evita auto-enfocar las notas cuando ya existen al abrir la tarea (solo lectura al abrir)
+  const skipInitialFocus = useRef(notesExpanded);
 
   const currentList = lists.find((l) => l.id === task.listId) || lists[0];
   const isCompleted = task.completed;
@@ -55,7 +57,9 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   useEffect(() => {
     if (notesExpanded && notesEditRef.current) {
       notesEditRef.current.innerHTML = task.notes || '';
-      if (!isCompleted) {
+      const shouldFocus = !isCompleted && !skipInitialFocus.current;
+      skipInitialFocus.current = false;
+      if (shouldFocus) {
         setTimeout(() => {
           const el = notesEditRef.current;
           if (!el) return;
@@ -150,6 +154,17 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
     const opts: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
     if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
     return d.toLocaleDateString('es-CO', opts);
+  };
+
+  const formatCompletedAt = (iso: string) => {
+    const d = new Date(iso);
+    const dateStr = d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+    const h = d.getHours();
+    const min = d.getMinutes();
+    const time = settings.timeFormat === '12h'
+      ? `${h % 12 || 12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'p.m.' : 'a.m.'}`
+      : `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    return `${dateStr}, ${time}`;
   };
 
   const formatDate = () => {
@@ -359,11 +374,16 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         )}
 
         {isCompleted && (
-          <div className="flex items-center gap-3 py-3 border-b border-[#f0f0f5]">
-            <span className="text-[#34c759]">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-            </span>
-            <span className="text-[15px] text-[#34c759] font-medium">Completada</span>
+          <div className="flex flex-col gap-1 py-3 border-b border-[#f0f0f5]">
+            <div className="flex items-center gap-3">
+              <span className="text-[#34c759]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+              </span>
+              <span className="text-[15px] text-[#34c759] font-medium">Completada</span>
+            </div>
+            {task.completedAt && (
+              <span className="text-[12px] text-[#999] pl-[32px]">{formatCompletedAt(task.completedAt)}</span>
+            )}
           </div>
         )}
 

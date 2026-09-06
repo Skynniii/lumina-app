@@ -21,12 +21,18 @@ export function ModalNeuromorfico({ isOpen, type, title, placeholder, defaultVal
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-[9999] backdrop-blur-sm">
+        <motion.div
+          className="fixed inset-0 bg-black/40 flex justify-center items-center z-[9999] backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+        >
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            exit={{ opacity: 0, scale: 0.95, y: 16 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
             className="bg-white rounded-2xl p-6 w-[85%] max-w-[320px] shadow-[0_10px_25px_rgba(0,0,0,0.15)] text-center"
           >
             <p className="text-[16px] text-[#333] mb-5 font-semibold">{title}</p>
@@ -54,7 +60,7 @@ export function ModalNeuromorfico({ isOpen, type, title, placeholder, defaultVal
               </button>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import type { Task, TaskList, RepeatConfig } from '../types';
 
@@ -14,7 +14,10 @@ function calculateNextDate(currentDate: string | undefined, repeat: RepeatConfig
   return d.toISOString().slice(0, 10);
 }
 
+const PRINCIPAL_ID = 'principal';
+
 const SEED_LISTS: TaskList[] = [
+  { id: PRINCIPAL_ID, name: 'Principal' },
   { id: 'general', name: 'General' },
   { id: 'books', name: 'Books' },
   { id: 'movies', name: 'Movies' },
@@ -51,6 +54,14 @@ export function useTasks() {
 
   const closeModal = useCallback(() => setModal((p) => ({ ...p, isOpen: false })), []);
 
+  // Garantiza que la lista "Principal" (por defecto, no borrable ni renombrable) siempre exista,
+  // incluso para usuarios que ya tenían listas guardadas sin ella.
+  useEffect(() => {
+    if (!lists.some((l) => l.id === PRINCIPAL_ID)) {
+      setLists((prev) => [{ id: PRINCIPAL_ID, name: 'Principal' }, ...prev]);
+    }
+  }, [lists, setLists]);
+
   const addList = useCallback(() => {
     setModal({
       isOpen: true,
@@ -70,6 +81,10 @@ export function useTasks() {
   }, [setLists, closeModal]);
 
   const deleteList = useCallback((id: string) => {
+    if (id === PRINCIPAL_ID) {
+      setModal({ isOpen: true, type: 'alert', title: 'La lista Principal no se puede eliminar.', onConfirm: closeModal, onCancel: closeModal });
+      return;
+    }
     if (lists.length <= 1) {
       setModal({ isOpen: true, type: 'alert', title: 'No puedes eliminar la última lista restante.', onConfirm: closeModal, onCancel: closeModal });
       return;
@@ -88,6 +103,10 @@ export function useTasks() {
   }, [lists.length, setLists, setTasks, closeModal]);
 
   const renameList = useCallback((id: string, currentName: string) => {
+    if (id === PRINCIPAL_ID) {
+      setModal({ isOpen: true, type: 'alert', title: 'La lista Principal no se puede renombrar.', onConfirm: closeModal, onCancel: closeModal });
+      return;
+    }
     setModal({
       isOpen: true,
       type: 'prompt',

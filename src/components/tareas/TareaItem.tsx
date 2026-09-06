@@ -122,7 +122,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand }: Props) =>
                 className="text-[16px] font-bold"
                 style={{ color: GOLD }}
               >
-                ¡Completado!
+                ¡Buen trabajo!
               </motion.span>
             </div>
           )}
