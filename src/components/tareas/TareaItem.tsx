@@ -113,35 +113,37 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         <svg className={`absolute w-3.5 h-3.5 text-white pointer-events-none transition-opacity duration-200 ${isChecked ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
       </motion.div>
 
-      {completingImportant ? (
-        <div className="flex-grow flex items-center justify-center relative">
-          <motion.span initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 0.45, ease: 'easeInOut' }} className="text-[15px] leading-snug text-[#333333]">{task.text}</motion.span>
-          {showCompletedText && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <Sparkles />
-              <motion.span initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.3, ease: 'easeOut' }} className="text-[16px] font-bold" style={{ color: GOLD }}>¡Buen trabajo!</motion.span>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex-grow min-w-0 flex flex-col">
-          <span className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'}`}>{task.text}</span>
-          {hasInfo && (
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]">
-              {showDue && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#efeaff] text-[#6b5cdb] text-[12px] font-semibold">
-                  <IconCal /> {dueLabel()}
-                </span>
-              )}
-              {showDeadline && (
-                <span className="flex items-center text-[#d97706]"><IconFlag /></span>
-              )}
-              {hasNotes && <span className="flex items-center"><IconNotes /></span>}
-              {hasSub && <span className="flex items-center"><IconSub /></span>}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="flex-grow min-w-0 flex flex-col relative">
+        <motion.span
+          animate={{ opacity: completingImportant ? 0 : 1 }}
+          transition={{ duration: 0.45, ease: 'easeInOut' }}
+          className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'}`}
+        >{task.text}</motion.span>
+        {hasInfo && (
+          <motion.div
+            animate={{ opacity: completingImportant ? 0 : 1 }}
+            transition={{ duration: 0.45, ease: 'easeInOut' }}
+            className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]"
+          >
+            {showDue && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#efeaff] text-[#6b5cdb] text-[12px] font-semibold">
+                <IconCal /> {dueLabel()}
+              </span>
+            )}
+            {showDeadline && (
+              <span className="flex items-center text-[#d97706]"><IconFlag /></span>
+            )}
+            {hasNotes && <span className="flex items-center"><IconNotes /></span>}
+            {hasSub && <span className="flex items-center"><IconSub /></span>}
+          </motion.div>
+        )}
+        {showCompletedText && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <Sparkles />
+            <motion.span initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.3, ease: 'easeOut' }} className="text-[16px] font-bold" style={{ color: GOLD }}>¡Buen trabajo!</motion.span>
+          </div>
+        )}
+      </div>
 
       {!isCompleted && (
         <motion.button

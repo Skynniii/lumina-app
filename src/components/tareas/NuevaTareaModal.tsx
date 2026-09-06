@@ -1,18 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SelectorFechaHora } from './SelectorFechaHora';
+import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
+import type { RepeatConfig } from '../../types';
 
 interface Props {
   isOpen: boolean;
   listName?: string;
   onClose: () => void;
-  onCreate: (data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean }) => void;
+  onCreate: (data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean; repeat?: RepeatConfig }) => void;
 }
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-function fmtFecha(d?: string, t?: string) {
+function fmtFecha(d?: string, t?: string, repeat?: RepeatConfig) {
   if (!d) return null;
   const [, m, day] = d.split('-').map(Number);
   let s = `${day} ${MONTHS[m - 1]}`;
@@ -21,6 +22,7 @@ function fmtFecha(d?: string, t?: string) {
     const h12 = h % 12 || 12;
     s += ` · ${h12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
   }
+  if (repeat?.enabled) s += ' 🔁';
   return s;
 }
 
@@ -31,6 +33,7 @@ export function NuevaTareaModal({ isOpen, listName, onClose, onCreate }: Props) 
   const [notesEditing, setNotesEditing] = useState(false);
   const [dueDate, setDueDate] = useState<string | undefined>(undefined);
   const [dueTime, setDueTime] = useState<string | undefined>(undefined);
+  const [repeat, setRepeat] = useState<RepeatConfig | undefined>(undefined);
   const [important, setImportant] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const notesRef = useRef<HTMLDivElement>(null);
@@ -38,7 +41,8 @@ export function NuevaTareaModal({ isOpen, listName, onClose, onCreate }: Props) 
   useEffect(() => {
     if (isOpen) {
       setText(''); setNotesHtml(''); setNotesOpen(false); setNotesEditing(false);
-      setDueDate(undefined); setDueTime(undefined); setImportant(false); setShowPicker(false);
+      setDueDate(undefined); setDueTime(undefined); setRepeat(undefined);
+      setImportant(false); setShowPicker(false);
     }
   }, [isOpen]);
 
@@ -59,11 +63,11 @@ export function NuevaTareaModal({ isOpen, listName, onClose, onCreate }: Props) 
     const trimmed = text.trim();
     if (!trimmed) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
-    onCreate({ text: trimmed, notes: notesClean || undefined, dueDate, dueTime, isImportant: important });
+    onCreate({ text: trimmed, notes: notesClean || undefined, dueDate, dueTime, isImportant: important, repeat });
     onClose();
   };
 
-  const fechaLabel = fmtFecha(dueDate, dueTime);
+  const fechaLabel = fmtFecha(dueDate, dueTime, repeat);
   const hasNotes = !!notesHtml.replace(/<[^>]*>/g, '').trim();
 
   const iconBtn = (active: boolean, onClick: () => void, title: string, children: React.ReactNode) => (
@@ -108,7 +112,7 @@ export function NuevaTareaModal({ isOpen, listName, onClose, onCreate }: Props) 
 
               {/* Fila de íconos: fecha/hora, importante, notas */}
               <div className="flex items-center gap-3 mb-2">
-                {iconBtn(!!dueDate, () => setShowPicker(true), 'Fecha y hora',
+                {iconBtn(!!dueDate || !!repeat, () => setShowPicker(true), 'Fecha y hora',
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                 )}
                 {iconBtn(important, () => setImportant((v) => !v), 'Importante',
@@ -153,13 +157,15 @@ export function NuevaTareaModal({ isOpen, listName, onClose, onCreate }: Props) 
               </div>
             </motion.div>
 
-            <SelectorFechaHora
-              isOpen={showPicker}
-              initialDate={dueDate}
-              initialTime={dueTime}
-              onClose={() => setShowPicker(false)}
-              onSave={(d, t) => { setDueDate(d); setDueTime(t); }}
-            />
+            {showPicker && (
+              <CalendarModal
+                initialDate={dueDate}
+                initialTime={dueTime}
+                initialRepeat={repeat}
+                onClose={() => setShowPicker(false)}
+                onSave={(d, t, r) => { setDueDate(d); setDueTime(t); setRepeat(r); }}
+              />
+            )}
           </>
         )}
       </AnimatePresence>
