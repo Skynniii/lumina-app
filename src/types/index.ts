@@ -33,9 +33,12 @@ export interface Task {
   repeat?: RepeatConfig;
 }
 
+export type SortMode = 'custom' | 'date' | 'deadline' | 'recent';
+
 export interface TaskList {
   id: string;
   name: string;
+  sortMode?: SortMode;
 }
 
 export interface Activity {

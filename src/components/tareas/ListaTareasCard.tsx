@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import type { Task, TaskList } from '../../types';
+import { useState, useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import type { Task, TaskList, SortMode } from '../../types';
 import { TareaItem } from './TareaItem';
 import { DesplegableMenu } from '../ui/DesplegableMenu';
+import { SortMenu } from './SortMenu';
 
 interface Props {
   list: TaskList;
@@ -12,15 +13,106 @@ interface Props {
   onDeleteCompleted: (id: string) => void;
   onToggleTask: (id: string) => void;
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
+  onUpdateList: (id: string, updates: Partial<TaskList>) => void;
+  onReorderTask: (taskId: string, direction: 'up' | 'down') => void;
   onExpandTask: (id: string) => void;
   isProtected?: boolean;
 }
 
-export function ListaTareasCard({ list, tasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onExpandTask, isProtected }: Props) {
-  const [showCompleted, setShowCompleted] = useState(false);
+function sortByDateKey(key: 'dueDate' | 'deadline') {
+  return (a: Task, b: Task) => {
+    const av = a[key];
+    const bv = b[key];
+    if (!av && !bv) return 0;
+    if (!av) return 1;
+    if (!bv) return -1;
+    return av.localeCompare(bv);
+  };
+}
 
+function groupLabel(dateKey: string | undefined): string {
+  if (!dateKey) return 'Sin fecha';
+  const d = new Date(dateKey + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  if (diff === 0) return 'Hoy';
+  if (diff === 1) return 'Mañana';
+  if (diff === -1) return 'Ayer';
+  return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+export function ListaTareasCard({
+  list, tasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderTask, onExpandTask, isProtected,
+}: Props) {
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [reorderId, setReorderId] = useState<string | null>(null);
+
+  const sortMode: SortMode = list.sortMode || 'custom';
   const active = tasks.filter((t) => !t.completed);
   const completed = tasks.filter((t) => t.completed);
+
+  const activeSorted = useMemo(() => {
+    const arr = [...active];
+    if (sortMode === 'recent') arr.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+    else if (sortMode === 'date') arr.sort(sortByDateKey('dueDate'));
+    else if (sortMode === 'deadline') arr.sort(sortByDateKey('deadline'));
+    return arr;
+  }, [active, sortMode]);
+
+  const showGroups = sortMode === 'date' || sortMode === 'deadline';
+  const groupKey: 'dueDate' | 'deadline' = sortMode === 'date' ? 'dueDate' : 'deadline';
+  const reorderable = sortMode === 'custom';
+
+  // Construye la lista plana de elementos a renderizar (cabeceras de grupo + tareas)
+  const rendered = showGroups
+    ? activeSorted.flatMap((task, i) => {
+        const key = task[groupKey];
+        const prev = activeSorted[i - 1];
+        const items: React.ReactNode[] = [];
+        if (!prev || prev[groupKey] !== key) {
+          items.push(
+            <motion.li
+              key={`hdr-${key ?? 'none'}`}
+              layout
+              className="list-none pt-3 first:pt-0 pb-1 text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]"
+            >
+              {groupLabel(key)}
+            </motion.li>
+          );
+        }
+        items.push(
+          <TareaItem
+            key={task.id}
+            task={task}
+            sortMode={sortMode}
+            reorderable={reorderable}
+            isReorderSelected={reorderId === task.id}
+            onLongPress={() => setReorderId(task.id)}
+            onMove={(dir) => onReorderTask(task.id, dir)}
+            onExitReorder={() => setReorderId(null)}
+            onToggle={onToggleTask}
+            onUpdate={onUpdateTask}
+            onExpand={onExpandTask}
+          />
+        );
+        return items;
+      })
+    : activeSorted.map((task) => (
+        <TareaItem
+          key={task.id}
+          task={task}
+          sortMode={sortMode}
+          reorderable={reorderable}
+          isReorderSelected={reorderId === task.id}
+          onLongPress={() => setReorderId(task.id)}
+          onMove={(dir) => onReorderTask(task.id, dir)}
+          onExitReorder={() => setReorderId(null)}
+          onToggle={onToggleTask}
+          onUpdate={onUpdateTask}
+          onExpand={onExpandTask}
+        />
+      ));
 
   return (
     <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[130px]" data-lista={list.id}>
@@ -30,9 +122,7 @@ export function ListaTareasCard({ list, tasks, onRename, onDelete, onDeleteCompl
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
           <div className="relative z-20 bg-white rounded-t-[24px] pt-5 px-5">
             <div className="flex justify-between items-center mb-4 flex-none">
-              <button className="w-[36px] h-[36px] flex items-center justify-center text-[#999] hover:bg-[#f5f5f5] rounded-full transition-colors cursor-grab active:cursor-grabbing">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 14 18 17 21 14" /><line x1="18" y1="7" x2="18" y2="17" /><polyline points="9 10 6 7 3 10" /><line x1="6" y1="17" x2="6" y2="7" /></svg>
-              </button>
+              <SortMenu value={sortMode} onChange={(m) => onUpdateList(list.id, { sortMode: m })} />
               <h3 className="flex-1 text-center leading-none m-0 p-0 text-[22px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
               <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} />
             </div>
@@ -44,15 +134,7 @@ export function ListaTareasCard({ list, tasks, onRename, onDelete, onDeleteCompl
         <div className="flex flex-col px-5 pb-5 pt-3">
           <ul className="list-none m-0 p-0 flex flex-col mb-2 relative">
             <AnimatePresence mode="popLayout">
-              {active.map((task) => (
-                <TareaItem
-                  key={task.id}
-                  task={task}
-                  onToggle={onToggleTask}
-                  onUpdate={onUpdateTask}
-                  onExpand={onExpandTask}
-                />
-              ))}
+              {rendered}
             </AnimatePresence>
             {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
           </ul>

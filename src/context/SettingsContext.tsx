@@ -10,6 +10,7 @@ export interface Settings {
   notifications: boolean;
   notifyOnStart: boolean;
   notifyOnEnd: boolean;
+  newTaskPosition: 'first' | 'last';
 }
 
 const DEFAULTS: Settings = {
@@ -21,6 +22,7 @@ const DEFAULTS: Settings = {
   notifications: true,
   notifyOnStart: true,
   notifyOnEnd: true,
+  newTaskPosition: 'first',
 };
 
 interface Ctx {

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLocalStorage } from './useLocalStorage';
+import { useSettings } from '../context/SettingsContext';
 import type { Task, TaskList, RepeatConfig } from '../types';
 
 function calculateNextDate(currentDate: string | undefined, repeat: RepeatConfig): string | undefined {
@@ -48,19 +49,32 @@ const CLOSED: ModalConfig = {
 };
 
 export function useTasks() {
+  const { settings } = useSettings();
   const [lists, setLists] = useLocalStorage<TaskList[]>('lumina_lists', SEED_LISTS);
   const [tasks, setTasks] = useLocalStorage<Task[]>('lumina_tasks', SEED_TASKS);
   const [modal, setModal] = useState<ModalConfig>(CLOSED);
 
   const closeModal = useCallback(() => setModal((p) => ({ ...p, isOpen: false })), []);
 
-  // Garantiza que la lista "Principal" (por defecto, no borrable ni renombrable) siempre exista,
-  // incluso para usuarios que ya tenían listas guardadas sin ella.
+  // Garantiza que la lista "Principal" (por defecto, no borrable ni renombrable) siempre exista
+  // y sea la primera. También elimina duplicados (puede ocurrir por la doble invocación de
+  // efectos en StrictMode). Usa actualización funcional con guarda interna para ser idempotente.
   useEffect(() => {
-    if (!lists.some((l) => l.id === PRINCIPAL_ID)) {
-      setLists((prev) => [{ id: PRINCIPAL_ID, name: 'Principal' }, ...prev]);
-    }
-  }, [lists, setLists]);
+    setLists((prev) => {
+      const seen = new Set<string>();
+      const deduped = prev.filter((l) => {
+        if (seen.has(l.id)) return false;
+        seen.add(l.id);
+        return true;
+      });
+      const hasPrincipal = deduped.some((l) => l.id === PRINCIPAL_ID);
+      const principal = hasPrincipal ? deduped.find((l) => l.id === PRINCIPAL_ID)! : { id: PRINCIPAL_ID, name: 'Principal' as const };
+      const rest = deduped.filter((l) => l.id !== PRINCIPAL_ID);
+      const next = [principal, ...rest];
+      const same = next.length === prev.length && next.every((l, i) => l.id === prev[i]?.id && l.sortMode === prev[i]?.sortMode);
+      return same ? prev : next;
+    });
+  }, [setLists]);
 
   const addList = useCallback(() => {
     setModal({
@@ -132,13 +146,14 @@ export function useTasks() {
       onConfirm: (text) => {
         const trimmed = text.trim();
         if (trimmed) {
-          setTasks((prev) => [{ id: Date.now().toString(), listId, text: trimmed, completed: false, subtasks: [] }, ...prev]);
+          const newTask: Task = { id: Date.now().toString(), listId, text: trimmed, completed: false, subtasks: [] };
+          setTasks((prev) => settings.newTaskPosition === 'last' ? [...prev, newTask] : [newTask, ...prev]);
         }
         closeModal();
       },
       onCancel: closeModal,
     });
-  }, [setTasks, closeModal]);
+  }, [setTasks, closeModal, settings.newTaskPosition]);
 
   const toggleTask = useCallback((taskId: string) => {
     setTasks((prev) => {
@@ -168,6 +183,30 @@ export function useTasks() {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
   }, [setTasks]);
 
+  const updateList = useCallback((id: string, updates: Partial<TaskList>) => {
+    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
+  }, [setLists]);
+
+  // Reordena una tarea dentro de su lista (solo modo personalizado). Intercambia la tarea
+  // con su vecina anterior/siguiente de la misma lista en el array global, preservando el
+  // orden relativo del resto de listas.
+  const reorderTask = useCallback((taskId: string, direction: 'up' | 'down') => {
+    setTasks((prev) => {
+      const idx = prev.findIndex((t) => t.id === taskId);
+      if (idx === -1) return prev;
+      const task = prev[idx];
+      const sameList = prev.map((t, i) => ({ t, i })).filter((x) => x.t.listId === task.listId && !x.t.completed);
+      const pos = sameList.findIndex((x) => x.t.id === taskId);
+      if (pos === -1) return prev;
+      const target = direction === 'up' ? pos - 1 : pos + 1;
+      if (target < 0 || target >= sameList.length) return prev;
+      const targetIdx = sameList[target].i;
+      const next = [...prev];
+      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
+      return next;
+    });
+  }, [setTasks]);
+
   const deleteTask = useCallback((taskId: string) => {
     setModal({
       isOpen: true,
@@ -194,5 +233,5 @@ export function useTasks() {
     });
   }, [setTasks, closeModal]);
 
-  return { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, deleteTask, deleteCompletedTasks, modalConfig: modal };
+  return { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, updateList, reorderTask, deleteTask, deleteCompletedTasks, modalConfig: modal };
 }

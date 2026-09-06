@@ -32,8 +32,9 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const notesEditRef = useRef<HTMLDivElement>(null);
   const listMenuRef = useRef<HTMLDivElement>(null);
   const subInputRef = useRef<HTMLInputElement>(null);
-  // Evita auto-enfocar las notas cuando ya existen al abrir la tarea (solo lectura al abrir)
-  const skipInitialFocus = useRef(notesExpanded);
+  // Controla el foco de las notas: solo se enfoca cuando el usuario despliega manualmente
+  // (transición false→true), no al abrir una tarea que ya tiene notas.
+  const wasExpanded = useRef(notesExpanded);
 
   const currentList = lists.find((l) => l.id === task.listId) || lists[0];
   const isCompleted = task.completed;
@@ -57,9 +58,9 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   useEffect(() => {
     if (notesExpanded && notesEditRef.current) {
       notesEditRef.current.innerHTML = task.notes || '';
-      const shouldFocus = !isCompleted && !skipInitialFocus.current;
-      skipInitialFocus.current = false;
-      if (shouldFocus) {
+      const isUserToggle = !wasExpanded.current;
+      wasExpanded.current = true;
+      if (!isCompleted && isUserToggle) {
         setTimeout(() => {
           const el = notesEditRef.current;
           if (!el) return;
@@ -72,6 +73,8 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
           sel?.addRange(range);
         }, 100);
       }
+    } else if (!notesExpanded) {
+      wasExpanded.current = false;
     }
   }, [notesExpanded]); // eslint-disable-line react-hooks/exhaustive-deps
 
