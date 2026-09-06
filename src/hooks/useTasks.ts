@@ -187,23 +187,23 @@ export function useTasks() {
     setLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
   }, [setLists]);
 
-  // Reordena una tarea dentro de su lista (solo modo personalizado). Intercambia la tarea
-  // con su vecina anterior/siguiente de la misma lista en el array global, preservando el
-  // orden relativo del resto de listas.
-  const reorderTask = useCallback((taskId: string, direction: 'up' | 'down') => {
+  // Reordena las tareas activas de una lista al nuevo orden indicado (modo personalizado,
+  // arrastre). Conserva las posiciones de las tareas completadas y de otras listas.
+  const reorderListTasks = useCallback((listId: string, orderedActive: Task[]) => {
     setTasks((prev) => {
-      const idx = prev.findIndex((t) => t.id === taskId);
-      if (idx === -1) return prev;
-      const task = prev[idx];
-      const sameList = prev.map((t, i) => ({ t, i })).filter((x) => x.t.listId === task.listId && !x.t.completed);
-      const pos = sameList.findIndex((x) => x.t.id === taskId);
-      if (pos === -1) return prev;
-      const target = direction === 'up' ? pos - 1 : pos + 1;
-      if (target < 0 || target >= sameList.length) return prev;
-      const targetIdx = sameList[target].i;
-      const next = [...prev];
-      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
-      return next;
+      // Solo reordena dentro de la lista indicada; conserva el resto intacto.
+      const activeIds = new Set(orderedActive.map((t) => t.id));
+      let i = 0;
+      let changed = false;
+      const next = prev.map((t) => {
+        if (t.listId === listId && activeIds.has(t.id)) {
+          const replacement = orderedActive[i++];
+          if (replacement.id !== t.id) changed = true;
+          return replacement;
+        }
+        return t;
+      });
+      return changed ? next : prev;
     });
   }, [setTasks]);
 
@@ -233,5 +233,5 @@ export function useTasks() {
     });
   }, [setTasks, closeModal]);
 
-  return { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, updateList, reorderTask, deleteTask, deleteCompletedTasks, modalConfig: modal };
+  return { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks, modalConfig: modal };
 }

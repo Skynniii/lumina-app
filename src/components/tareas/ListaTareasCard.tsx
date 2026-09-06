@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Task, TaskList, SortMode } from '../../types';
 import { TareaItem } from './TareaItem';
@@ -14,7 +14,7 @@ interface Props {
   onToggleTask: (id: string) => void;
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
   onUpdateList: (id: string, updates: Partial<TaskList>) => void;
-  onReorderTask: (taskId: string, direction: 'up' | 'down') => void;
+  onReorderListTasks: (listId: string, orderedActive: Task[]) => void;
   onExpandTask: (id: string) => void;
   isProtected?: boolean;
 }
@@ -43,10 +43,18 @@ function groupLabel(dateKey: string | undefined): string {
 }
 
 export function ListaTareasCard({
-  list, tasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderTask, onExpandTask, isProtected,
+  list, tasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderListTasks, onExpandTask, isProtected,
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
-  const [reorderId, setReorderId] = useState<string | null>(null);
+
+  // --- Arrastre (solo modo personalizado) ---
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const ulRef = useRef<HTMLUListElement>(null);
+  const lpTimer = useRef<number | null>(null);
+  const didDrag = useRef(false);
+  const dragOrderRef = useRef<string[] | null>(null);
+  const taskByIdRef = useRef<Record<string, Task>>({});
 
   const sortMode: SortMode = list.sortMode || 'custom';
   const active = tasks.filter((t) => !t.completed);
@@ -64,55 +72,95 @@ export function ListaTareasCard({
   const groupKey: 'dueDate' | 'deadline' = sortMode === 'date' ? 'dueDate' : 'deadline';
   const reorderable = sortMode === 'custom';
 
-  // Construye la lista plana de elementos a renderizar (cabeceras de grupo + tareas)
-  const rendered = showGroups
+  // Mapa id → tarea (para reconstruir el orden al soltar)
+  taskByIdRef.current = Object.fromEntries(active.map((t) => [t.id, t]));
+
+  const baseIds = activeSorted.map((t) => t.id);
+  const orderedIds = dragOrder ?? baseIds;
+  const orderedTasks = orderedIds.map((id) => taskByIdRef.current[id]).filter(Boolean) as Task[];
+
+  const setDragOrderBoth = useCallback((v: string[] | null) => {
+    dragOrderRef.current = v;
+    setDragOrder(v);
+  }, []);
+
+  const onItemPointerDown = useCallback((_e: React.PointerEvent, id: string) => {
+    if (!reorderable) return;
+    if (lpTimer.current) clearTimeout(lpTimer.current);
+    lpTimer.current = window.setTimeout(() => {
+      didDrag.current = true;
+      setDragId(id);
+      setDragOrderBoth(baseIds.slice());
+    }, 450);
+  }, [reorderable, baseIds, setDragOrderBoth]);
+
+  const onItemPointerEnd = useCallback(() => {
+    if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+  }, []);
+
+  const onExpandGuarded = useCallback((id: string) => {
+    if (didDrag.current) { didDrag.current = false; return; }
+    onExpandTask(id);
+  }, [onExpandTask]);
+
+  // Listeners de arrastre activos solo mientras se arrastra
+  useEffect(() => {
+    if (!dragId) return;
+    const onMove = (e: PointerEvent) => {
+      const ul = ulRef.current;
+      if (!ul) return;
+      const els = Array.from(ul.querySelectorAll('[data-task]'));
+      let above = 0;
+      els.forEach((el) => {
+        if (el.getAttribute('data-task') === dragId) return;
+        const r = el.getBoundingClientRect();
+        if (e.clientY > r.top + r.height / 2) above++;
+      });
+      const cur = dragOrderRef.current;
+      if (!cur) return;
+      const idx = cur.indexOf(dragId);
+      if (idx === above) return;
+      const next = cur.slice();
+      next.splice(idx, 1);
+      next.splice(above, 0, dragId);
+      setDragOrderBoth(next);
+    };
+    const onUp = () => {
+      const cur = dragOrderRef.current;
+      if (cur) {
+        const ordered = cur.map((id) => taskByIdRef.current[id]).filter(Boolean) as Task[];
+        if (ordered.length) onReorderListTasks(list.id, ordered);
+      }
+      setDragId(null);
+      setDragOrderBoth(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [dragId, list.id, onReorderListTasks, setDragOrderBoth]);
+
+  // Estructura para modos con agrupación por fecha (cabeceras + tareas)
+  const grouped = showGroups
     ? activeSorted.flatMap((task, i) => {
         const key = task[groupKey];
         const prev = activeSorted[i - 1];
         const items: React.ReactNode[] = [];
         if (!prev || prev[groupKey] !== key) {
           items.push(
-            <motion.li
-              key={`hdr-${key ?? 'none'}`}
-              layout
-              className="list-none pt-3 first:pt-0 pb-1 text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]"
-            >
+            <motion.li key={`hdr-${key ?? 'none'}`} layout className="list-none pt-3 first:pt-0 pb-1 text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]">
               {groupLabel(key)}
             </motion.li>
           );
         }
         items.push(
-          <TareaItem
-            key={task.id}
-            task={task}
-            sortMode={sortMode}
-            reorderable={reorderable}
-            isReorderSelected={reorderId === task.id}
-            onLongPress={() => setReorderId(task.id)}
-            onMove={(dir) => onReorderTask(task.id, dir)}
-            onExitReorder={() => setReorderId(null)}
-            onToggle={onToggleTask}
-            onUpdate={onUpdateTask}
-            onExpand={onExpandTask}
-          />
+          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
         );
         return items;
       })
-    : activeSorted.map((task) => (
-        <TareaItem
-          key={task.id}
-          task={task}
-          sortMode={sortMode}
-          reorderable={reorderable}
-          isReorderSelected={reorderId === task.id}
-          onLongPress={() => setReorderId(task.id)}
-          onMove={(dir) => onReorderTask(task.id, dir)}
-          onExitReorder={() => setReorderId(null)}
-          onToggle={onToggleTask}
-          onUpdate={onUpdateTask}
-          onExpand={onExpandTask}
-        />
-      ));
+    : null;
 
   return (
     <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[130px]" data-lista={list.id}>
@@ -132,12 +180,32 @@ export function ListaTareasCard({
 
         {/* Lista de tareas activas */}
         <div className="flex flex-col px-5 pb-5 pt-3">
-          <ul className="list-none m-0 p-0 flex flex-col mb-2 relative">
-            <AnimatePresence mode="popLayout">
-              {rendered}
-            </AnimatePresence>
-            {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
-          </ul>
+          {reorderable ? (
+            <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
+              {orderedTasks.map((task) => (
+                <TareaItem
+                  key={task.id}
+                  task={task}
+                  sortMode={sortMode}
+                  reorderable
+                  dragId={dragId}
+                  onDragPointerDown={onItemPointerDown}
+                  onDragPointerEnd={onItemPointerEnd}
+                  onToggle={onToggleTask}
+                  onUpdate={onUpdateTask}
+                  onExpand={onExpandGuarded}
+                />
+              ))}
+              {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
+            </ul>
+          ) : (
+            <ul className="list-none m-0 p-0 flex flex-col mb-2 relative">
+              <AnimatePresence mode="popLayout">
+                {grouped}
+              </AnimatePresence>
+              {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
+            </ul>
+          )}
 
           {/* Sección completadas */}
           <div className="pt-4">
@@ -154,13 +222,7 @@ export function ListaTareasCard({
                 <ul className="list-none m-0 mt-3 px-1 flex flex-col relative">
                   <AnimatePresence mode="popLayout">
                     {completed.map((task) => (
-                      <TareaItem
-                        key={task.id}
-                        task={task}
-                        onToggle={onToggleTask}
-                        onUpdate={onUpdateTask}
-                        onExpand={onExpandTask}
-                      />
+                      <TareaItem key={task.id} task={task} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
                     ))}
                   </AnimatePresence>
                 </ul>

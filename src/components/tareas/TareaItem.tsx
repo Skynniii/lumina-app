@@ -12,15 +12,23 @@ interface Props {
   onExpand: (id: string) => void;
   sortMode?: SortMode;
   reorderable?: boolean;
-  isReorderSelected?: boolean;
-  onLongPress?: () => void;
-  onMove?: (dir: 'up' | 'down') => void;
-  onExitReorder?: () => void;
+  dragId?: string | null;
+  onDragPointerDown?: (e: React.PointerEvent, id: string) => void;
+  onDragPointerEnd?: () => void;
 }
 
-const GOLD = '#eab308'; // amarillo fuerte que resalta sobre el fondo #fff9e6 de la tarjeta
+const GOLD = '#eab308';
 
-export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, isReorderSelected, onLongPress, onMove, onExitReorder }: Props) => {
+const IconNotes = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>);
+const IconSub = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>);
+const IconFlag = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>);
+const IconCal = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>);
+
+function shortDate(d: string) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+}
+
+export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, onDragPointerDown, onDragPointerEnd }: Props) => {
   const { settings } = useSettings();
   const [optimistic, setOptimistic] = useState(false);
   const [sparkle, setSparkle] = useState(false);
@@ -28,27 +36,32 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const [showCompletedText, setShowCompletedText] = useState(false);
   const [rectSize, setRectSize] = useState<{ w: number; h: number } | null>(null);
   const liRef = useRef<HTMLLIElement>(null);
-  const longPressTimer = useRef<number | null>(null);
-  const longPressFired = useRef(false);
 
   const isCompleted = task.completed;
   const isChecked = task.completed || optimistic;
+  const isDragged = dragId === task.id;
 
-  // Chip de fecha según el orden activo (detallito en la tarjeta)
-  const chipDate = sortMode === 'date' ? task.dueDate : sortMode === 'deadline' ? task.deadline : undefined;
-  const showChip = !!chipDate;
-  const chipLabel = chipDate ? new Date(chipDate + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : '';
+  // Información adicional para mostrar en la tarjeta
+  const hasNotes = !!task.notes?.replace(/<[^>]*>/g, '').trim();
+  const subTotal = task.subtasks?.length || 0;
+  const subDone = task.subtasks?.filter((s) => s.completed).length || 0;
+  const hasSub = subTotal > 0;
+  // Oculta la fecha que ya se muestra en la cabecera del grupo al ordenar por fecha/fecha límite
+  const showDeadline = !!task.deadline && sortMode !== 'deadline';
+  const showDue = !!task.dueDate && sortMode !== 'date';
+  const hasInfo = hasNotes || hasSub || showDeadline || showDue;
 
-  const startLongPress = () => {
-    if (!reorderable || isCompleted) return;
-    longPressFired.current = false;
-    longPressTimer.current = window.setTimeout(() => {
-      longPressFired.current = true;
-      onLongPress?.();
-    }, 450);
-  };
-  const cancelLongPress = () => {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  const dueLabel = () => {
+    if (!task.dueDate) return '';
+    const d = new Date(task.dueDate);
+    let s = d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+    if (task.dueTime) {
+      const [h, min] = task.dueTime.split(':').map(Number);
+      const h12 = h % 12 || 12;
+      s += ` · ${h12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+    }
+    if (task.repeat?.enabled) s += ' 🔁';
+    return s;
   };
 
   const handleComplete = (e: React.MouseEvent | React.ChangeEvent) => {
@@ -65,11 +78,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         setOptimistic(true);
         setSparkle(true);
         if (settings.sounds) playCompleteSound();
-        setTimeout(() => {
-          onToggle(task.id);
-          setSparkle(false);
-          setOptimistic(false);
-        }, 450);
+        setTimeout(() => { onToggle(task.id); setSparkle(false); setOptimistic(false); }, 450);
       }
     } else {
       onToggle(task.id);
@@ -81,28 +90,8 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
     onUpdate(task.id, { isImportant: !task.isImportant });
   };
 
-  return (
-    <motion.li
-      ref={liRef}
-      layout
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0, scale: isReorderSelected ? 1.04 : 1 }}
-      exit={{ opacity: 0, x: -30, height: 0, marginBottom: 0, overflow: 'hidden' }}
-      transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className={`relative flex items-center py-3.5 px-2 w-full select-none group min-h-[50px] rounded-[16px] my-1 transition-colors ${
-        task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''
-      } ${isReorderSelected ? 'bg-[#f0edff] ring-2 ring-[#7f70ff] cursor-grabbing' : 'cursor-pointer'}`}
-      onPointerDown={startLongPress}
-      onPointerUp={cancelLongPress}
-      onPointerLeave={cancelLongPress}
-      onClick={() => {
-        if (longPressFired.current) { longPressFired.current = false; return; }
-        if (isReorderSelected) { onExitReorder?.(); return; }
-        onExpand(task.id);
-      }}
-    >
-      {/* Líneas que rellenan el borde: nacen en el centro del lado izquierdo, suben/bajan,
-          rodean las esquinas redondeadas y se encuentran en el centro del lado derecho */}
+  const inner = (
+    <>
       {completingImportant && rectSize && (() => {
         const { w, h } = rectSize;
         const r = Math.min(16, w / 2, h / 2);
@@ -111,17 +100,12 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         const pathDown = `M 0,${half} L 0,${h - r} A ${r},${r} 0 0 0 ${r},${h} L ${w - r},${h} A ${r},${r} 0 0 0 ${w},${h - r} L ${w},${half}`;
         return (
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox={`0 0 ${w} ${h}`} fill="none">
-            <motion.path d={pathUp} stroke={GOLD} strokeWidth={2.5} strokeLinecap="round"
-              initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-              transition={{ duration: 0.75, ease: 'easeInOut' }} />
-            <motion.path d={pathDown} stroke={GOLD} strokeWidth={2.5} strokeLinecap="round"
-              initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-              transition={{ duration: 0.75, ease: 'easeInOut' }} />
+            <motion.path d={pathUp} stroke={GOLD} strokeWidth={2.5} strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.75, ease: 'easeInOut' }} />
+            <motion.path d={pathDown} stroke={GOLD} strokeWidth={2.5} strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.75, ease: 'easeInOut' }} />
           </svg>
         );
       })()}
 
-      {/* Checkbox */}
       <motion.div
         className="relative flex items-center justify-center w-[22px] h-[22px] flex-none mr-3.5"
         onClick={handleComplete}
@@ -133,69 +117,65 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         <svg className={`absolute w-3.5 h-3.5 text-white pointer-events-none transition-opacity duration-200 ${isChecked ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
       </motion.div>
 
-      {/* Title or ¡Completado! */}
       {completingImportant ? (
         <div className="flex-grow flex items-center justify-center relative">
-          <motion.span
-            initial={{ opacity: 1 }}
-            animate={{ opacity: 0 }}
-            transition={{ duration: 0.45, ease: 'easeInOut' }}
-            className="text-[15px] leading-snug text-[#333333]"
-          >
-            {task.text}
-          </motion.span>
+          <motion.span initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 0.45, ease: 'easeInOut' }} className="text-[15px] leading-snug text-[#333333]">{task.text}</motion.span>
           {showCompletedText && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <Sparkles />
-              <motion.span
-                initial={{ scale: 0.7, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="text-[16px] font-bold"
-                style={{ color: GOLD }}
-              >
-                ¡Buen trabajo!
-              </motion.span>
+              <motion.span initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.3, ease: 'easeOut' }} className="text-[16px] font-bold" style={{ color: GOLD }}>¡Buen trabajo!</motion.span>
             </div>
           )}
         </div>
       ) : (
-        <span className={`flex-grow text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'}`}>
-          {task.text}
-          {showChip && (
-            <span className="ml-2 inline-block align-middle text-[10px] text-[#999] bg-[#f0f0f5] px-2 py-0.5 rounded-full whitespace-nowrap">
-              {chipLabel}
-            </span>
+        <div className="flex-grow min-w-0 flex flex-col">
+          <span className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'}`}>{task.text}</span>
+          {hasInfo && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[11px] text-[#999]">
+              {hasNotes && <span className="flex items-center gap-1"><IconNotes /> Notas</span>}
+              {hasSub && <span className="flex items-center gap-1"><IconSub /> {subDone}/{subTotal}</span>}
+              {showDeadline && <span className="flex items-center gap-1"><IconFlag /> {shortDate(task.deadline!)}</span>}
+              {showDue && <span className="flex items-center gap-1"><IconCal /> {dueLabel()}</span>}
+            </div>
           )}
-        </span>
+        </div>
       )}
 
-      {/* Reorden (modo personalizado) o estrella importante */}
-      {isReorderSelected ? (
-        <div className="flex-none ml-2 flex items-center gap-0.5">
-          <button onClick={(e) => { e.stopPropagation(); onMove?.('up'); }} className="p-1.5 rounded-full hover:bg-black/5 transition-colors text-[#7f70ff]">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onMove?.('down'); }} className="p-1.5 rounded-full hover:bg-black/5 transition-colors text-[#7f70ff]">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onExitReorder?.(); }} className="p-1.5 rounded-full hover:bg-black/5 transition-colors text-[#34c759]">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-          </button>
-        </div>
-      ) : !isCompleted && (
+      {!isCompleted && (
         <motion.button
           onClick={handleImportant}
           animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
           transition={{ duration: 0.45, ease: 'easeInOut' }}
           style={{ pointerEvents: completingImportant ? 'none' : undefined }}
-          className="flex-none p-2 ml-2 cursor-pointer rounded-full hover:bg-black/5 transition-colors"
+          className="flex-none p-2 ml-2 cursor-pointer rounded-full hover:bg-black/5 transition-colors self-center"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? '#ffcc00' : 'none'} stroke={task.isImportant ? '#ffcc00' : '#d1d1d6'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-300">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
         </motion.button>
       )}
+    </>
+  );
+
+  const baseClass = `relative flex items-center py-3.5 px-2 w-full select-none group min-h-[50px] rounded-[16px] my-1 transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
+
+  return (
+    <motion.li
+      ref={liRef}
+      layout={!isDragged}
+      data-task={task.id}
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0, scale: isDragged ? 1.03 : 1 }}
+      exit={{ opacity: 0, x: -30, height: 0, marginBottom: 0, overflow: 'hidden' }}
+      transition={{ duration: 0.3, ease: 'easeInOut' }}
+      onPointerDown={reorderable && !isCompleted ? (e) => onDragPointerDown?.(e, task.id) : undefined}
+      onPointerUp={reorderable ? () => onDragPointerEnd?.() : undefined}
+      onPointerLeave={reorderable ? () => onDragPointerEnd?.() : undefined}
+      onClick={() => onExpand(task.id)}
+      className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-grab' : 'cursor-pointer'}`}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'none' : 'auto' }}
+    >
+      {inner}
     </motion.li>
   );
 });
