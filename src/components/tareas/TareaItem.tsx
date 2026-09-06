@@ -25,10 +25,6 @@ const IconSub = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="non
 const IconFlag = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>);
 const IconCal = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>);
 
-function shortDate(d: string) {
-  return new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
-}
-
 export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, onDragPointerDown, onDragPointerEnd }: Props) => {
   const { settings } = useSettings();
   const [optimistic, setOptimistic] = useState(false);
@@ -99,7 +95,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         const pathUp = `M 0,${half} L 0,${r} A ${r},${r} 0 0 1 ${r},0 L ${w - r},0 A ${r},${r} 0 0 1 ${w},${r} L ${w},${half}`;
         const pathDown = `M 0,${half} L 0,${h - r} A ${r},${r} 0 0 0 ${r},${h} L ${w - r},${h} A ${r},${r} 0 0 0 ${w},${h - r} L ${w},${half}`;
         return (
-          <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox={`0 0 ${w} ${h}`} fill="none">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible" style={{ overflow: 'visible' }} viewBox={`0 0 ${w} ${h}`} fill="none">
             <motion.path d={pathUp} stroke={GOLD} strokeWidth={2.5} strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.75, ease: 'easeInOut' }} />
             <motion.path d={pathDown} stroke={GOLD} strokeWidth={2.5} strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.75, ease: 'easeInOut' }} />
           </svg>
@@ -138,9 +134,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
                 </span>
               )}
               {showDeadline && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#fff3e0] text-[#d97706] text-[12px] font-semibold">
-                  <IconFlag /> {shortDate(task.deadline!)}
-                </span>
+                <span className="flex items-center text-[#d97706]"><IconFlag /></span>
               )}
               {hasNotes && <span className="flex items-center"><IconNotes /></span>}
               {hasSub && <span className="flex items-center"><IconSub /></span>}
