@@ -30,6 +30,14 @@ function sortByDateKey(key: 'dueDate' | 'deadline') {
   };
 }
 
+function isOverdue(dk: string | undefined): boolean {
+  if (!dk) return false;
+  const d = new Date(dk + 'T00:00:00');
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return d < t;
+}
+
 function groupLabel(dateKey: string | undefined): string {
   if (!dateKey) return 'Sin fecha';
   const d = new Date(dateKey + 'T00:00:00');
@@ -47,14 +55,16 @@ export function ListaTareasCard({
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
 
-  // --- Arrastre (solo modo personalizado) ---
+  // --- Arrastre fluido (solo modo personalizado) ---
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const [overlayY, setOverlayY] = useState(0);
   const ulRef = useRef<HTMLUListElement>(null);
   const lpTimer = useRef<number | null>(null);
   const didDrag = useRef(false);
   const dragOrderRef = useRef<string[] | null>(null);
   const taskByIdRef = useRef<Record<string, Task>>({});
+  const drag = useRef({ startY: 0, height: 0, startTop: 0, ulTop: 0, id: '', others: [] as string[] });
 
   const sortMode: SortMode = list.sortMode || 'custom';
   const active = tasks.filter((t) => !t.completed);
@@ -72,25 +82,30 @@ export function ListaTareasCard({
   const groupKey: 'dueDate' | 'deadline' = sortMode === 'date' ? 'dueDate' : 'deadline';
   const reorderable = sortMode === 'custom';
 
-  // Mapa id → tarea (para reconstruir el orden al soltar)
   taskByIdRef.current = Object.fromEntries(active.map((t) => [t.id, t]));
 
   const baseIds = activeSorted.map((t) => t.id);
   const orderedIds = dragOrder ?? baseIds;
-  const orderedTasks = orderedIds.map((id) => taskByIdRef.current[id]).filter(Boolean) as Task[];
 
   const setDragOrderBoth = useCallback((v: string[] | null) => {
     dragOrderRef.current = v;
     setDragOrder(v);
   }, []);
 
-  const onItemPointerDown = useCallback((_e: React.PointerEvent, id: string) => {
+  const onItemPointerDown = useCallback((e: React.PointerEvent, id: string) => {
     if (!reorderable) return;
     if (lpTimer.current) clearTimeout(lpTimer.current);
+    const li = e.currentTarget as HTMLElement;
+    const r = li.getBoundingClientRect();
+    const ulR = ulRef.current?.getBoundingClientRect();
+    if (r && ulR) {
+      drag.current = { startY: e.clientY, height: r.height, startTop: r.top, ulTop: ulR.top, id, others: baseIds.filter((x) => x !== id) };
+    }
     lpTimer.current = window.setTimeout(() => {
       didDrag.current = true;
       setDragId(id);
       setDragOrderBoth(baseIds.slice());
+      setOverlayY(drag.current.startTop - drag.current.ulTop);
     }, 450);
   }, [reorderable, baseIds, setDragOrderBoth]);
 
@@ -103,26 +118,21 @@ export function ListaTareasCard({
     onExpandTask(id);
   }, [onExpandTask]);
 
-  // Listeners de arrastre activos solo mientras se arrastra
   useEffect(() => {
     if (!dragId) return;
     const onMove = (e: PointerEvent) => {
+      const d = drag.current;
+      setOverlayY((d.startTop - d.ulTop) + (e.clientY - d.startY));
       const ul = ulRef.current;
       if (!ul) return;
       const els = Array.from(ul.querySelectorAll('[data-task]'));
       let above = 0;
       els.forEach((el) => {
-        if (el.getAttribute('data-task') === dragId) return;
+        if (el.getAttribute('data-task') === d.id) return;
         const r = el.getBoundingClientRect();
         if (e.clientY > r.top + r.height / 2) above++;
       });
-      const cur = dragOrderRef.current;
-      if (!cur) return;
-      const idx = cur.indexOf(dragId);
-      if (idx === above) return;
-      const next = cur.slice();
-      next.splice(idx, 1);
-      next.splice(above, 0, dragId);
+      const next = [...d.others.slice(0, above), d.id, ...d.others.slice(above)];
       setDragOrderBoth(next);
     };
     const onUp = () => {
@@ -149,9 +159,14 @@ export function ListaTareasCard({
         const prev = activeSorted[i - 1];
         const items: React.ReactNode[] = [];
         if (!prev || prev[groupKey] !== key) {
+          const overdue = isOverdue(key);
           items.push(
-            <motion.li key={`hdr-${key ?? 'none'}`} layout className="list-none pt-3 first:pt-0 pb-1 text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]">
-              {groupLabel(key)}
+            <motion.li
+              key={`hdr-${key ?? 'none'}`}
+              layout
+              className={`list-none pt-3 first:pt-0 pb-1 text-[12px] font-bold uppercase tracking-wider ${overdue ? 'text-[#e53935]' : 'text-[#a0a0a0]'}`}
+            >
+              {groupLabel(key)}{overdue ? ' · Atrasado' : ''}
             </motion.li>
           );
         }
@@ -161,6 +176,8 @@ export function ListaTareasCard({
         return items;
       })
     : null;
+
+  const draggedTask = dragId ? taskByIdRef.current[dragId] : null;
 
   return (
     <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[130px]" data-lista={list.id}>
@@ -182,21 +199,30 @@ export function ListaTareasCard({
         <div className="flex flex-col px-5 pb-5 pt-3">
           {reorderable ? (
             <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
-              {orderedTasks.map((task) => (
-                <TareaItem
-                  key={task.id}
-                  task={task}
-                  sortMode={sortMode}
-                  reorderable
-                  dragId={dragId}
-                  onDragPointerDown={onItemPointerDown}
-                  onDragPointerEnd={onItemPointerEnd}
-                  onToggle={onToggleTask}
-                  onUpdate={onUpdateTask}
-                  onExpand={onExpandGuarded}
-                />
-              ))}
-              {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
+              {orderedIds.map((id) =>
+                id === dragId ? (
+                  <div key={id} data-placeholder style={{ height: drag.current.height }} className="my-1 rounded-[16px]" />
+                ) : (
+                  <TareaItem
+                    key={id}
+                    task={taskByIdRef.current[id]}
+                    sortMode={sortMode}
+                    reorderable
+                    dragId={dragId}
+                    onDragPointerDown={onItemPointerDown}
+                    onDragPointerEnd={onItemPointerEnd}
+                    onToggle={onToggleTask}
+                    onUpdate={onUpdateTask}
+                    onExpand={onExpandGuarded}
+                  />
+                )
+              )}
+              {active.length === 0 && !dragId && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
+              {draggedTask && (
+                <div style={{ position: 'absolute', top: overlayY, left: 0, right: 0, zIndex: 50, pointerEvents: 'none' }}>
+                  <TareaItem task={draggedTask} sortMode={sortMode} dragId={dragId} overlay onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandGuarded} />
+                </div>
+              )}
             </ul>
           ) : (
             <ul className="list-none m-0 p-0 flex flex-col mb-2 relative">

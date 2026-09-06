@@ -6,15 +6,17 @@ import { NavTopHeader } from './nav-top/NavTopHeader';
 import { ListaTareasCard } from './ListaTareasCard';
 import { TaskDetailView } from './TaskDetailView';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
+import { NuevaTareaModal } from './NuevaTareaModal';
 
 interface Props {
   onMenuClick: () => void;
 }
 
 export function TareasDashboard({ onMenuClick }: Props) {
-  const { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
+  const { lists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
   const [activeListId, setActiveListId] = useState(lists[0]?.id || '');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [showNewTask, setShowNewTask] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const clicking = useRef(false);
 
@@ -87,12 +89,19 @@ export function TareasDashboard({ onMenuClick }: Props) {
 
       {!expandedTaskId && (
         <button
-          onClick={() => addTask(activeListId)}
+          onClick={() => setShowNewTask(true)}
           className="fixed bottom-[85px] left-1/2 -translate-x-1/2 w-[55px] h-[55px] bg-white border-none rounded-2xl text-[28px] text-[#7f70ff] cursor-pointer flex items-center justify-center shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#fff] z-10 active:shadow-[inset_2px_2px_5px_#e6e6e6]"
         >
           +
         </button>
       )}
+
+      <NuevaTareaModal
+        isOpen={showNewTask}
+        listName={lists.find((l) => l.id === activeListId)?.name}
+        onClose={() => setShowNewTask(false)}
+        onCreate={(data) => addTaskWithData(activeListId, data)}
+      />
 
       <ModalNeuromorfico {...modalConfig} />
     </section>
