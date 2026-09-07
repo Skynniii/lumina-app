@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useLocalStorage } from './useLocalStorage';
+import { useUserStorage } from './useUserStorage';
 import type { CalendarEvent } from '../types';
 
 export const EVENT_COLORS = ['#4d7cfe', '#7f70ff', '#9d51ff', '#34c77b', '#00b8a9', '#ffa94d', '#ff6b81', '#f26f5b'];
@@ -26,7 +26,7 @@ function seed(): CalendarEvent[] {
 }
 
 export function useCalendarEvents() {
-  const [events, setEvents] = useLocalStorage<CalendarEvent[]>('calendar-events', seed());
+  const [events, setEvents] = useUserStorage<CalendarEvent[]>('calendar-events', seed());
 
   const addEvent = useCallback((e: Omit<CalendarEvent, 'id'>): string => {
     const id = `ev-${Date.now()}`;

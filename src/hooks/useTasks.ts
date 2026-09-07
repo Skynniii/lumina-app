@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useLocalStorage } from './useLocalStorage';
+import { useUserStorage } from './useUserStorage';
 import { useSettings } from '../context/SettingsContext';
 import type { Task, TaskList, RepeatConfig } from '../types';
 
@@ -50,8 +50,8 @@ const CLOSED: ModalConfig = {
 
 export function useTasks() {
   const { settings } = useSettings();
-  const [lists, setLists] = useLocalStorage<TaskList[]>('lumina_lists', SEED_LISTS);
-  const [tasks, setTasks] = useLocalStorage<Task[]>('lumina_tasks', SEED_TASKS);
+  const [lists, setLists] = useUserStorage<TaskList[]>('lumina_lists', SEED_LISTS);
+  const [tasks, setTasks] = useUserStorage<Task[]>('lumina_tasks', SEED_TASKS);
   const [modal, setModal] = useState<ModalConfig>(CLOSED);
 
   const closeModal = useCallback(() => setModal((p) => ({ ...p, isOpen: false })), []);

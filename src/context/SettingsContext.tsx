@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useUserStorage } from '../hooks/useUserStorage';
 
 export interface Settings {
   theme: 'light' | 'dark';
@@ -33,7 +33,7 @@ interface Ctx {
 const SettingsContext = createContext<Ctx>({ settings: DEFAULTS, update: () => {} });
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useLocalStorage<Settings>('lumina_settings', DEFAULTS);
+  const [settings, setSettings] = useUserStorage<Settings>('lumina_settings', DEFAULTS);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', settings.accentColor);

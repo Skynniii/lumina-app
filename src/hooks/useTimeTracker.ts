@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLocalStorage } from './useLocalStorage';
+import { useUserStorage } from './useUserStorage';
 import type { Activity, TimeEntry } from '../types';
 
 /** Estado del contador en curso. startedAt === null significa pausado. */
@@ -47,10 +47,10 @@ export function dayLabel(dateKey: string): string {
 }
 
 export function useTimeTracker() {
-  const [activities, setActivities] = useLocalStorage<Activity[]>('tracker-activities', DEFAULT_ACTIVITIES);
-  const [entries, setEntries] = useLocalStorage<TimeEntry[]>('tracker-entries', []);
-  const [running, setRunning] = useLocalStorage<RunningTimer | null>('tracker-running', null);
-  const [draft, setDraft] = useLocalStorage<TrackerDraft>('tracker-draft', {
+  const [activities, setActivities] = useUserStorage<Activity[]>('tracker-activities', DEFAULT_ACTIVITIES);
+  const [entries, setEntries] = useUserStorage<TimeEntry[]>('tracker-entries', []);
+  const [running, setRunning] = useUserStorage<RunningTimer | null>('tracker-running', null);
+  const [draft, setDraft] = useUserStorage<TrackerDraft>('tracker-draft', {
     activityId: DEFAULT_ACTIVITIES[0].id,
     description: '',
   });
