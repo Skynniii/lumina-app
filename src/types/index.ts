@@ -39,6 +39,9 @@ export interface TaskList {
   id: string;
   name: string;
   sortMode?: SortMode;
+  // Solo para la lista "Principal" (orden por fecha): id de la lista cuyas
+  // tareas se reflejan en la sección "Hoy".
+  hoyListId?: string;
 }
 
 export interface Activity {

@@ -61,6 +61,8 @@ export function TareasDashboard({ onMenuClick, onOpenAccount }: Props) {
                 key={list.id}
                 lists={lists}
                 tasks={tasks}
+                principalList={list}
+                onUpdateList={updateList}
                 onToggleTask={toggleTask}
                 onUpdateTask={updateTask}
                 onExpandTask={setExpandedTaskId}

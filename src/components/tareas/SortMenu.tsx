@@ -5,6 +5,7 @@ import type { SortMode } from '../../types';
 interface Props {
   value: SortMode;
   onChange: (mode: SortMode) => void;
+  options?: { value: SortMode; label: string }[];
 }
 
 const OPTIONS: { value: SortMode; label: string }[] = [
@@ -14,7 +15,7 @@ const OPTIONS: { value: SortMode; label: string }[] = [
   { value: 'recent', label: 'Agregadas recientemente' },
 ];
 
-export function SortMenu({ value, onChange }: Props) {
+export function SortMenu({ value, onChange, options = OPTIONS }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -27,7 +28,7 @@ export function SortMenu({ value, onChange }: Props) {
     return () => document.removeEventListener('click', handler);
   }, [open]);
 
-  const current = OPTIONS.find((o) => o.value === value) ?? OPTIONS[0];
+  const current = options.find((o) => o.value === value) ?? options[0];
 
   return (
     <div className="relative w-[36px] flex-none flex justify-center items-center" ref={ref}>
@@ -52,7 +53,7 @@ export function SortMenu({ value, onChange }: Props) {
             transition={{ duration: 0.15 }}
             className="absolute top-[40px] left-0 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.12)] rounded-lg py-1.5 flex flex-col z-[100] border border-[#eaeaea] min-w-[200px] origin-top-left"
           >
-            {OPTIONS.map((opt) => (
+            {options.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => { onChange(opt.value); setOpen(false); }}

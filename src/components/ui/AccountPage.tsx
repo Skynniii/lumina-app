@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { ModalNeuromorfico } from './ModalNeuromorfico';
 
 interface Props {
   onBack: () => void;
@@ -8,8 +10,12 @@ interface Props {
 
 export function AccountPage({ onBack, onOpenSettings }: Props) {
   const { user, signOut } = useAuth();
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => setConfirmLogout(true);
+
+  const doSignOut = async () => {
+    setConfirmLogout(false);
     await signOut();
   };
 
@@ -95,6 +101,14 @@ export function AccountPage({ onBack, onOpenSettings }: Props) {
           </button>
         </div>
       </div>
+
+      <ModalNeuromorfico
+        isOpen={confirmLogout}
+        type="confirm"
+        title="¿Seguro que quieres cerrar sesión?"
+        onConfirm={doSignOut}
+        onCancel={() => setConfirmLogout(false)}
+      />
     </motion.div>
   );
 }
