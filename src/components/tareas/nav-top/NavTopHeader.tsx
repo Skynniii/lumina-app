@@ -8,9 +8,10 @@ interface Props {
   onSelectList: (id: string) => void;
   onAddList: () => void;
   onMenuClick: () => void;
+  onOpenAccount: () => void;
 }
 
-export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onMenuClick }: Props) {
+export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onMenuClick, onOpenAccount }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
@@ -90,7 +91,7 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
   return (
     <div className="relative w-full bg-white z-[999] pt-5 pb-0 shadow-[0_4px_12px_rgba(0,0,0,0.04)] shrink-0 box-border">
       <div className="px-5">
-        <TopBar title="Tasks" onMenuClick={onMenuClick} />
+        <TopBar title="Tasks" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
       </div>
 
       <div className="relative">

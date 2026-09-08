@@ -10,6 +10,7 @@ import { Tracker } from './components/tracker/Tracker';
 import { CalendarView } from './components/calendar/CalendarView';
 import { Sidebar } from './components/ui/Sidebar';
 import { SettingsPage } from './components/ui/SettingsPage';
+import { AccountPage } from './components/ui/AccountPage';
 import { LoginScreen } from './components/ui/LoginScreen';
 
 function AppContent() {
@@ -18,6 +19,7 @@ function AppContent() {
   const [view, setView] = useState<ViewType>('cronometro');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
   const userNavigated = useRef(false);
 
   // Aplica la sección inicial definida en configuración mientras el usuario
@@ -47,10 +49,10 @@ function AppContent() {
     <main className="w-full h-screen max-h-screen overflow-hidden relative">
       <AnimatePresence mode="wait">
         <motion.div key={view} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="w-full h-full">
-          {view === 'cronometro' && <TimeTracker onMenuClick={() => setSidebarOpen(true)} />}
-          {view === 'habitos' && <TareasDashboard onMenuClick={() => setSidebarOpen(true)} />}
-          {view === 'tracker' && <Tracker onMenuClick={() => setSidebarOpen(true)} />}
-          {view === 'calendar' && <CalendarView onMenuClick={() => setSidebarOpen(true)} />}
+          {view === 'cronometro' && <TimeTracker onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} />}
+          {view === 'habitos' && <TareasDashboard onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} />}
+          {view === 'tracker' && <Tracker onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} />}
+          {view === 'calendar' && <CalendarView onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} />}
         </motion.div>
       </AnimatePresence>
 
@@ -66,6 +68,15 @@ function AppContent() {
 
       <AnimatePresence>
         {showSettings && <SettingsPage onBack={() => setShowSettings(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAccount && (
+          <AccountPage
+            onBack={() => setShowAccount(false)}
+            onOpenSettings={() => { setShowAccount(false); setShowSettings(true); }}
+          />
+        )}
       </AnimatePresence>
     </main>
   );

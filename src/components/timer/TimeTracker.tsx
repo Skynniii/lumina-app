@@ -8,9 +8,10 @@ import { EntryList } from './EntryList';
 
 interface Props {
   onMenuClick: () => void;
+  onOpenAccount: () => void;
 }
 
-export function TimeTracker({ onMenuClick }: Props) {
+export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   const { settings } = useSettings();
   const tracker = useTimeTracker();
 
@@ -21,7 +22,7 @@ export function TimeTracker({ onMenuClick }: Props) {
 
   return (
     <section className="absolute top-0 left-0 w-full h-full p-5 pb-[110px] overflow-y-auto no-scrollbar">
-      <TopBar title="Timer" onMenuClick={onMenuClick} />
+      <TopBar title="Timer" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
 
       <div className="mt-3 flex flex-col gap-5">
         <TodaySummary

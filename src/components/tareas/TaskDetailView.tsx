@@ -172,7 +172,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
 
   const formatDate = () => {
     if (!task.dueDate) return 'Seleccionar fecha/hora';
-    const d = new Date(task.dueDate);
+    const d = new Date(task.dueDate + 'T00:00:00');
     const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
     let str = d.toLocaleDateString('es-CO', opts);
     if (task.dueTime) {

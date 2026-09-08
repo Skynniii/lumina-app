@@ -11,9 +11,10 @@ import { NuevaTareaModal } from './NuevaTareaModal';
 
 interface Props {
   onMenuClick: () => void;
+  onOpenAccount: () => void;
 }
 
-export function TareasDashboard({ onMenuClick }: Props) {
+export function TareasDashboard({ onMenuClick, onOpenAccount }: Props) {
   const { lists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
   const [activeListId, setActiveListId] = useState(lists[0]?.id || '');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -44,7 +45,7 @@ export function TareasDashboard({ onMenuClick }: Props) {
 
   return (
     <section className="absolute top-0 left-0 w-full h-full flex flex-col p-0 bg-[#f7f6f9]">
-      <NavTopHeader lists={lists} activeListId={activeListId} onSelectList={scrollTo} onAddList={addList} onMenuClick={onMenuClick} />
+      <NavTopHeader lists={lists} activeListId={activeListId} onSelectList={scrollTo} onAddList={addList} onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
 
       <div className="relative flex-1 overflow-hidden">
         <div

@@ -50,7 +50,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
 
   const dueLabel = () => {
     if (!task.dueDate) return '';
-    const d = new Date(task.dueDate);
+    const d = new Date(task.dueDate + 'T00:00:00');
     let s = d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
     if (task.dueTime) {
       const [h, min] = task.dueTime.split(':').map(Number);
@@ -124,7 +124,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           <motion.div
             animate={{ opacity: completingImportant ? 0 : 1 }}
             transition={{ duration: 0.45, ease: 'easeInOut' }}
-            className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]"
+            className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mt-2 text-[#8a8a8a]"
           >
             {listTag && (
               <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
