@@ -2,13 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
-import type { RepeatConfig } from '../../types';
+import type { RepeatConfig, TaskList } from '../../types';
 
 interface Props {
   isOpen: boolean;
+  defaultListId: string;
+  availableLists?: TaskList[];
   listName?: string;
   onClose: () => void;
-  onCreate: (data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean; repeat?: RepeatConfig }) => void;
+  onCreate: (data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean; repeat?: RepeatConfig }, listId: string) => void;
 }
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -26,7 +28,7 @@ function fmtFecha(d?: string, t?: string, repeat?: RepeatConfig) {
   return s;
 }
 
-export function NuevaTareaModal({ isOpen, listName, onClose, onCreate }: Props) {
+export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listName, onClose, onCreate }: Props) {
   const [text, setText] = useState('');
   const [notesHtml, setNotesHtml] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
@@ -36,6 +38,7 @@ export function NuevaTareaModal({ isOpen, listName, onClose, onCreate }: Props) 
   const [repeat, setRepeat] = useState<RepeatConfig | undefined>(undefined);
   const [important, setImportant] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [targetListId, setTargetListId] = useState(defaultListId);
   const notesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,8 +46,9 @@ export function NuevaTareaModal({ isOpen, listName, onClose, onCreate }: Props) 
       setText(''); setNotesHtml(''); setNotesOpen(false); setNotesEditing(false);
       setDueDate(undefined); setDueTime(undefined); setRepeat(undefined);
       setImportant(false); setShowPicker(false);
+      setTargetListId(defaultListId);
     }
-  }, [isOpen]);
+  }, [isOpen, defaultListId]);
 
   useEffect(() => {
     if (notesOpen && notesRef.current) {
@@ -63,7 +67,7 @@ export function NuevaTareaModal({ isOpen, listName, onClose, onCreate }: Props) 
     const trimmed = text.trim();
     if (!trimmed) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
-    onCreate({ text: trimmed, notes: notesClean || undefined, dueDate, dueTime, isImportant: important, repeat });
+    onCreate({ text: trimmed, notes: notesClean || undefined, dueDate, dueTime, isImportant: important, repeat }, targetListId);
     onClose();
   };
 
@@ -99,6 +103,24 @@ export function NuevaTareaModal({ isOpen, listName, onClose, onCreate }: Props) 
             >
               <div className="w-10 h-1.5 bg-[#e4e4ed] rounded-full mx-auto mb-3" />
               <p className="text-center text-[13px] text-[#a0a0a0] font-medium mb-3">Nueva tarea{listName ? ` · ${listName}` : ''}</p>
+
+              {availableLists && (
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-3 -mx-1 px-1">
+                  {availableLists.map((l) => {
+                    const sel = targetListId === l.id;
+                    return (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => setTargetListId(l.id)}
+                        className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors flex-none ${sel ? 'bg-[#7f70ff] text-white' : 'bg-[#f4f4f6] text-[#777]'}`}
+                      >
+                        {l.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               <input
                 type="text"

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import type { ViewType } from '../types';
 import { useUserStorage } from '../hooks/useUserStorage';
 
 export interface Settings {
@@ -11,6 +12,7 @@ export interface Settings {
   notifyOnStart: boolean;
   notifyOnEnd: boolean;
   newTaskPosition: 'first' | 'last';
+  defaultView: ViewType;
 }
 
 const DEFAULTS: Settings = {
@@ -23,6 +25,7 @@ const DEFAULTS: Settings = {
   notifyOnStart: true,
   notifyOnEnd: true,
   newTaskPosition: 'first',
+  defaultView: 'cronometro',
 };
 
 interface Ctx {

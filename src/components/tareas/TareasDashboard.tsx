@@ -4,6 +4,7 @@ import type { TaskList } from '../../types';
 import { useTasks } from '../../hooks/useTasks';
 import { NavTopHeader } from './nav-top/NavTopHeader';
 import { ListaTareasCard } from './ListaTareasCard';
+import { PrincipalView } from './PrincipalView';
 import { TaskDetailView } from './TaskDetailView';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
 import { NuevaTareaModal } from './NuevaTareaModal';
@@ -53,22 +54,33 @@ export function TareasDashboard({ onMenuClick }: Props) {
           onTouchStart={() => { clicking.current = false; }}
           className="w-full h-full overflow-y-hidden overflow-x-auto py-5 box-border snap-x snap-mandatory scroll-smooth no-scrollbar flex flex-row"
         >
-          {lists.map((list: TaskList) => (
-            <ListaTareasCard
-              key={list.id}
-              list={list}
-              tasks={tasks.filter((t) => t.listId === list.id)}
-              isProtected={list.id === 'principal'}
-              onRename={renameList}
-              onDelete={deleteList}
-              onDeleteCompleted={deleteCompletedTasks}
-              onToggleTask={toggleTask}
-              onUpdateTask={updateTask}
-              onUpdateList={updateList}
-              onReorderListTasks={reorderListTasks}
-              onExpandTask={setExpandedTaskId}
-            />
-          ))}
+          {lists.map((list: TaskList) =>
+            list.id === 'principal' ? (
+              <PrincipalView
+                key={list.id}
+                lists={lists}
+                tasks={tasks}
+                onToggleTask={toggleTask}
+                onUpdateTask={updateTask}
+                onExpandTask={setExpandedTaskId}
+              />
+            ) : (
+              <ListaTareasCard
+                key={list.id}
+                list={list}
+                tasks={tasks.filter((t) => t.listId === list.id)}
+                isProtected={list.id === 'principal'}
+                onRename={renameList}
+                onDelete={deleteList}
+                onDeleteCompleted={deleteCompletedTasks}
+                onToggleTask={toggleTask}
+                onUpdateTask={updateTask}
+                onUpdateList={updateList}
+                onReorderListTasks={reorderListTasks}
+                onExpandTask={setExpandedTaskId}
+              />
+            )
+          )}
         </div>
       </div>
 
@@ -98,9 +110,11 @@ export function TareasDashboard({ onMenuClick }: Props) {
 
       <NuevaTareaModal
         isOpen={showNewTask}
+        defaultListId={activeListId === 'principal' ? (lists.find((l) => l.id !== 'principal')?.id ?? 'general') : activeListId}
+        availableLists={activeListId === 'principal' ? lists.filter((l) => l.id !== 'principal') : undefined}
         listName={lists.find((l) => l.id === activeListId)?.name}
         onClose={() => setShowNewTask(false)}
-        onCreate={(data) => addTaskWithData(activeListId, data)}
+        onCreate={(data, listId) => addTaskWithData(listId, data)}
       />
 
       <ModalNeuromorfico {...modalConfig} />

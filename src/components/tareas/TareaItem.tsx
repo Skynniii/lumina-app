@@ -14,6 +14,7 @@ interface Props {
   reorderable?: boolean;
   dragId?: string | null;
   overlay?: boolean;
+  listTag?: string;
   onDragPointerDown?: (e: React.PointerEvent, id: string) => void;
   onDragPointerEnd?: () => void;
 }
@@ -25,7 +26,7 @@ const IconSub = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="non
 const IconFlag = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>);
 const IconCal = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>);
 
-export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, onDragPointerDown, onDragPointerEnd }: Props) => {
+export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, onDragPointerDown, onDragPointerEnd }: Props) => {
   const { settings } = useSettings();
   const [optimistic, setOptimistic] = useState(false);
   const [sparkle, setSparkle] = useState(false);
@@ -45,7 +46,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   // Oculta la fecha que ya se muestra en la cabecera del grupo al ordenar por fecha/fecha límite
   const showDeadline = !!task.deadline && sortMode !== 'deadline';
   const showDue = !!task.dueDate && sortMode !== 'date';
-  const hasInfo = hasNotes || hasSub || showDeadline || showDue;
+  const hasInfo = hasNotes || hasSub || showDeadline || showDue || !!listTag;
 
   const dueLabel = () => {
     if (!task.dueDate) return '';
@@ -125,6 +126,9 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
             transition={{ duration: 0.45, ease: 'easeInOut' }}
             className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]"
           >
+            {listTag && (
+              <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
+            )}
             {showDue && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#efeaff] text-[#6b5cdb] text-[12px] font-semibold">
                 <IconCal /> {dueLabel()}
