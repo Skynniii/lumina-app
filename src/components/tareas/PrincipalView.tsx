@@ -238,6 +238,10 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   const renderCompact = (t: Task) => (
     <TareaItem key={t.id} task={t} compact onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
   );
+  // Tareas atrasadas: muestra "hace X días" en lugar de la fecha.
+  const renderTaskOverdue = (t: Task) => (
+    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} hideDueDate overdueDays={Math.abs(dayDiff(t.dueDate!))} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+  );
 
   const setHoyLink = (id?: string) => onUpdateList('principal', { hoyListId: id });
 
@@ -251,9 +255,11 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const nonImportant = pending.filter((t) => !t.isImportant);
     const hoyNI = nonImportant.filter((t) => t.dueDate === today);
     const mananaNI = nonImportant.filter((t) => t.dueDate === tomorrow);
-    // Próximamente = atrasadas + futuras más allá de Mañana (todas las que sea, sin tope).
+    // Atrasadas = vencidas (dayDiff < 0). Próximamente = futuras más allá de Mañana.
     const beyondNI = nonImportant.filter((t) => t.dueDate && dayDiff(t.dueDate) !== 0 && dayDiff(t.dueDate) !== 1);
-    const upcoming = groupByKey(beyondNI, 'dueDate', false);
+    const overdueNI = beyondNI.filter((t) => dayDiff(t.dueDate!) < 0).sort(sortByDateKey('dueDate'));
+    const upcomingNI = beyondNI.filter((t) => dayDiff(t.dueDate!) > 1);
+    const upcoming = groupByKey(upcomingNI, 'dueDate', false);
     const undatedNI = nonImportant.filter((t) => !t.dueDate);
     const undatedByList = new Map<string, Task[]>();
     for (const t of undatedNI) {
@@ -264,7 +270,8 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const hasImportant = important.length > 0;
     const hasHoy = hoyNI.length > 0;
     const hasManana = mananaNI.length > 0;
-    const hasUpcoming = beyondNI.length > 0;
+    const hasOverdue = overdueNI.length > 0;
+    const hasUpcoming = upcomingNI.length > 0;
     const hasUndated = undatedNI.length > 0;
 
     return (
@@ -296,6 +303,13 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           </>
         )}
 
+        {hasOverdue && (
+          <>
+            <GroupHeader title="Atrasado" color="#e53935" />
+            <TaskList items={overdueNI} render={renderTaskOverdue} />
+          </>
+        )}
+
         {hasUpcoming && (
           <>
             <Divider label="Próximamente" />
@@ -320,7 +334,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           </>
         )}
 
-        {!hasImportant && !hasHoy && !hasManana && !hasUpcoming && !hasUndated && (
+        {!hasImportant && !hasHoy && !hasManana && !hasOverdue && !hasUpcoming && !hasUndated && (
           <p className="text-center text-[#a0a0a0] text-sm py-10 font-medium">Todo bajo control. Sin tareas pendientes.</p>
         )}
       </>
