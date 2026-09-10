@@ -289,6 +289,13 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           </>
         )}
 
+        {hasOverdue && (
+          <>
+            <GroupHeader title="Atrasado" color="#e53935" />
+            <TaskList items={overdueNI} render={renderTaskOverdue} />
+          </>
+        )}
+
         {hasHoy && (
           <>
             <DateSectionHeader title="Hoy" subtitle={shortDate(today)} />
@@ -300,13 +307,6 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           <>
             <DateSectionHeader title="Mañana" subtitle={shortDate(tomorrow)} />
             <TaskList items={mananaNI} render={renderTaskNoDate} />
-          </>
-        )}
-
-        {hasOverdue && (
-          <>
-            <GroupHeader title="Atrasado" color="#e53935" />
-            <TaskList items={overdueNI} render={renderTaskOverdue} />
           </>
         )}
 
@@ -356,7 +356,9 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     }
     const mananaTasks = importantFirst(pending.filter((t) => t.dueDate === tomorrow));
     const beyond = pending.filter((t) => t.dueDate && dayDiff(t.dueDate) !== 0 && dayDiff(t.dueDate) !== 1);
-    const upcoming = groupByKey(beyond, 'dueDate', true);
+    const overdueTasks = importantFirst(beyond.filter((t) => dayDiff(t.dueDate!) < 0).sort(sortByDateKey('dueDate')));
+    const upcomingNI = beyond.filter((t) => dayDiff(t.dueDate!) > 1);
+    const upcoming = groupByKey(upcomingNI, 'dueDate', true);
     // Sin fecha: tareas sin dueDate (importantes y no), agrupadas por lista.
     const undated = pending.filter((t) => !t.dueDate);
     const undatedByList = new Map<string, Task[]>();
@@ -368,6 +370,13 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
     return (
       <>
+        {overdueTasks.length > 0 && (
+          <>
+            <GroupHeader title="Atrasado" color="#e53935" />
+            <TaskList items={overdueTasks} render={renderTaskOverdue} />
+          </>
+        )}
+
         <DateSectionHeader
           title="Hoy"
           subtitle={shortDate(today)}
