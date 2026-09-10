@@ -130,11 +130,11 @@ function DateSectionHeader({ title, subtitle, action }: { title: string; subtitl
   );
 }
 
-function Divider({ label }: { label: string }) {
+function Divider({ label, color }: { label: string; color?: string }) {
   return (
     <div className="flex items-center gap-3 my-5 first:mt-1">
       <div className="flex-1 h-px bg-[#eceaf3]" />
-      <span className="text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0] whitespace-nowrap">{label}</span>
+      <span className={`text-[12px] font-bold uppercase tracking-wider whitespace-nowrap ${color ? '' : 'text-[#a0a0a0]'}`} style={color ? { color } : undefined}>{label}</span>
       <div className="flex-1 h-px bg-[#eceaf3]" />
     </div>
   );
@@ -221,8 +221,17 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
   const pending = useMemo(() => tasks.filter((t) => !t.completed), [tasks]);
 
+  // Importante: muestra lista + fecha (la fecha no está en cabecera aquí).
   const renderTask = (t: Task) => (
     <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+  );
+  // Secciones con fecha en cabecera (Hoy/Mañana/Próximamente): oculta la fecha de la tarea.
+  const renderTaskNoDate = (t: Task) => (
+    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} hideDueDate onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+  );
+  // Secciones "Sin fecha" agrupadas por lista: oculta el icono de lista (ya es la cabecera).
+  const renderTaskNoList = (t: Task) => (
+    <TareaItem key={t.id} task={t} compact hideListTag onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
   );
   // Espejo de una lista (Hoy vinculado): sin tag de lista (ya están en una sola),
   // modo compacto para respetar la regla de iconos del Principal.
@@ -234,27 +243,35 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
   /* ===== MODO NORMAL ===== */
   const renderNormal = () => {
+    const today = todayStr();
+    const tomorrow = addDaysStr(today, 1);
     const important = pending.filter((t) => t.isImportant);
     const importantDated = important.filter((t) => t.dueDate).sort(sortByDateKey('dueDate'));
     const importantNoDate = important.filter((t) => !t.dueDate);
-    const datedNonImp = pending.filter((t) => !t.isImportant && t.dueDate);
-    const undatedNonImp = pending.filter((t) => !t.isImportant && !t.dueDate);
-    const upcoming = groupByKey(datedNonImp, 'dueDate', false);
+    const nonImportant = pending.filter((t) => !t.isImportant);
+    const hoyNI = nonImportant.filter((t) => t.dueDate === today);
+    const mananaNI = nonImportant.filter((t) => t.dueDate === tomorrow);
+    // Próximamente = atrasadas + futuras más allá de Mañana (todas las que sea, sin tope).
+    const beyondNI = nonImportant.filter((t) => t.dueDate && dayDiff(t.dueDate) !== 0 && dayDiff(t.dueDate) !== 1);
+    const upcoming = groupByKey(beyondNI, 'dueDate', false);
+    const undatedNI = nonImportant.filter((t) => !t.dueDate);
     const undatedByList = new Map<string, Task[]>();
-    for (const t of undatedNonImp) {
+    for (const t of undatedNI) {
       const arr = undatedByList.get(t.listId) ?? [];
       arr.push(t);
       undatedByList.set(t.listId, arr);
     }
     const hasImportant = important.length > 0;
-    const hasUpcoming = datedNonImp.length > 0;
-    const hasUndated = undatedNonImp.length > 0;
+    const hasHoy = hoyNI.length > 0;
+    const hasManana = mananaNI.length > 0;
+    const hasUpcoming = beyondNI.length > 0;
+    const hasUndated = undatedNI.length > 0;
 
     return (
       <>
         {hasImportant && (
           <>
-            <GroupHeader title="Importante" color="#eab308" />
+            <Divider label="Importante" color="#eab308" />
             {importantDated.length > 0 && <TaskList items={importantDated} render={renderTask} />}
             {importantNoDate.length > 0 && (
               <>
@@ -265,13 +282,27 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           </>
         )}
 
+        {hasHoy && (
+          <>
+            <DateSectionHeader title="Hoy" subtitle={shortDate(today)} />
+            <TaskList items={hoyNI} render={renderTaskNoDate} />
+          </>
+        )}
+
+        {hasManana && (
+          <>
+            <DateSectionHeader title="Mañana" subtitle={shortDate(tomorrow)} />
+            <TaskList items={mananaNI} render={renderTaskNoDate} />
+          </>
+        )}
+
         {hasUpcoming && (
           <>
-            {hasImportant && <Divider label="Próximamente" />}
+            <Divider label="Próximamente" />
             {upcoming.map((g) => (
               <div key={g.label}>
                 <GroupHeader title={g.label} color={g.color} />
-                <TaskList items={g.tasks} render={renderTask} />
+                <TaskList items={g.tasks} render={renderTaskNoDate} />
               </div>
             ))}
           </>
@@ -283,13 +314,13 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
             {Array.from(undatedByList.entries()).map(([listId, ts]) => (
               <div key={listId}>
                 <SubLabel label={listNameById[listId] || 'Lista'} />
-                <TaskList items={ts} render={renderTask} />
+                <TaskList items={ts} render={renderTaskNoList} />
               </div>
             ))}
           </>
         )}
 
-        {!hasImportant && !hasUpcoming && !hasUndated && (
+        {!hasImportant && !hasHoy && !hasManana && !hasUpcoming && !hasUndated && (
           <p className="text-center text-[#a0a0a0] text-sm py-10 font-medium">Todo bajo control. Sin tareas pendientes.</p>
         )}
       </>
@@ -312,6 +343,14 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const mananaTasks = importantFirst(pending.filter((t) => t.dueDate === tomorrow));
     const beyond = pending.filter((t) => t.dueDate && dayDiff(t.dueDate) !== 0 && dayDiff(t.dueDate) !== 1);
     const upcoming = groupByKey(beyond, 'dueDate', true);
+    // Sin fecha: tareas sin dueDate (importantes y no), agrupadas por lista.
+    const undated = pending.filter((t) => !t.dueDate);
+    const undatedByList = new Map<string, Task[]>();
+    for (const t of undated) {
+      const arr = undatedByList.get(t.listId) ?? [];
+      arr.push(t);
+      undatedByList.set(t.listId, arr);
+    }
 
     return (
       <>
@@ -321,14 +360,14 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           action={linkedList ? <span className="text-[11px] font-semibold text-[#7f70ff]">{linkedList.name}</span> : <HoyLinkMenu lists={lists} hoyListId={hoyListId} onLink={setHoyLink} />}
         />
         {hoyTasks.length > 0 ? (
-          <TaskList items={hoyTasks} render={linkedList ? renderCompact : renderTask} />
+          <TaskList items={hoyTasks} render={linkedList ? renderCompact : renderTaskNoDate} />
         ) : (
           <p className="text-[13px] text-[#c0c0c0] py-2">Sin tareas para hoy.</p>
         )}
 
         <DateSectionHeader title="Mañana" subtitle={shortDate(tomorrow)} />
         {mananaTasks.length > 0 ? (
-          <TaskList items={mananaTasks} render={renderTask} />
+          <TaskList items={mananaTasks} render={renderTaskNoDate} />
         ) : (
           <p className="text-[13px] text-[#c0c0c0] py-2">Sin tareas para mañana.</p>
         )}
@@ -338,11 +377,23 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           upcoming.map((g) => (
             <div key={g.label}>
               <GroupHeader title={g.label} color={g.color} />
-              <TaskList items={g.tasks} render={renderTask} />
+              <TaskList items={g.tasks} render={renderTaskNoDate} />
             </div>
           ))
         ) : (
           <p className="text-[13px] text-[#c0c0c0] py-2">Nada próximo.</p>
+        )}
+
+        {undated.length > 0 && (
+          <>
+            <Divider label="Sin fecha" />
+            {Array.from(undatedByList.entries()).map(([listId, ts]) => (
+              <div key={listId}>
+                <SubLabel label={listNameById[listId] || 'Lista'} />
+                <TaskList items={ts} render={renderTaskNoList} />
+              </div>
+            ))}
+          </>
         )}
       </>
     );
