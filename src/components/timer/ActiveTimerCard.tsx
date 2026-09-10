@@ -6,7 +6,7 @@ import { ActivityPicker } from './ActivityPicker';
 import { TimerModeSelector } from './TimerModeSelector';
 import type { Activity } from '../../types';
 
-interface CountdownApi {
+export interface CountdownApi {
   targetSeconds: number;
   remaining: number;
   running: boolean;
@@ -18,7 +18,7 @@ interface CountdownApi {
   setOnComplete: (fn: () => void) => void;
 }
 
-interface Props {
+export interface ActiveTimerCardProps {
   mode: TimerMode;
   onModeChange: (mode: TimerMode) => void;
   // Rastreador
@@ -113,7 +113,7 @@ const PRESETS = [5, 10, 15, 25, 30];
 
 /* ---------- componente ---------- */
 
-export function ActiveTimerCard(props: Props) {
+export function ActiveTimerCard(props: ActiveTimerCardProps) {
   const { mode, onModeChange, countdown, pomodoroPhase, pomodoroCycle, onPomodoroSkip } = props;
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -133,7 +133,7 @@ export function ActiveTimerCard(props: Props) {
   const cdDisplay = `${String(cdMin).padStart(2, '0')}:${String(cdSec).padStart(2, '0')}`;
 
   return (
-    <div className="bg-white p-5 rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] flex flex-col items-center gap-4 flex-1 justify-center">
+    <div className="bg-white p-5 rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] flex flex-col items-center gap-4">
       <TimerModeSelector mode={mode} onChange={onModeChange} />
 
       {/* ===== RASTREADOR ===== */}
