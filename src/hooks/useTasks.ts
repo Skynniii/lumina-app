@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
-import { useLocalStorage } from './useLocalStorage';
+import { useState, useCallback, useEffect } from 'react';
+import { useUserStorage } from './useUserStorage';
+import { useSettings } from '../context/SettingsContext';
 import type { Task, TaskList, RepeatConfig } from '../types';
 
 function calculateNextDate(currentDate: string | undefined, repeat: RepeatConfig): string | undefined {
@@ -14,7 +15,10 @@ function calculateNextDate(currentDate: string | undefined, repeat: RepeatConfig
   return d.toISOString().slice(0, 10);
 }
 
+const PRINCIPAL_ID = 'principal';
+
 const SEED_LISTS: TaskList[] = [
+  { id: PRINCIPAL_ID, name: 'Principal' },
   { id: 'general', name: 'General' },
   { id: 'books', name: 'Books' },
   { id: 'movies', name: 'Movies' },
@@ -45,11 +49,32 @@ const CLOSED: ModalConfig = {
 };
 
 export function useTasks() {
-  const [lists, setLists] = useLocalStorage<TaskList[]>('lumina_lists', SEED_LISTS);
-  const [tasks, setTasks] = useLocalStorage<Task[]>('lumina_tasks', SEED_TASKS);
+  const { settings } = useSettings();
+  const [lists, setLists] = useUserStorage<TaskList[]>('lumina_lists', SEED_LISTS);
+  const [tasks, setTasks] = useUserStorage<Task[]>('lumina_tasks', SEED_TASKS);
   const [modal, setModal] = useState<ModalConfig>(CLOSED);
 
   const closeModal = useCallback(() => setModal((p) => ({ ...p, isOpen: false })), []);
+
+  // Garantiza que la lista "Principal" (por defecto, no borrable ni renombrable) siempre exista
+  // y sea la primera. También elimina duplicados (puede ocurrir por la doble invocación de
+  // efectos en StrictMode). Usa actualización funcional con guarda interna para ser idempotente.
+  useEffect(() => {
+    setLists((prev) => {
+      const seen = new Set<string>();
+      const deduped = prev.filter((l) => {
+        if (seen.has(l.id)) return false;
+        seen.add(l.id);
+        return true;
+      });
+      const hasPrincipal = deduped.some((l) => l.id === PRINCIPAL_ID);
+      const principal = hasPrincipal ? deduped.find((l) => l.id === PRINCIPAL_ID)! : { id: PRINCIPAL_ID, name: 'Principal' as const };
+      const rest = deduped.filter((l) => l.id !== PRINCIPAL_ID);
+      const next = [principal, ...rest];
+      const same = next.length === prev.length && next.every((l, i) => l.id === prev[i]?.id && l.sortMode === prev[i]?.sortMode);
+      return same ? prev : next;
+    });
+  }, [setLists]);
 
   const addList = useCallback(() => {
     setModal({
@@ -70,6 +95,10 @@ export function useTasks() {
   }, [setLists, closeModal]);
 
   const deleteList = useCallback((id: string) => {
+    if (id === PRINCIPAL_ID) {
+      setModal({ isOpen: true, type: 'alert', title: 'La lista Principal no se puede eliminar.', onConfirm: closeModal, onCancel: closeModal });
+      return;
+    }
     if (lists.length <= 1) {
       setModal({ isOpen: true, type: 'alert', title: 'No puedes eliminar la última lista restante.', onConfirm: closeModal, onCancel: closeModal });
       return;
@@ -88,6 +117,10 @@ export function useTasks() {
   }, [lists.length, setLists, setTasks, closeModal]);
 
   const renameList = useCallback((id: string, currentName: string) => {
+    if (id === PRINCIPAL_ID) {
+      setModal({ isOpen: true, type: 'alert', title: 'La lista Principal no se puede renombrar.', onConfirm: closeModal, onCancel: closeModal });
+      return;
+    }
     setModal({
       isOpen: true,
       type: 'prompt',
@@ -113,13 +146,25 @@ export function useTasks() {
       onConfirm: (text) => {
         const trimmed = text.trim();
         if (trimmed) {
-          setTasks((prev) => [{ id: Date.now().toString(), listId, text: trimmed, completed: false, subtasks: [] }, ...prev]);
+          const newTask: Task = { id: Date.now().toString(), listId, text: trimmed, completed: false, subtasks: [] };
+          setTasks((prev) => settings.newTaskPosition === 'last' ? [...prev, newTask] : [newTask, ...prev]);
         }
         closeModal();
       },
       onCancel: closeModal,
     });
-  }, [setTasks, closeModal]);
+  }, [setTasks, closeModal, settings.newTaskPosition]);
+
+  // Crea una tarea con detalles (notas, fecha/hora, importante) ya configurados.
+  const addTaskWithData = useCallback((listId: string, data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean; repeat?: RepeatConfig }) => {
+    const trimmed = (data.text || '').trim();
+    if (!trimmed) return;
+    const newTask: Task = {
+      id: Date.now().toString(), listId, text: trimmed, completed: false, subtasks: [],
+      notes: data.notes || '', dueDate: data.dueDate, dueTime: data.dueTime, isImportant: !!data.isImportant, repeat: data.repeat,
+    };
+    setTasks((prev) => settings.newTaskPosition === 'last' ? [...prev, newTask] : [newTask, ...prev]);
+  }, [setTasks, settings.newTaskPosition]);
 
   const toggleTask = useCallback((taskId: string) => {
     setTasks((prev) => {
@@ -149,6 +194,30 @@ export function useTasks() {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
   }, [setTasks]);
 
+  const updateList = useCallback((id: string, updates: Partial<TaskList>) => {
+    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
+  }, [setLists]);
+
+  // Reordena las tareas activas de una lista al nuevo orden indicado (modo personalizado,
+  // arrastre). Conserva las posiciones de las tareas completadas y de otras listas.
+  const reorderListTasks = useCallback((listId: string, orderedActive: Task[]) => {
+    setTasks((prev) => {
+      // Solo reordena dentro de la lista indicada; conserva el resto intacto.
+      const activeIds = new Set(orderedActive.map((t) => t.id));
+      let i = 0;
+      let changed = false;
+      const next = prev.map((t) => {
+        if (t.listId === listId && activeIds.has(t.id)) {
+          const replacement = orderedActive[i++];
+          if (replacement.id !== t.id) changed = true;
+          return replacement;
+        }
+        return t;
+      });
+      return changed ? next : prev;
+    });
+  }, [setTasks]);
+
   const deleteTask = useCallback((taskId: string) => {
     setModal({
       isOpen: true,
@@ -175,5 +244,5 @@ export function useTasks() {
     });
   }, [setTasks, closeModal]);
 
-  return { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, deleteTask, deleteCompletedTasks, modalConfig: modal };
+  return { lists, tasks, addList, deleteList, renameList, addTask, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks, modalConfig: modal };
 }

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import type { ViewType } from '../types';
+import { useUserStorage } from '../hooks/useUserStorage';
 
 export interface Settings {
   theme: 'light' | 'dark';
@@ -10,6 +11,8 @@ export interface Settings {
   notifications: boolean;
   notifyOnStart: boolean;
   notifyOnEnd: boolean;
+  newTaskPosition: 'first' | 'last';
+  defaultView: ViewType;
 }
 
 const DEFAULTS: Settings = {
@@ -21,6 +24,8 @@ const DEFAULTS: Settings = {
   notifications: true,
   notifyOnStart: true,
   notifyOnEnd: true,
+  newTaskPosition: 'first',
+  defaultView: 'cronometro',
 };
 
 interface Ctx {
@@ -31,7 +36,7 @@ interface Ctx {
 const SettingsContext = createContext<Ctx>({ settings: DEFAULTS, update: () => {} });
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useLocalStorage<Settings>('lumina_settings', DEFAULTS);
+  const [settings, setSettings] = useUserStorage<Settings>('lumina_settings', DEFAULTS);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', settings.accentColor);

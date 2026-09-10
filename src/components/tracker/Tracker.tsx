@@ -2,12 +2,13 @@ import { TopBar } from '../ui/TopBar';
 
 interface Props {
   onMenuClick: () => void;
+  onOpenAccount: () => void;
 }
 
-export function Tracker({ onMenuClick }: Props) {
+export function Tracker({ onMenuClick, onOpenAccount }: Props) {
   return (
     <section className="absolute top-0 left-0 w-full h-full p-5 pb-[100px] overflow-y-auto no-scrollbar">
-      <TopBar title="Tracker" onMenuClick={onMenuClick} />
+      <TopBar title="Tracker" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
       <div className="mt-5 flex flex-col items-center justify-center py-20">
         <div className="w-16 h-16 rounded-2xl bg-[#f0edff] flex items-center justify-center mb-4">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

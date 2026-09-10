@@ -4,17 +4,21 @@ import type { TaskList } from '../../types';
 import { useTasks } from '../../hooks/useTasks';
 import { NavTopHeader } from './nav-top/NavTopHeader';
 import { ListaTareasCard } from './ListaTareasCard';
+import { PrincipalView } from './PrincipalView';
 import { TaskDetailView } from './TaskDetailView';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
+import { NuevaTareaModal } from './NuevaTareaModal';
 
 interface Props {
   onMenuClick: () => void;
+  onOpenAccount: () => void;
 }
 
-export function TareasDashboard({ onMenuClick }: Props) {
-  const { lists, tasks, addList, deleteList, renameList, addTask, toggleTask, updateTask, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
+export function TareasDashboard({ onMenuClick, onOpenAccount }: Props) {
+  const { lists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
   const [activeListId, setActiveListId] = useState(lists[0]?.id || '');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [showNewTask, setShowNewTask] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const clicking = useRef(false);
 
@@ -41,7 +45,7 @@ export function TareasDashboard({ onMenuClick }: Props) {
 
   return (
     <section className="absolute top-0 left-0 w-full h-full flex flex-col p-0 bg-[#f7f6f9]">
-      <NavTopHeader lists={lists} activeListId={activeListId} onSelectList={scrollTo} onAddList={addList} onMenuClick={onMenuClick} />
+      <NavTopHeader lists={lists} activeListId={activeListId} onSelectList={scrollTo} onAddList={addList} onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
 
       <div className="relative flex-1 overflow-hidden">
         <div
@@ -51,19 +55,35 @@ export function TareasDashboard({ onMenuClick }: Props) {
           onTouchStart={() => { clicking.current = false; }}
           className="w-full h-full overflow-y-hidden overflow-x-auto py-5 box-border snap-x snap-mandatory scroll-smooth no-scrollbar flex flex-row"
         >
-          {lists.map((list: TaskList) => (
-            <ListaTareasCard
-              key={list.id}
-              list={list}
-              tasks={tasks.filter((t) => t.listId === list.id)}
-              onRename={renameList}
-              onDelete={deleteList}
-              onDeleteCompleted={deleteCompletedTasks}
-              onToggleTask={toggleTask}
-              onUpdateTask={updateTask}
-              onExpandTask={setExpandedTaskId}
-            />
-          ))}
+          {lists.map((list: TaskList) =>
+            list.id === 'principal' ? (
+              <PrincipalView
+                key={list.id}
+                lists={lists}
+                tasks={tasks}
+                principalList={list}
+                onUpdateList={updateList}
+                onToggleTask={toggleTask}
+                onUpdateTask={updateTask}
+                onExpandTask={setExpandedTaskId}
+              />
+            ) : (
+              <ListaTareasCard
+                key={list.id}
+                list={list}
+                tasks={tasks.filter((t) => t.listId === list.id)}
+                isProtected={list.id === 'principal'}
+                onRename={renameList}
+                onDelete={deleteList}
+                onDeleteCompleted={deleteCompletedTasks}
+                onToggleTask={toggleTask}
+                onUpdateTask={updateTask}
+                onUpdateList={updateList}
+                onReorderListTasks={reorderListTasks}
+                onExpandTask={setExpandedTaskId}
+              />
+            )
+          )}
         </div>
       </div>
 
@@ -84,12 +104,21 @@ export function TareasDashboard({ onMenuClick }: Props) {
 
       {!expandedTaskId && (
         <button
-          onClick={() => addTask(activeListId)}
+          onClick={() => setShowNewTask(true)}
           className="fixed bottom-[85px] left-1/2 -translate-x-1/2 w-[55px] h-[55px] bg-white border-none rounded-2xl text-[28px] text-[#7f70ff] cursor-pointer flex items-center justify-center shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#fff] z-10 active:shadow-[inset_2px_2px_5px_#e6e6e6]"
         >
           +
         </button>
       )}
+
+      <NuevaTareaModal
+        isOpen={showNewTask}
+        defaultListId={activeListId === 'principal' ? (lists.find((l) => l.id !== 'principal')?.id ?? 'general') : activeListId}
+        availableLists={activeListId === 'principal' ? lists.filter((l) => l.id !== 'principal') : undefined}
+        listName={lists.find((l) => l.id === activeListId)?.name}
+        onClose={() => setShowNewTask(false)}
+        onCreate={(data, listId) => addTaskWithData(listId, data)}
+      />
 
       <ModalNeuromorfico {...modalConfig} />
     </section>

@@ -26,13 +26,47 @@ export interface Task {
   notes?: string;
   dueDate?: string;
   dueTime?: string;
+  deadline?: string;
   isImportant?: boolean;
   subtasks?: SubTask[];
   completedAt?: string;
   repeat?: RepeatConfig;
 }
 
+export type SortMode = 'custom' | 'date' | 'deadline' | 'recent';
+
 export interface TaskList {
   id: string;
   name: string;
+  sortMode?: SortMode;
+  // Solo para la lista "Principal" (orden por fecha): id de la lista cuyas
+  // tareas se reflejan en la sección "Hoy".
+  hoyListId?: string;
+}
+
+export interface Activity {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  start: string; // HH:MM (24h)
+  end: string; // HH:MM (24h)
+  color: string;
+  location?: string;
+  notes?: string;
+}
+
+export interface TimeEntry {
+  id: string;
+  activityId: string;
+  description: string;
+  date: string; // YYYY-MM-DD
+  startedAt: number; // epoch ms
+  endedAt: number; // epoch ms
+  seconds: number;
 }
