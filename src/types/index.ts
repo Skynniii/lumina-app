@@ -31,6 +31,7 @@ export interface Task {
   subtasks?: SubTask[];
   completedAt?: string;
   repeat?: RepeatConfig;
+  activityId?: string;
 }
 
 export type SortMode = 'custom' | 'date' | 'deadline' | 'recent';
@@ -66,6 +67,7 @@ export interface TimeEntry {
   activityId: string;
   description: string;
   notes?: string;
+  taskId?: string;
   date: string; // YYYY-MM-DD
   startedAt: number; // epoch ms
   endedAt: number; // epoch ms

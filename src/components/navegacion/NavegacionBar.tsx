@@ -4,6 +4,7 @@ import type { ViewType } from '../../types';
 interface Props {
   activeView: ViewType;
   onViewChange: (v: ViewType) => void;
+  onAdd: () => void;
 }
 
 const ICONS: Record<ViewType, React.ReactNode> = {
@@ -22,7 +23,7 @@ const ICONS: Record<ViewType, React.ReactNode> = {
   ),
   habitos: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 2h6a1 1 0 0 1 1 1v1H8V3a1 1 0 0 1 1-1z" />
+      <path d="M9 2h6a1 1 0 0 1 1 1v1H8V3a1 1 0 0 1 9-1z" />
       <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
       <path d="M9 14l2 2 4-4" />
     </svg>
@@ -37,40 +38,52 @@ const ICONS: Record<ViewType, React.ReactNode> = {
   ),
 };
 
-const TABS: { id: ViewType; label: string }[] = [
-  { id: 'tracker', label: 'Tracker' },
-  { id: 'cronometro', label: 'Timer' },
-  { id: 'habitos', label: 'Tasks' },
-  { id: 'calendar', label: 'Calendar' },
-];
+const TABS: ViewType[] = ['tracker', 'cronometro', 'habitos', 'calendar'];
 
-export function NavegacionBar({ activeView, onViewChange }: Props) {
+export function NavegacionBar({ activeView, onViewChange, onAdd }: Props) {
+  const leftTabs = TABS.slice(0, 2);
+  const rightTabs = TABS.slice(2);
+
+  const renderTab = (id: ViewType) => {
+    const active = activeView === id;
+    return (
+      <button
+        key={id}
+        onClick={() => onViewChange(id)}
+        className="relative flex items-center justify-center w-14 h-14 rounded-2xl transition-colors duration-200"
+      >
+        {active && (
+          <motion.span
+            layoutId="nav-pill"
+            className="absolute inset-0 bg-[#f0edff] rounded-2xl -z-10"
+            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+          />
+        )}
+        <span className="relative z-10 transition-colors duration-200" style={{ color: active ? '#7f70ff' : '#888' }}>
+          {ICONS[id]}
+        </span>
+      </button>
+    );
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 h-[70px] bg-white flex justify-around items-center shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-[100]">
-      {TABS.map((tab) => {
-        const active = activeView === tab.id;
-        return (
-          <button
-            key={tab.id}
-            onClick={() => onViewChange(tab.id)}
-            className="relative flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-2xl transition-colors duration-200"
-          >
-            {active && (
-              <motion.span
-                layoutId="nav-pill"
-                className="absolute inset-0 bg-[#f0edff] rounded-2xl -z-10"
-                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-              />
-            )}
-            <span className="relative z-10 transition-colors duration-200" style={{ color: active ? '#7f70ff' : '#888' }}>
-              {ICONS[tab.id]}
-            </span>
-            <span className="relative z-10 text-[10px] font-medium transition-colors duration-200" style={{ color: active ? '#7f70ff' : '#888' }}>
-              {tab.label}
-            </span>
-          </button>
-        );
-      })}
+      {leftTabs.map(renderTab)}
+
+      {/* Botón + incrustado, sobresale del borde superior */}
+      <motion.button
+        onClick={onAdd}
+        whileTap={{ scale: 0.88 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+        className="relative -mt-[32px] w-[56px] h-[56px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_4px_14px_rgba(127,112,255,0.4)] shrink-0"
+      >
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </motion.button>
+
+      {rightTabs.map(renderTab)}
     </nav>
   );
 }

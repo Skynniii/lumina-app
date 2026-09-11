@@ -7,6 +7,7 @@ import { ActivityPicker } from './ActivityPicker';
 import { FocusRing } from './FocusRing';
 import { TaskPicker } from './TaskPicker';
 import { useSettings } from '../../context/SettingsContext';
+import { useUserStorage } from '../../hooks/useUserStorage';
 import type { Task, TaskList } from '../../types';
 
 interface Props extends ActiveTimerCardProps {
@@ -24,8 +25,6 @@ const MODE_LABELS: Record<TimerMode, string> = {
   pomodoro: 'Pomodoro',
 };
 
-const PRESETS = [5, 10, 15, 25, 30];
-
 export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard, onSaveSession, ...props }: Props) {
   const { mode, onModeChange, countdown, pomodoroPhase, pomodoroCycle, onPomodoroSkip } = props;
   const { settings, update } = useSettings();
@@ -38,6 +37,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const [holdProgress, setHoldProgress] = useState(0);
   const holdIntervalRef = useRef<number | null>(null);
   const isHoldingRef = useRef(false);
+  const [customDurations, setCustomDurations] = useUserStorage<number[]>('timer-custom-durations', [15, 25, 45]);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customMin, setCustomMin] = useState('');
 
   const activity = props.activities.find((a) => a.id === props.draft.activityId);
   const isPaused = props.running !== null && props.running.startedAt === null;
@@ -53,7 +55,6 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const timeDisplay = formatElapsed(elapsedCount);
   const statusLabel = !hasStarted ? 'Listo' : (isRunning ? 'En curso' : 'Pausado');
 
-  // --- Handlers ---
   const handleCenterButton = () => {
     if (mode === 'rastreador') {
       if (!hasStarted) props.onStart();
@@ -78,6 +79,16 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
     onNotesChange(plainNotes);
   };
 
+  const handleCustomDuration = () => {
+    const min = parseInt(customMin);
+    if (min > 0) {
+      setCustomDurations((prev) => [min, ...prev.filter((m) => m !== min)].slice(0, 3));
+      countdown.setTarget(min);
+      setShowCustomInput(false);
+      setCustomMin('');
+    }
+  };
+
   // --- Long press checkmark ---
   const handleCheckPointerDown = () => {
     if (!hasStarted) { onSaveSession(false); return; }
@@ -89,7 +100,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       if (p >= 0.12) isHoldingRef.current = true;
       if (p >= 1) {
         if (holdIntervalRef.current) { clearInterval(holdIntervalRef.current); holdIntervalRef.current = null; }
-        onSaveSession(true, selectedTask?.id);
+        onSaveSession(true, selectedTask?.id ?? props.draft.taskId);
         setHoldProgress(0);
       }
     }, 50);
@@ -97,33 +108,21 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
   const handleCheckPointerEnd = () => {
     if (holdIntervalRef.current) { clearInterval(holdIntervalRef.current); holdIntervalRef.current = null; }
-    if (!isHoldingRef.current && holdProgress < 0.12) {
-      onSaveSession(false);
-    }
+    if (!isHoldingRef.current && holdProgress < 0.12) onSaveSession(false);
     setHoldProgress(0);
   };
 
-  // --- SVG constants for checkmark ring ---
   const checkSize = 56;
   const checkRadius = (checkSize - 6) / 2;
   const checkCircumference = 2 * Math.PI * checkRadius;
 
   return (
-    <motion.div
-      initial={{ y: '100%' }}
-      animate={{ y: 0 }}
-      exit={{ y: '100%' }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="fixed inset-0 z-[9999] flex flex-col bg-white"
-    >
+    <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} className="fixed inset-0 z-[9999] flex flex-col bg-white">
       {/* === Barra superior === */}
       <div className="flex items-center justify-between px-4 pt-5 pb-3 shrink-0">
-        {/* Atrás */}
         <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
         </button>
-
-        {/* Mode dropdown */}
         <div className="relative">
           <button onClick={() => setModeDropdownOpen(!modeDropdownOpen)} className="flex items-center gap-1.5 px-4 py-2 rounded-full hover:bg-black/5 transition-colors">
             <span className="text-[16px] font-bold text-[#333]">{MODE_LABELS[mode]}</span>
@@ -133,19 +132,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
             {modeDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-[100]" onClick={() => setModeDropdownOpen(false)} />
-                <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] border border-[#f0f0f0] py-1 w-[180px] z-[101]"
-                >
+                <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.15 }} className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] border border-[#f0f0f0] py-1 w-[180px] z-[101]">
                   {(['rastreador', 'temporizador', 'pomodoro'] as TimerMode[]).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => { onModeChange(m); setModeDropdownOpen(false); }}
-                      className={`w-full flex items-center justify-between px-4 py-2.5 text-[15px] border-none cursor-pointer transition-colors ${m === mode ? 'text-[#7f70ff] font-bold bg-[#f0edff]' : 'text-[#555] hover:bg-[#f8f9fa]'}`}
-                    >
+                    <button key={m} onClick={() => { onModeChange(m); setModeDropdownOpen(false); }} className={`w-full flex items-center justify-between px-4 py-2.5 text-[15px] border-none cursor-pointer transition-colors ${m === mode ? 'text-[#7f70ff] font-bold bg-[#f0edff]' : 'text-[#555] hover:bg-[#f8f9fa]'}`}>
                       {MODE_LABELS[m]}
                       {m === mode && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
                     </button>
@@ -155,8 +144,6 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
             )}
           </AnimatePresence>
         </div>
-
-        {/* Settings gear */}
         <div className="relative">
           <button onClick={() => setSettingsOpen(!settingsOpen)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
@@ -165,24 +152,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
             {settingsOpen && (
               <>
                 <div className="fixed inset-0 z-[100]" onClick={() => setSettingsOpen(false)} />
-                <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute top-full right-0 mt-1 bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] border border-[#f0f0f0] py-2 w-[220px] z-[101]"
-                >
-                  {mode === 'temporizador' && (
-                    <>
-                      <p className="px-4 py-1 text-[11px] font-bold uppercase tracking-wide text-[#999] m-0">Duración</p>
-                      <div className="px-4 pb-2 flex gap-2 flex-wrap">
-                        {PRESETS.map((min) => (
-                          <button key={min} onClick={() => countdown.setTarget(min)} className={`px-3 py-1 rounded-full text-[12px] font-semibold border-none cursor-pointer transition-colors ${countdown.targetSeconds === min * 60 ? 'bg-[#7f70ff] text-white' : 'bg-[#f7f6f9] text-[#777]'}`}>{min} min</button>
-                        ))}
-                      </div>
-                      <div className="h-px bg-[#f0f0f0] mx-4 my-1" />
-                    </>
-                  )}
+                <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.15 }} className="absolute top-full right-0 mt-1 bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] border border-[#f0f0f0] py-2 w-[220px] z-[101]">
                   {mode === 'pomodoro' && (
                     <>
                       <button onClick={() => { onPomodoroSkip(); setSettingsOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-[14px] text-[#555] hover:bg-[#f8f9fa] transition-colors border-none bg-transparent cursor-pointer">
@@ -193,10 +163,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
                     </>
                   )}
                   <p className="px-4 py-1 text-[11px] font-bold uppercase tracking-wide text-[#999] m-0">Configuración</p>
-                  {([
-                    { key: 'sounds' as const, label: 'Sonidos' },
-                    { key: 'notifications' as const, label: 'Notificaciones' },
-                  ]).map((item) => (
+                  {[{ key: 'sounds' as const, label: 'Sonidos' }, { key: 'notifications' as const, label: 'Notificaciones' }].map((item) => (
                     <button key={item.key} onClick={() => update(item.key, !settings[item.key])} className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] text-[#555] hover:bg-[#f8f9fa] transition-colors border-none bg-transparent cursor-pointer">
                       <span>{item.label}</span>
                       <span className={`w-9 h-5 rounded-full transition-colors ${settings[item.key] ? 'bg-[#7f70ff]' : 'bg-[#e0e0e0]'}`}>
@@ -235,19 +202,33 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
               <span className="text-[11px] text-[#b0b0b0]">· Ciclo {pomodoroCycle}</span>
             </div>
           )}
+
+          {/* Presets de temporizador */}
+          {mode === 'temporizador' && (
+            <div className="flex gap-2 mt-4 flex-wrap justify-center max-w-[320px]">
+              {customDurations.map((min) => (
+                <button key={min} onClick={() => countdown.setTarget(min)} className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold border-none cursor-pointer transition-colors ${countdown.targetSeconds === min * 60 ? 'bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.2)]' : 'bg-[#f7f6f9] text-[#777] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff]'}`}>{min} min</button>
+              ))}
+              {showCustomInput ? (
+                <div className="flex items-center gap-1">
+                  <input type="number" value={customMin} onChange={(e) => setCustomMin(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCustomDuration()} autoFocus placeholder="min" className="w-14 px-2 py-1.5 rounded-full text-[13px] text-center bg-[#f7f6f9] outline-none border border-[#d9d9ff]" />
+                  <button onClick={handleCustomDuration} className="px-2 py-1.5 rounded-full text-[13px] font-semibold bg-[#7f70ff] text-white border-none cursor-pointer">OK</button>
+                </div>
+              ) : (
+                <button onClick={() => setShowCustomInput(true)} className="px-3.5 py-1.5 rounded-full text-[13px] font-semibold bg-[#f7f6f9] text-[#777] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors">Personalizado</button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Información de la sesión */}
         <div className="max-w-[340px] mx-auto pb-28">
-          <p className="text-[12px] font-bold uppercase tracking-wide text-[#999] m-0 mb-1">Información de la sesión</p>
-
-          {/* Desde Tasks */}
-          <div className="border-b border-[#f0f0f5]">
-            <button onClick={() => setTaskPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
-              <span className="text-[#7f70ff]">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7" /><polyline points="7 7 17 7 17 17" /></svg>
-              </span>
-              <span className="text-[15px] text-[#7f70ff] font-semibold">Desde Tasks</span>
+          {/* Header con "Tasks" a la derecha */}
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[12px] font-bold uppercase tracking-wide text-[#999] m-0">Información de la sesión</p>
+            <button onClick={() => setTaskPickerOpen(true)} className="flex items-center gap-1 text-[#7f70ff] bg-transparent border-none cursor-pointer">
+              <span className="text-[13px] font-semibold">Tasks</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7" /><polyline points="7 7 17 7 17 17" /></svg>
             </button>
           </div>
 
@@ -264,11 +245,13 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           {/* Actividad */}
           <div className="border-b border-[#f0f0f5]">
             <button onClick={() => setPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
-              <span className="text-[#a0a0a0]">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-              </span>
+              {!activity && (
+                <span className="text-[#a0a0a0]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                </span>
+              )}
               {activity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: activity.color }} />}
-              <span className={`flex-1 text-left text-[15px] ${activity ? 'text-[#333]' : 'text-[#aaa]'}`}>{activity?.name ?? 'Sin actividad'}</span>
+              <span className={`flex-1 text-left text-[15px] ${activity ? 'text-[#333]' : 'text-[#aaa]'}`}>{activity?.name ?? 'Seleccionar actividad'}</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
             </button>
           </div>
@@ -287,49 +270,33 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
       {/* === Botones flotantes inferiores === */}
       <div className="flex items-center justify-center gap-10 pb-8 pt-2 shrink-0">
-        {/* X — descartar */}
-        <motion.button
-          onClick={handleXClick}
-          whileTap={{ scale: 0.88 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-          className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-        </motion.button>
+        {hasStarted ? (
+          <motion.button onClick={handleXClick} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </motion.button>
+        ) : <div className="w-[52px]" />}
 
-        {/* Centro — pausar/reanudar/iniciar */}
-        <motion.button
-          onClick={handleCenterButton}
-          whileTap={{ scale: 0.88 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-          className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)]"
-        >
-          {!hasStarted || isPaused || (!isRunning && hasStarted) ? (
+        <motion.button onClick={handleCenterButton} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)]">
+          {!hasStarted || (!isRunning && hasStarted) ? (
             <svg width="28" height="28" viewBox="0 0 24 24" fill="white" className="ml-1"><path d="M8 5v14l11-7z" /></svg>
           ) : (
             <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><rect x="6" y="5" width="4" height="14" rx="1.5" /><rect x="14" y="5" width="4" height="14" rx="1.5" /></svg>
           )}
         </motion.button>
 
-        {/* Checkmark — guardar / guardar+completar (long press) */}
-        <div className="relative" style={{ width: checkSize, height: checkSize }}>
-          <svg className="absolute inset-0 -rotate-90 pointer-events-none" width={checkSize} height={checkSize}>
-            <circle cx={checkSize / 2} cy={checkSize / 2} r={checkRadius} fill="none" stroke="#34c77b" strokeWidth="3" strokeDasharray={checkCircumference} strokeDashoffset={checkCircumference * (1 - holdProgress)} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.05s linear' }} />
-          </svg>
-          <motion.button
-            onPointerDown={handleCheckPointerDown}
-            onPointerUp={handleCheckPointerEnd}
-            onPointerLeave={handleCheckPointerEnd}
-            whileTap={{ scale: 0.92 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-            className="absolute inset-[3px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow touch-none"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34c77b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-          </motion.button>
-        </div>
+        {hasStarted ? (
+          <div className="relative" style={{ width: checkSize, height: checkSize }}>
+            <svg className="absolute inset-0 -rotate-90 pointer-events-none" width={checkSize} height={checkSize}>
+              <circle cx={checkSize / 2} cy={checkSize / 2} r={checkRadius} fill="none" stroke="#34c77b" strokeWidth="3" strokeDasharray={checkCircumference} strokeDashoffset={checkCircumference * (1 - holdProgress)} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.05s linear' }} />
+            </svg>
+            <motion.button onPointerDown={handleCheckPointerDown} onPointerUp={handleCheckPointerEnd} onPointerLeave={handleCheckPointerEnd} whileTap={{ scale: 0.92 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="absolute inset-[3px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow touch-none">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34c77b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            </motion.button>
+          </div>
+        ) : <div className="w-[56px]" />}
       </div>
 
-      {/* === Confirmación de descarte === */}
+      {/* Confirmación de descarte */}
       <AnimatePresence>
         {showConfirm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-[10002] flex items-center justify-center" onClick={() => setShowConfirm(false)}>
@@ -345,15 +312,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
         )}
       </AnimatePresence>
 
-      {/* === Modales === */}
-      <ActivityPicker
-        isOpen={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        activities={props.activities}
-        selectedId={props.draft.activityId}
-        onSelect={(id) => { props.onActivityChange(id); setPickerOpen(false); }}
-        onCreate={(name, color) => { const id = props.onCreateActivity(name, color); props.onActivityChange(id); setPickerOpen(false); }}
-      />
+      <ActivityPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} activities={props.activities} selectedId={props.draft.activityId} onSelect={(id) => { props.onActivityChange(id); setPickerOpen(false); }} onCreate={(name, color) => { const id = props.onCreateActivity(name, color); props.onActivityChange(id); setPickerOpen(false); }} />
       <TaskPicker isOpen={taskPickerOpen} onClose={() => setTaskPickerOpen(false)} lists={taskLists} tasks={tasks} onSelect={handleSelectTask} />
     </motion.div>
   );

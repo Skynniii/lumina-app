@@ -12,6 +12,7 @@ import { Sidebar } from './components/ui/Sidebar';
 import { SettingsPage } from './components/ui/SettingsPage';
 import { AccountPage } from './components/ui/AccountPage';
 import { LoginScreen } from './components/ui/LoginScreen';
+import { ActivitiesPage } from './components/timer/ActivitiesPage';
 
 function AppContent() {
   const { user, authLoading } = useAuth();
@@ -20,6 +21,7 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [showActivities, setShowActivities] = useState(false);
   const userNavigated = useRef(false);
 
   // Aplica la sección inicial definida en configuración mientras el usuario
@@ -50,13 +52,13 @@ function AppContent() {
       <AnimatePresence mode="wait">
         <motion.div key={view} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="w-full h-full">
           {view === 'cronometro' && <TimeTracker onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} />}
-          {view === 'habitos' && <TareasDashboard onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} />}
+          {view === 'habitos' && <TareasDashboard onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} onNavigate={handleViewChange} />}
           {view === 'tracker' && <Tracker onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} />}
           {view === 'calendar' && <CalendarView onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} />}
         </motion.div>
       </AnimatePresence>
 
-      <NavegacionBar activeView={view} onViewChange={handleViewChange} />
+      <NavegacionBar activeView={view} onViewChange={handleViewChange} onAdd={() => window.dispatchEvent(new CustomEvent('app-add'))} />
 
       <Sidebar
         isOpen={sidebarOpen}
@@ -64,7 +66,12 @@ function AppContent() {
         activeView={view}
         onNavigate={(v) => { handleViewChange(v); setSidebarOpen(false); }}
         onOpenSettings={() => { setSidebarOpen(false); setShowSettings(true); }}
+        onOpenActivities={() => { setSidebarOpen(false); setShowActivities(true); }}
       />
+
+      <AnimatePresence>
+        {showActivities && <ActivitiesPage onBack={() => setShowActivities(false)} />}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showSettings && <SettingsPage onBack={() => setShowSettings(false)} />}

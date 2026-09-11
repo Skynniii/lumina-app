@@ -13,6 +13,7 @@ export interface TrackerDraft {
   activityId: string;
   description: string;
   notes: string;
+  taskId?: string;
 }
 
 const DEFAULT_ACTIVITIES: Activity[] = [
@@ -101,6 +102,7 @@ export function useTimeTracker() {
       activityId: draft.activityId,
       description: draft.description.trim(),
       notes: draft.notes.trim(),
+      taskId: draft.taskId,
       date: todayKey(),
       startedAt: running.sessionStart,
       endedAt: end,
@@ -119,6 +121,7 @@ export function useTimeTracker() {
       activityId: draft.activityId,
       description: draft.description.trim(),
       notes: draft.notes.trim(),
+      taskId: draft.taskId,
       date: todayKey(),
       startedAt: now - seconds * 1000,
       endedAt: now,
@@ -143,6 +146,14 @@ export function useTimeTracker() {
     return id;
   }, [setActivities]);
 
+  const updateActivity = useCallback((id: string, updates: Partial<Activity>) => {
+    setActivities((prev) => prev.map((a) => (a.id === id ? { ...a, ...updates } : a)));
+  }, [setActivities]);
+
+  const deleteActivity = useCallback((id: string) => {
+    setActivities((prev) => prev.filter((a) => a.id !== id));
+  }, [setActivities]);
+
   return {
     activities,
     entries,
@@ -158,6 +169,8 @@ export function useTimeTracker() {
     discard,
     deleteEntry,
     addActivity,
+    updateActivity,
+    deleteActivity,
     setDraft,
   };
 }

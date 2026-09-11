@@ -5,6 +5,7 @@ import { playCompleteSound } from '../../utils/sound';
 import { useTimeTracker, todayKey, formatElapsed } from '../../hooks/useTimeTracker';
 import { useCountdownTimer, type TimerMode } from '../../hooks/useCountdownTimer';
 import { useUserStorage } from '../../hooks/useUserStorage';
+import { setPendingTimerTask, getPendingTimerTask, clearPendingTimerTask } from '../../shared/pendingTimerTask';
 import { TopBar } from '../ui/TopBar';
 import { TodaySummary } from './TodaySummary';
 import { FocusScreen } from './FocusScreen';
@@ -29,6 +30,27 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   const [showFocus, setShowFocus] = useState(false);
   const [taskLists] = useUserStorage<TaskList[]>('lumina_lists', []);
   const [tasks, setTasks] = useUserStorage<Task[]>('lumina_tasks', []);
+
+  // Escuchar botón + de la barra de navegación y timer desde tareas
+  useEffect(() => {
+    const addHandler = () => {
+      tracker.setDraft({ activityId: '', description: '', notes: '' });
+      setShowFocus(true);
+    };
+    window.addEventListener('app-add', addHandler);
+    return () => window.removeEventListener('app-add', addHandler);
+  }, [tracker]);
+
+  // Manejar tarea pendiente (iniciar timer desde TaskDetailView)
+  useEffect(() => {
+    const task = getPendingTimerTask();
+    if (task) {
+      clearPendingTimerTask();
+      const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
+      tracker.setDraft({ activityId: task.activityId || '', description: task.text, notes: plainNotes, taskId: task.id });
+      setShowFocus(true);
+    }
+  }, [tracker]);
 
   const handleStop = () => {
     const saved = tracker.stop();
@@ -136,7 +158,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
         </div>
 
         <AnimatePresence>
-          {!showFocus && isTimerActive ? (
+          {!showFocus && isTimerActive && (
             <motion.div
               key="bar"
               initial={{ scale: 0.9, opacity: 0 }}
@@ -144,7 +166,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               onClick={() => setShowFocus(true)}
-              className="absolute bottom-[95px] left-1/2 -translate-x-1/2 w-[90%] max-w-[350px] bg-white rounded-2xl shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] flex items-center gap-3 px-4 py-3 cursor-pointer z-30"
+              className="absolute bottom-[85px] left-1/2 -translate-x-1/2 w-[90%] max-w-[350px] bg-white rounded-2xl shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] flex items-center gap-3 px-4 py-3 cursor-pointer z-30"
             >
               {mode === 'rastreador' && (
                 <>
@@ -169,19 +191,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
                 </>
               )}
             </motion.div>
-          ) : !showFocus && !isTimerActive ? (
-            <motion.button
-              key="add"
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-              onClick={() => setShowFocus(true)}
-              className="absolute bottom-[95px] left-1/2 -translate-x-1/2 w-[55px] h-[55px] bg-white rounded-2xl shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] border-none text-[28px] text-[#7f70ff] cursor-pointer flex items-center justify-center z-30 active:shadow-[inset_2px_2px_5px_#e6e6e6]"
-            >
-              +
-            </motion.button>
-          ) : null}
+          )}
         </AnimatePresence>
       </section>
 

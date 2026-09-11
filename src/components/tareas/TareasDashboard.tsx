@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import type { TaskList } from '../../types';
+import type { TaskList, ViewType } from '../../types';
 import { useTasks } from '../../hooks/useTasks';
 import { NavTopHeader } from './nav-top/NavTopHeader';
 import { ListaTareasCard } from './ListaTareasCard';
@@ -12,15 +12,23 @@ import { NuevaTareaModal } from './NuevaTareaModal';
 interface Props {
   onMenuClick: () => void;
   onOpenAccount: () => void;
+  onNavigate?: (v: ViewType) => void;
 }
 
-export function TareasDashboard({ onMenuClick, onOpenAccount }: Props) {
+export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Props) {
   const { lists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
   const [activeListId, setActiveListId] = useState(lists[0]?.id || '');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const clicking = useRef(false);
+
+  // Escuchar botón + de la barra de navegación
+  useEffect(() => {
+    const handler = () => setShowNewTask(true);
+    window.addEventListener('app-add', handler);
+    return () => window.removeEventListener('app-add', handler);
+  }, []);
 
   const expandedTask = expandedTaskId ? tasks.find((t) => t.id === expandedTaskId) : null;
 
@@ -98,18 +106,10 @@ export function TareasDashboard({ onMenuClick, onOpenAccount }: Props) {
             onToggle={toggleTask}
             onUpdate={updateTask}
             onDelete={deleteTask}
+            onNavigate={onNavigate}
           />
         )}
       </AnimatePresence>
-
-      {!expandedTaskId && (
-        <button
-          onClick={() => setShowNewTask(true)}
-          className="fixed bottom-[85px] left-1/2 -translate-x-1/2 w-[55px] h-[55px] bg-white border-none rounded-2xl text-[28px] text-[#7f70ff] cursor-pointer flex items-center justify-center shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#fff] z-10 active:shadow-[inset_2px_2px_5px_#e6e6e6]"
-        >
-          +
-        </button>
-      )}
 
       <NuevaTareaModal
         isOpen={showNewTask}
