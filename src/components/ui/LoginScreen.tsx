@@ -1,5 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { auth } from '../../firebase'; // Importación ajustada desde la raíz de src
 import { useAuth } from '../../context/AuthContext';
 
 export function LoginScreen() {
@@ -7,11 +11,28 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      GoogleAuth.initialize({
+        clientId: '664146917749-iiks6duvimlol93itb46sqcighguqd0h.apps.googleusercontent.com',
+        scopes: ['profile', 'email'],
+      });
+    }
+  }, []);
+
   const handleLogin = async () => {
     setError(null);
     setLoading(true);
+
     try {
-      await signInWithGoogle();
+      if (Capacitor.isNativePlatform()) {
+        const googleUser = await GoogleAuth.signIn();
+        const idToken = googleUser.authentication.idToken;
+        const credential = GoogleAuthProvider.credential(idToken);
+        await signInWithCredential(auth, credential);
+      } else {
+        await signInWithGoogle();
+      }
     } catch (e: unknown) {
       const code = (e as { code?: string })?.code;
       if (code === 'auth/unauthorized-domain') {
