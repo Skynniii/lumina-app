@@ -106,130 +106,45 @@ export function ListaTareasCard({
 
     const startX = e.clientX;
     const startY = e.clientY;
-    let scrolling = false;
-    let scrollAxis: 'x' | 'y' | null = null;
-    let lastX = startX;
-    let lastY = startY;
-    let lastTime = performance.now();
-    let velocityX = 0;
-    let velocityY = 0;
-    let momentumId: number | null = null;
-    let touchActive = false;
-    let ended = false;
 
-    const getScrollTargets = () => {
-      const cardEl = li.closest('[data-lista]') as HTMLElement;
-      const visorEl = document.getElementById('visor-de-listas');
-      return { cardEl, visorEl };
+    // Bloquea el scroll nativo SOLO cuando el drag está activo (post long-press).
+    // Antes del timer, el scroll nativo funciona con touchAction: 'pan-x pan-y'.
+    const onTouchMoveBlock = (ev: TouchEvent) => {
+      ev.preventDefault();
     };
 
-    const doScroll = (clientX: number, clientY: number) => {
-      const dx = clientX - startX;
-      const dy = clientY - startY;
-      if (!scrolling) {
-        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-        scrolling = true;
-        scrollAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-        if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+    // Cancela el long-press si el usuario se mueve (scroll nativo en curso).
+    const onMoveCheck = (ev: PointerEvent) => {
+      const dx = Math.abs(ev.clientX - startX);
+      const dy = Math.abs(ev.clientY - startY);
+      if (dx > 8 || dy > 8) {
+        cleanup();
       }
-      const now = performance.now();
-      const dt = Math.max(1, now - lastTime);
-      if (scrollAxis === 'x') {
-        const { visorEl } = getScrollTargets();
-        if (visorEl) {
-          const deltaX = clientX - lastX;
-          visorEl.scrollLeft -= deltaX;
-          velocityX = -deltaX / dt;
-        }
-      } else {
-        const { cardEl } = getScrollTargets();
-        if (cardEl) {
-          const deltaY = clientY - lastY;
-          cardEl.scrollTop -= deltaY;
-          velocityY = -deltaY / dt;
-        }
-      }
-      lastX = clientX;
-      lastY = clientY;
-      lastTime = now;
     };
 
-    const startMomentum = () => {
-      const decay = 0.94;
-      const minVel = 0.02;
-      const step = () => {
-        const { visorEl, cardEl } = getScrollTargets();
-        if (scrollAxis === 'x' && visorEl) {
-          if (Math.abs(velocityX) < minVel) {
-            const idx = Math.round(visorEl.scrollLeft / visorEl.offsetWidth);
-            visorEl.scrollTo({ left: idx * visorEl.offsetWidth, behavior: 'smooth' });
-            momentumId = null;
-            cleanupPreDrag();
-            return;
-          }
-          visorEl.scrollLeft += velocityX * 16;
-          velocityX *= decay;
-        } else if (scrollAxis === 'y' && cardEl) {
-          if (Math.abs(velocityY) < minVel) {
-            momentumId = null;
-            cleanupPreDrag();
-            return;
-          }
-          cardEl.scrollTop += velocityY * 16;
-          velocityY *= decay;
-        }
-        momentumId = requestAnimationFrame(step);
-      };
-      momentumId = requestAnimationFrame(step);
-    };
-
-    const cleanupPreDrag = () => {
-      if (momentumId) { cancelAnimationFrame(momentumId); momentumId = null; }
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onUp);
-      window.removeEventListener('touchcancel', onUp);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
+    const cleanup = () => {
+      if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+      window.removeEventListener('pointermove', onMoveCheck);
+      window.removeEventListener('touchmove', onTouchMoveBlock);
       preDragCleanup.current = null;
     };
 
-    const onTouchMove = (ev: TouchEvent) => {
-      touchActive = true;
-      const t = ev.touches[0];
-      if (t) doScroll(t.clientX, t.clientY);
-    };
-    const onPointerMove = (ev: PointerEvent) => {
-      if (touchActive) return;
-      doScroll(ev.clientX, ev.clientY);
-    };
-    const onUp = () => {
-      if (ended) return;
-      ended = true;
-      if (!scrolling) { cleanupPreDrag(); return; }
-      startMomentum();
-    };
-
-    preDragCleanup.current = cleanupPreDrag;
-    window.addEventListener('touchmove', onTouchMove, { passive: true });
-    window.addEventListener('touchend', onUp);
-    window.addEventListener('touchcancel', onUp);
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    preDragCleanup.current = cleanup;
+    window.addEventListener('pointermove', onMoveCheck);
 
     lpTimer.current = window.setTimeout(() => {
-      if (scrolling) return;
-      cleanupPreDrag();
+      window.removeEventListener('pointermove', onMoveCheck);
       didDrag.current = true;
       setDragId(id);
       setDragOrderBoth(baseIds.slice());
       setOverlayY(drag.current.startTop - drag.current.ulTop);
+      // Bloquea el scroll nativo durante el drag
+      window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
     }, 450);
   }, [reorderable, baseIds, setDragOrderBoth]);
 
   const onItemPointerEnd = useCallback(() => {
-    if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+    if (preDragCleanup.current) preDragCleanup.current();
   }, []);
 
   const onExpandGuarded = useCallback((id: string) => {

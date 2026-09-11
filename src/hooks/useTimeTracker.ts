@@ -140,6 +140,10 @@ export function useTimeTracker() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }, [setEntries]);
 
+  const updateEntry = useCallback((id: string, updates: Partial<TimeEntry>) => {
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
+  }, [setEntries]);
+
   const addActivity = useCallback((name: string, color: string): string => {
     const id = `act-${Date.now()}`;
     setActivities((prev) => [...prev, { id, name: name.trim(), color }]);
@@ -168,6 +172,7 @@ export function useTimeTracker() {
     saveSession,
     discard,
     deleteEntry,
+    updateEntry,
     addActivity,
     updateActivity,
     deleteActivity,

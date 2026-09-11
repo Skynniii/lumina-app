@@ -155,10 +155,10 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
                   type="button"
                   onClick={() => setShowActivityPicker(true)}
                   title="Actividad"
-                  className="w-11 h-11 flex-none flex items-center justify-center rounded-full border transition-colors"
-                  style={activityId ? { borderColor: `${selectedActivity?.color ?? '#bbb'}30`, background: `${selectedActivity?.color ?? '#bbb'}08` } : { borderColor: '#e8e8ed', background: '#fcfcfd' }}
+                  className={`w-11 h-11 flex-none flex items-center justify-center rounded-full border transition-colors ${activityId ? 'border-[#7f70ff]/30 bg-[#f0edff]' : 'border-[#e8e8ed] bg-[#fcfcfd] text-[#999]'}`}
+                  style={activityId ? { color: selectedActivity?.color ?? '#7f70ff' } : undefined}
                 >
-                  <span className="w-5 h-5 rounded-full" style={{ background: activityId ? (selectedActivity?.color ?? '#bbb') : '#d1d1d6' }} />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
                 </button>
                 {fechaLabel && <span className="text-[12px] text-[#6b5cdb] font-medium ml-1 truncate">{fechaLabel}</span>}
               </div>

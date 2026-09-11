@@ -10,7 +10,8 @@ import { TopBar } from '../ui/TopBar';
 import { TodaySummary } from './TodaySummary';
 import { FocusScreen } from './FocusScreen';
 import { EntryList } from './EntryList';
-import type { Task, TaskList } from '../../types';
+import { SessionDetailModal } from './SessionDetailModal';
+import type { Task, TaskList, TimeEntry } from '../../types';
 
 interface Props {
   onMenuClick: () => void;
@@ -28,6 +29,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   const [pomodoroPhase, setPomodoroPhase] = useState<'work' | 'break'>('work');
   const [pomodoroCycle, setPomodoroCycle] = useState(0);
   const [showFocus, setShowFocus] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [taskLists] = useUserStorage<TaskList[]>('lumina_lists', []);
   const [tasks, setTasks] = useUserStorage<Task[]>('lumina_tasks', []);
 
@@ -141,6 +143,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               isRunning={tracker.isTicking}
               liveActivityId={tracker.draft.activityId}
               liveDescription={tracker.draft.description}
+              onSelectEntry={setSelectedEntry}
             />
 
             <div className="flex items-center gap-3 pt-2">
@@ -153,6 +156,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               entries={historyEntries}
               activities={tracker.activities}
               onDelete={tracker.deleteEntry}
+              onSelectEntry={setSelectedEntry}
             />
           </div>
         </div>
@@ -206,6 +210,18 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             onNotesChange={(v) => tracker.setDraft((d) => ({ ...d, notes: v }))}
             onDiscard={handleDiscard}
             onSaveSession={handleSaveSession}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedEntry && (
+          <SessionDetailModal
+            key={selectedEntry.id}
+            entry={selectedEntry}
+            onUpdate={tracker.updateEntry}
+            onDelete={tracker.deleteEntry}
+            onClose={() => setSelectedEntry(null)}
           />
         )}
       </AnimatePresence>
