@@ -6,6 +6,7 @@ import type { ActiveTimerCardProps } from './ActiveTimerCard';
 import { ActivityPicker } from './ActivityPicker';
 import { FocusRing } from './FocusRing';
 import { TaskPicker } from './TaskPicker';
+import { CustomDurationModal } from './CustomDurationModal';
 import { useSettings } from '../../context/SettingsContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
 import type { Task, TaskList } from '../../types';
@@ -38,8 +39,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const holdIntervalRef = useRef<number | null>(null);
   const isHoldingRef = useRef(false);
   const [customDurations, setCustomDurations] = useUserStorage<number[]>('timer-custom-durations', [15, 25, 45]);
-  const [showCustomInput, setShowCustomInput] = useState(false);
-  const [customMin, setCustomMin] = useState('');
+  const [showCustomDuration, setShowCustomDuration] = useState(false);
 
   const activity = props.activities.find((a) => a.id === props.draft.activityId);
   const isPaused = props.running !== null && props.running.startedAt === null;
@@ -52,7 +52,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const progress = mode === 'rastreador' ? 0 : (countdown.targetSeconds > 0 ? countdown.remaining / countdown.targetSeconds : 0);
   const ringColor = mode === 'pomodoro' ? (pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b') : '#7f70ff';
   const elapsedCount = mode === 'rastreador' ? props.elapsed : (countdown.targetSeconds - countdown.remaining);
-  const timeDisplay = formatElapsed(elapsedCount);
+  const timeDisplay = mode === 'temporizador' ? formatElapsed(countdown.remaining) : formatElapsed(elapsedCount);
   const statusLabel = !hasStarted ? 'Listo' : (isRunning ? 'En curso' : 'Pausado');
 
   const handleCenterButton = () => {
@@ -75,17 +75,16 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const handleSelectTask = (task: Task) => {
     setSelectedTask(task);
     props.onDescriptionChange(task.text);
+    if (task.activityId) props.onActivityChange(task.activityId);
     const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
     onNotesChange(plainNotes);
   };
 
-  const handleCustomDuration = () => {
-    const min = parseInt(customMin);
-    if (min > 0) {
-      setCustomDurations((prev) => [min, ...prev.filter((m) => m !== min)].slice(0, 3));
-      countdown.setTarget(min);
-      setShowCustomInput(false);
-      setCustomMin('');
+  const handleCustomDuration = (hours: number, minutes: number) => {
+    const totalMin = hours * 60 + minutes;
+    if (totalMin > 0) {
+      setCustomDurations((prev) => [totalMin, ...prev.filter((m) => m !== totalMin)].slice(0, 3));
+      countdown.setTarget(totalMin);
     }
   };
 
@@ -209,14 +208,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
               {customDurations.map((min) => (
                 <button key={min} onClick={() => countdown.setTarget(min)} className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold border-none cursor-pointer transition-colors ${countdown.targetSeconds === min * 60 ? 'bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.2)]' : 'bg-[#f7f6f9] text-[#777] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff]'}`}>{min} min</button>
               ))}
-              {showCustomInput ? (
-                <div className="flex items-center gap-1">
-                  <input type="number" value={customMin} onChange={(e) => setCustomMin(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCustomDuration()} autoFocus placeholder="min" className="w-14 px-2 py-1.5 rounded-full text-[13px] text-center bg-[#f7f6f9] outline-none border border-[#d9d9ff]" />
-                  <button onClick={handleCustomDuration} className="px-2 py-1.5 rounded-full text-[13px] font-semibold bg-[#7f70ff] text-white border-none cursor-pointer">OK</button>
-                </div>
-              ) : (
-                <button onClick={() => setShowCustomInput(true)} className="px-3.5 py-1.5 rounded-full text-[13px] font-semibold bg-[#f7f6f9] text-[#777] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors">Personalizado</button>
-              )}
+              <button onClick={() => setShowCustomDuration(true)} className="px-3.5 py-1.5 rounded-full text-[13px] font-semibold bg-[#f7f6f9] text-[#777] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors">Personalizado</button>
             </div>
           )}
         </div>
@@ -314,6 +306,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
       <ActivityPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} activities={props.activities} selectedId={props.draft.activityId} onSelect={(id) => { props.onActivityChange(id); setPickerOpen(false); }} onCreate={(name, color) => { const id = props.onCreateActivity(name, color); props.onActivityChange(id); setPickerOpen(false); }} />
       <TaskPicker isOpen={taskPickerOpen} onClose={() => setTaskPickerOpen(false)} lists={taskLists} tasks={tasks} onSelect={handleSelectTask} />
+      <CustomDurationModal isOpen={showCustomDuration} onClose={() => setShowCustomDuration(false)} onSave={handleCustomDuration} />
     </motion.div>
   );
 }
