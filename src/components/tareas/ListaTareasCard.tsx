@@ -65,6 +65,7 @@ export function ListaTareasCard({
   const dragOrderRef = useRef<string[] | null>(null);
   const taskByIdRef = useRef<Record<string, Task>>({});
   const drag = useRef({ startY: 0, height: 0, startTop: 0, ulTop: 0, id: '', others: [] as string[] });
+  const preDragCleanup = useRef<(() => void) | null>(null);
 
   const sortMode: SortMode = list.sortMode || 'custom';
   const active = tasks.filter((t) => !t.completed);
@@ -101,7 +102,59 @@ export function ListaTareasCard({
     if (r && ulR) {
       drag.current = { startY: e.clientY, height: r.height, startTop: r.top, ulTop: ulR.top, id, others: baseIds.filter((x) => x !== id) };
     }
+
+    // Pre-drag: permitir scroll manual antes de que el long-press active el arrastre.
+    // Como touchAction:'none' bloquea el scroll nativo, lo imitamos manualmente.
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let scrolling = false;
+    let lastX = startX;
+    let lastY = startY;
+
+    const onMovePreDrag = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!scrolling) {
+        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+        scrolling = true;
+        if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+      }
+      const deltaX = ev.clientX - lastX;
+      const deltaY = ev.clientY - lastY;
+      lastX = ev.clientX;
+      lastY = ev.clientY;
+      const cardEl = li.closest('[data-lista]') as HTMLElement;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        const visorEl = document.getElementById('visor-de-listas');
+        if (visorEl) visorEl.scrollLeft -= deltaX;
+      } else if (cardEl) {
+        cardEl.scrollTop -= deltaY;
+      }
+    };
+
+    const cleanupPreDrag = () => {
+      window.removeEventListener('pointermove', onMovePreDrag);
+      window.removeEventListener('pointerup', cleanupPreDrag);
+      window.removeEventListener('pointercancel', cleanupPreDrag);
+      preDragCleanup.current = null;
+      // Snap al terminar el scroll horizontal manual
+      if (scrolling) {
+        const visorEl = document.getElementById('visor-de-listas');
+        if (visorEl) {
+          const idx = Math.round(visorEl.scrollLeft / visorEl.offsetWidth);
+          visorEl.scrollTo({ left: idx * visorEl.offsetWidth, behavior: 'smooth' });
+        }
+      }
+    };
+    preDragCleanup.current = cleanupPreDrag;
+
+    window.addEventListener('pointermove', onMovePreDrag);
+    window.addEventListener('pointerup', cleanupPreDrag);
+    window.addEventListener('pointercancel', cleanupPreDrag);
+
     lpTimer.current = window.setTimeout(() => {
+      if (scrolling) return;
+      cleanupPreDrag();
       didDrag.current = true;
       setDragId(id);
       setDragOrderBoth(baseIds.slice());
