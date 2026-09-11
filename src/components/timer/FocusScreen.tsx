@@ -231,6 +231,26 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
         {/* Información de la sesión */}
         <div className="max-w-[340px] mx-auto pb-28">
+          {/* Fecha y hora */}
+          <div className="flex items-center justify-between py-2 text-[12px] text-[#999]">
+            <span className="capitalize">
+              {new Date().toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
+            </span>
+            <span className="tabular-nums font-medium text-[#555]">
+              {(() => {
+                const now = Date.now();
+                const startMs = now - elapsedCount * 1000;
+                const startStr = new Date(startMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: settings.timeFormat !== '24h' });
+                if (mode === 'rastreador') {
+                  return hasStarted ? `${startStr} –` : '';
+                }
+                const endMs = now + countdown.remaining * 1000;
+                const endStr = new Date(endMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: settings.timeFormat !== '24h' });
+                return `${startStr} – ${endStr}`;
+              })()}
+            </span>
+          </div>
+
           {/* Header con "Tasks" a la derecha */}
           <div className="flex items-center justify-between mb-1">
             <p className="text-[12px] font-bold uppercase tracking-wide text-[#999] m-0">Información de la sesión</p>

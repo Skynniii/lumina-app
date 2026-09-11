@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import type { Activity, TimeEntry } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
-import { formatElapsed, dayLabel, todayKey } from '../../hooks/useTimeTracker';
+import { formatElapsed, dayLabel } from '../../hooks/useTimeTracker';
 import { DatePickerModal } from '../tareas/DatePickerModal';
+import { TimePickerModal } from '../tareas/TimePickerModal';
 import { ActivityPicker } from './ActivityPicker';
 
 interface Props {
@@ -18,6 +19,8 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
   const { settings } = useSettings();
   const [activities, setActivities] = useUserStorage<Activity[]>('tracker-activities', []);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showActivityPicker, setShowActivityPicker] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -27,13 +30,19 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
     return new Date(epoch).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const epochToTimeStr = (epoch: number) => {
+  const fmtClock = (epoch: number) => {
     const d = new Date(epoch);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const h = d.getHours();
+    const min = d.getMinutes();
+    if (settings.timeFormat === '12h') {
+      return `${h % 12 || 12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+    }
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
   };
 
-  const updateStartTime = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number);
+  const updateStartTime = (hour24: string, minute: string) => {
+    const h = parseInt(hour24);
+    const m = parseInt(minute);
     const newStart = new Date(entry.startedAt);
     newStart.setHours(h, m, 0, 0);
     const newStartedAt = newStart.getTime();
@@ -41,8 +50,9 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
     onUpdate(entry.id, { startedAt: newStartedAt, seconds: newSeconds });
   };
 
-  const updateEndTime = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number);
+  const updateEndTime = (hour24: string, minute: string) => {
+    const h = parseInt(hour24);
+    const m = parseInt(minute);
     const newEnd = new Date(entry.endedAt);
     newEnd.setHours(h, m, 0, 0);
     const newEndedAt = newEnd.getTime();
@@ -102,34 +112,24 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
 
         {/* Hora de inicio */}
         <div className="border-b border-[#f0f0f5]">
-          <div className="flex items-center gap-3 py-3">
+          <button onClick={() => setShowStartTimePicker(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
             <span className="text-[#a0a0a0]">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M9 2h6" /><path d="M12 5V2" /></svg>
             </span>
-            <span className="flex-1 text-[15px] text-[#555]">Hora de inicio</span>
-            <input
-              type="time"
-              value={epochToTimeStr(entry.startedAt)}
-              onChange={(e) => updateStartTime(e.target.value)}
-              className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none outline-none cursor-pointer"
-            />
-          </div>
+            <span className="flex-1 text-left text-[15px] text-[#555]">Hora de inicio</span>
+            <span className="text-[15px] font-medium text-[#333] tabular-nums">{fmtClock(entry.startedAt)}</span>
+          </button>
         </div>
 
         {/* Hora de fin */}
         <div className="border-b border-[#f0f0f5]">
-          <div className="flex items-center gap-3 py-3">
+          <button onClick={() => setShowEndTimePicker(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
             <span className="text-[#a0a0a0]">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M9 2h6" /><path d="M12 5V2" /></svg>
             </span>
-            <span className="flex-1 text-[15px] text-[#555]">Hora de fin</span>
-            <input
-              type="time"
-              value={epochToTimeStr(entry.endedAt)}
-              onChange={(e) => updateEndTime(e.target.value)}
-              className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none outline-none cursor-pointer"
-            />
-          </div>
+            <span className="flex-1 text-left text-[15px] text-[#555]">Hora de fin</span>
+            <span className="text-[15px] font-medium text-[#333] tabular-nums">{fmtClock(entry.endedAt)}</span>
+          </button>
         </div>
 
         {/* Actividad */}
@@ -186,6 +186,28 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
           initialDate={entry.date}
           onClose={() => setShowDatePicker(false)}
           onSave={(d) => { updateDate(d); setShowDatePicker(false); }}
+        />
+      )}
+
+      {/* TimePickerModal para hora de inicio */}
+      {showStartTimePicker && (
+        <TimePickerModal
+          initialHour={new Date(entry.startedAt).getHours()}
+          initialMinute={new Date(entry.startedAt).getMinutes()}
+          onClose={() => setShowStartTimePicker(false)}
+          onSave={(h, m) => { updateStartTime(h, m); setShowStartTimePicker(false); }}
+          onClear={() => setShowStartTimePicker(false)}
+        />
+      )}
+
+      {/* TimePickerModal para hora de fin */}
+      {showEndTimePicker && (
+        <TimePickerModal
+          initialHour={new Date(entry.endedAt).getHours()}
+          initialMinute={new Date(entry.endedAt).getMinutes()}
+          onClose={() => setShowEndTimePicker(false)}
+          onSave={(h, m) => { updateEndTime(h, m); setShowEndTimePicker(false); }}
+          onClear={() => setShowEndTimePicker(false)}
         />
       )}
 

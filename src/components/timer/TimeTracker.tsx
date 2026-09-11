@@ -29,9 +29,11 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   const [pomodoroPhase, setPomodoroPhase] = useState<'work' | 'break'>('work');
   const [pomodoroCycle, setPomodoroCycle] = useState(0);
   const [showFocus, setShowFocus] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [taskLists] = useUserStorage<TaskList[]>('lumina_lists', []);
   const [tasks, setTasks] = useUserStorage<Task[]>('lumina_tasks', []);
+
+  const selectedEntry = selectedEntryId ? tracker.entries.find((e) => e.id === selectedEntryId) ?? null : null;
 
   // Escuchar botón + de la barra de navegación y timer desde tareas
   useEffect(() => {
@@ -143,7 +145,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               isRunning={tracker.isTicking}
               liveActivityId={tracker.draft.activityId}
               liveDescription={tracker.draft.description}
-              onSelectEntry={setSelectedEntry}
+              onSelectEntry={(e) => setSelectedEntryId(e.id)}
             />
 
             <div className="flex items-center gap-3 pt-2">
@@ -156,7 +158,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               entries={historyEntries}
               activities={tracker.activities}
               onDelete={tracker.deleteEntry}
-              onSelectEntry={setSelectedEntry}
+              onSelectEntry={(e) => setSelectedEntryId(e.id)}
             />
           </div>
         </div>
@@ -221,7 +223,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             entry={selectedEntry}
             onUpdate={tracker.updateEntry}
             onDelete={tracker.deleteEntry}
-            onClose={() => setSelectedEntry(null)}
+            onClose={() => setSelectedEntryId(null)}
           />
         )}
       </AnimatePresence>
