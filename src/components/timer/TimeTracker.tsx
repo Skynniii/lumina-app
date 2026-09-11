@@ -123,6 +123,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     running: tracker.running, elapsed: tracker.elapsed,
     draft: tracker.draft, activities: tracker.activities,
     onStart: tracker.start, onPause: tracker.pause, onResume: tracker.resume, onStop: handleStop,
+    onSetStartTime: tracker.setStartTime,
     onDescriptionChange: (v: string) => tracker.setDraft((d) => ({ ...d, description: v })),
     onActivityChange: (id: string) => tracker.setDraft((d) => ({ ...d, activityId: id })),
     onCreateActivity: (name: string, color: string) => tracker.addActivity(name, color),

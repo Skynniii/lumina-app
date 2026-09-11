@@ -150,6 +150,19 @@ export function useTimeTracker() {
     return id;
   }, [setActivities]);
 
+  const setStartTime = useCallback((epochMs: number) => {
+    setRunning((prev) => {
+      if (!prev) return prev;
+      const wasTicking = prev.startedAt !== null;
+      return {
+        ...prev,
+        sessionStart: epochMs,
+        startedAt: wasTicking ? epochMs : null,
+        accumulated: wasTicking ? 0 : prev.accumulated,
+      };
+    });
+  }, [setRunning]);
+
   const updateActivity = useCallback((id: string, updates: Partial<Activity>) => {
     setActivities((prev) => prev.map((a) => (a.id === id ? { ...a, ...updates } : a)));
   }, [setActivities]);
@@ -174,6 +187,7 @@ export function useTimeTracker() {
     deleteEntry,
     updateEntry,
     addActivity,
+    setStartTime,
     updateActivity,
     deleteActivity,
     setDraft,

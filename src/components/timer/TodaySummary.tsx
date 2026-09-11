@@ -115,7 +115,17 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
                         )}
                       </div>
                     </div>
-                    {expanded && g.sessions.map((s) => (
+                          <AnimatePresence initial={false}>
+                      {expanded && (
+                        <motion.div
+                          key="sessions"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }, opacity: { duration: 0.2, ease: 'easeInOut' } }}
+                          className="overflow-hidden flex flex-col"
+                        >
+                          {g.sessions.map((s) => (
                       <button
                         key={s.id}
                         onClick={() => s.entry && onSelectEntry?.(s.entry)}
@@ -133,7 +143,10 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
                         </div>
                         <span className="text-[12px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(s.seconds)}</span>
                       </button>
-                    ))}
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 );
               })}

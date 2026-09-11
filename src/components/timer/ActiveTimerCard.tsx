@@ -30,6 +30,7 @@ export interface ActiveTimerCardProps {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
+  onSetStartTime?: (epochMs: number) => void;
   onDescriptionChange: (v: string) => void;
   onActivityChange: (id: string) => void;
   onCreateActivity: (name: string, color: string) => string;
