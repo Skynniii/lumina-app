@@ -103,58 +103,43 @@ export function ListaTareasCard({
       drag.current = { startY: e.clientY, height: r.height, startTop: r.top, ulTop: ulR.top, id, others: baseIds.filter((x) => x !== id) };
     }
 
-    // Pre-drag: permitir scroll manual antes de que el long-press active el arrastre.
-    // Como touchAction:'none' bloquea el scroll nativo, lo imitamos manualmente.
+    // Con touchAction:'pan-x pan-y', el navegador maneja el scroll nativamente (con inercia).
+    // Solo necesitamos prevenir el scroll con preventDefault() en touchmove DESPUÉS de que
+    // el long-press active el arrastre. Antes del timer, el usuario puede hacer scroll libremente.
     const startX = e.clientX;
     const startY = e.clientY;
-    let scrolling = false;
-    let lastX = startX;
-    let lastY = startY;
+    let dragActive = false;
 
-    const onMovePreDrag = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      if (!scrolling) {
-        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-        scrolling = true;
+    const onTouchMove = (ev: TouchEvent) => {
+      if (dragActive) {
+        ev.preventDefault(); // Prevenir scroll durante el arrastre
+        return;
+      }
+      // Antes del long-press: si el usuario se mueve, cancelar el timer (está scrolleando)
+      const touch = ev.touches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
         if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
-      }
-      const deltaX = ev.clientX - lastX;
-      const deltaY = ev.clientY - lastY;
-      lastX = ev.clientX;
-      lastY = ev.clientY;
-      const cardEl = li.closest('[data-lista]') as HTMLElement;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        const visorEl = document.getElementById('visor-de-listas');
-        if (visorEl) visorEl.scrollLeft -= deltaX;
-      } else if (cardEl) {
-        cardEl.scrollTop -= deltaY;
+        cleanupTouch();
       }
     };
 
-    const cleanupPreDrag = () => {
-      window.removeEventListener('pointermove', onMovePreDrag);
-      window.removeEventListener('pointerup', cleanupPreDrag);
-      window.removeEventListener('pointercancel', cleanupPreDrag);
+    const cleanupTouch = () => {
+      if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', cleanupTouch);
+      window.removeEventListener('touchcancel', cleanupTouch);
       preDragCleanup.current = null;
-      // Snap al terminar el scroll horizontal manual
-      if (scrolling) {
-        const visorEl = document.getElementById('visor-de-listas');
-        if (visorEl) {
-          const idx = Math.round(visorEl.scrollLeft / visorEl.offsetWidth);
-          visorEl.scrollTo({ left: idx * visorEl.offsetWidth, behavior: 'smooth' });
-        }
-      }
     };
-    preDragCleanup.current = cleanupPreDrag;
+    preDragCleanup.current = cleanupTouch;
 
-    window.addEventListener('pointermove', onMovePreDrag);
-    window.addEventListener('pointerup', cleanupPreDrag);
-    window.addEventListener('pointercancel', cleanupPreDrag);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', cleanupTouch);
+    window.addEventListener('touchcancel', cleanupTouch);
 
     lpTimer.current = window.setTimeout(() => {
-      if (scrolling) return;
-      cleanupPreDrag();
+      dragActive = true;
       didDrag.current = true;
       setDragId(id);
       setDragOrderBoth(baseIds.slice());
@@ -189,6 +174,7 @@ export function ListaTareasCard({
       setDragOrderBoth(next);
     };
     const onUp = () => {
+      if (preDragCleanup.current) preDragCleanup.current();
       const cur = dragOrderRef.current;
       if (cur) {
         const ordered = cur.map((id) => taskByIdRef.current[id]).filter(Boolean) as Task[];
@@ -233,7 +219,7 @@ export function ListaTareasCard({
   const draggedTask = dragId ? taskByIdRef.current[dragId] : null;
 
   return (
-    <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[130px]" data-lista={list.id}>
+    <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista={list.id}>
       <div className="bg-white rounded-[24px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-[#f2f2f2] flex flex-col relative">
         {/* Header sticky */}
         <div className="sticky top-0 z-20">

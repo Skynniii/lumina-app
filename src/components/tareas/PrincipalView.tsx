@@ -461,7 +461,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   };
 
   return (
-    <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[130px]" data-lista="principal">
+    <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista="principal">
       <div className="bg-white rounded-[24px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-[#f2f2f2] flex flex-col relative">
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
