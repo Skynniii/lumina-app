@@ -414,42 +414,40 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
           </div>
         )}
 
-        {/* Espacio en blanco para futuras funciones */}
-        <div className="min-h-[60px]" />
-      </div>
-
-      {/* Separación */}
-      <div className="h-px bg-[#f0f0f5] mx-5 shrink-0" />
-
-      {/* Sección inferior: progreso, actividad, focus */}
-      <div className="shrink-0 px-5">
-        {/* Progreso (colapsable) */}
-        <div className="border-b border-[#f0f0f5]">
-          <div onClick={() => taskEntries.length > 0 && setProgressExpanded(!progressExpanded)} className={`flex items-center gap-3 py-3 ${taskEntries.length > 0 ? 'cursor-pointer' : ''}`}>
-            <span className="text-[#7f70ff]">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M9 2h6" /><path d="M12 5V2" /></svg>
-            </span>
-            <span className="flex-1 text-[15px] text-[#7f70ff] font-medium">Progreso</span>
-            <span className="text-[15px] font-bold text-[#7f70ff] tabular-nums">{formatElapsed(totalTaskSeconds)}</span>
-            {taskEntries.length > 0 && (
-              <motion.svg animate={{ rotate: progressExpanded ? 180 : 0 }} className="text-[#a0a0a0] w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></motion.svg>
-            )}
-          </div>
-          <AnimatePresence>
-            {progressExpanded && taskEntries.length > 0 && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <div className="pb-3 pl-[32px] flex flex-col gap-1.5">
-                  {sortedDates.map((date) => (
-                    <div key={date} className="flex items-center justify-between">
-                      <span className="text-[12px] text-[#999] capitalize">{dayLabel(date)}</span>
-                      <span className="text-[12px] text-[#b0b0b0] tabular-nums shrink-0 ml-2">{formatElapsed(entriesByDate[date])}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {/* Separador Tracker */}
+        <div className="flex items-center gap-3 py-3 mt-2">
+          <div className="flex-1 h-px bg-[#f0f0f5]" />
+          <span className="text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]">Tracker</span>
+          <div className="flex-1 h-px bg-[#f0f0f5]" />
         </div>
+
+        {/* Progreso - solo cuando hay tiempo añadido y no está completada */}
+        {taskEntries.length > 0 && !isCompleted && (
+          <div className="border-b border-[#f0f0f5]">
+            <div onClick={() => setProgressExpanded(!progressExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
+              <span className="text-[#a0a0a0]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M9 2h6" /><path d="M12 5V2" /></svg>
+              </span>
+              <span className="flex-1 text-[15px] text-[#555]">Progreso</span>
+              <span className="text-[15px] font-medium text-[#555] tabular-nums">{formatElapsed(totalTaskSeconds)}</span>
+              <motion.svg animate={{ rotate: progressExpanded ? 180 : 0 }} className="text-[#a0a0a0] w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></motion.svg>
+            </div>
+            <AnimatePresence>
+              {progressExpanded && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                  <div className="pb-3 pl-[32px] flex flex-col gap-1.5">
+                    {sortedDates.map((date) => (
+                      <div key={date} className="flex items-center justify-between">
+                        <span className="text-[12px] text-[#999] capitalize">{dayLabel(date)}</span>
+                        <span className="text-[12px] text-[#b0b0b0] tabular-nums shrink-0 ml-2">{formatElapsed(entriesByDate[date])}</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Actividad */}
         {!isCompleted && (
@@ -467,16 +465,19 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
           </div>
         )}
 
-        {/* Focus */}
+        {/* Añadir a Timer */}
         {!isCompleted && (
           <button onClick={handleStartTimer} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
-            <span className="text-[#7f70ff]">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>
+            <span className="text-[#a0a0a0]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M9 2h6" /><path d="M12 5V2" /></svg>
             </span>
-            <span className="flex-1 text-left text-[15px] text-[#7f70ff] font-medium">Ir a Focus</span>
+            <span className="flex-1 text-left text-[15px] text-[#555]">Añadir a Timer</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
           </button>
         )}
+
+        {/* Espacio en blanco */}
+        <div className="min-h-[60px]" />
       </div>
 
       {/* Toolbar de formato cuando se editan notas */}
