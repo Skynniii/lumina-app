@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useCalendarEvents, dateKey } from '../../hooks/useCalendarEvents';
 import { TopBar } from '../ui/TopBar';
@@ -21,6 +21,13 @@ export function CalendarView({ onMenuClick, onOpenAccount }: Props) {
   const [form, setForm] = useState<{ mode: 'create' | 'edit'; event?: CalendarEvent } | null>(null);
   const [detail, setDetail] = useState<CalendarEvent | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(null);
+
+  // Escuchar botón + de la barra de navegación
+  useEffect(() => {
+    const handler = () => setForm({ mode: 'create' });
+    window.addEventListener('app-add', handler);
+    return () => window.removeEventListener('app-add', handler);
+  }, []);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -52,20 +59,6 @@ export function CalendarView({ onMenuClick, onOpenAccount }: Props) {
 
         <DayAgenda date={selectedDate} events={selectedEvents} onSelectEvent={setDetail} />
       </div>
-
-      {/* Botón flotante para crear eventos */}
-      <motion.button
-        onClick={() => setForm({ mode: 'create' })}
-        whileTap={{ scale: 0.88 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-        aria-label="Nuevo evento"
-        className="fixed bottom-[95px] right-5 w-[56px] h-[56px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.4)] z-[90]"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </motion.button>
 
       <EventForm
         isOpen={form !== null}

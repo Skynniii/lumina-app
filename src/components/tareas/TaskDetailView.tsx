@@ -1,12 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Task, TaskList, SubTask } from '../../types';
+import type { Task, TaskList, SubTask, TimeEntry, Activity, ViewType } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
+import { useUserStorage } from '../../hooks/useUserStorage';
+import { formatElapsed, dayLabel } from '../../hooks/useTimeTracker';
+import { setPendingTimerTask } from '../../shared/pendingTimerTask';
 import { Sparkles } from './Sparkles';
 import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
 import { DatePickerModal } from './DatePickerModal';
+import { ActivityPicker } from '../timer/ActivityPicker';
 
 interface Props {
   task: Task;
@@ -15,10 +19,14 @@ interface Props {
   onToggle: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
+  onNavigate?: (v: ViewType) => void;
 }
 
-export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDelete }: Props) {
+export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDelete, onNavigate }: Props) {
   const { settings } = useSettings();
+  const [activities, setActivities] = useUserStorage<Activity[]>('tracker-activities', []);
+  const [timerEntries] = useUserStorage<TimeEntry[]>('tracker-entries', []);
+  const [activityPickerOpen, setActivityPickerOpen] = useState(false);
   const [sparkle, setSparkle] = useState(false);
   const [showListMenu, setShowListMenu] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -27,6 +35,22 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [notesExpanded, setNotesExpanded] = useState(() => !!task.notes?.replace(/<[^>]*>/g, '').trim());
   const [notesEditing, setNotesEditing] = useState(false);
+  const [progressExpanded, setProgressExpanded] = useState(false);
+
+  const taskActivity = activities.find((a) => a.id === task.activityId);
+  const taskEntries = timerEntries.filter((e) => e.taskId === task.id);
+  const totalTaskSeconds = taskEntries.reduce((s, e) => s + e.seconds, 0);
+  const entriesByDate = taskEntries.reduce((acc, e) => {
+    acc[e.date] = (acc[e.date] || 0) + e.seconds;
+    return acc;
+  }, {} as Record<string, number>);
+  const sortedDates = Object.keys(entriesByDate).sort().reverse();
+
+  const handleStartTimer = () => {
+    setPendingTimerTask(task);
+    onBack();
+    onNavigate?.('cronometro');
+  };
 
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const notesEditRef = useRef<HTMLDivElement>(null);
@@ -191,7 +215,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.92 }}
       transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-      className="absolute left-0 right-0 top-0 bottom-[70px] z-[1000] bg-white flex flex-col origin-top"
+      className="absolute left-0 right-0 top-0 bottom-0 z-[1000] bg-white flex flex-col origin-top"
     >
       {/* Header: back + star + list selector */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f0f5] shrink-0">
@@ -394,6 +418,67 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         <div className="min-h-[60px]" />
       </div>
 
+      {/* Separación */}
+      <div className="h-px bg-[#f0f0f5] mx-5 shrink-0" />
+
+      {/* Sección inferior: progreso, actividad, focus */}
+      <div className="shrink-0 px-5">
+        {/* Progreso (colapsable) */}
+        <div className="border-b border-[#f0f0f5]">
+          <div onClick={() => taskEntries.length > 0 && setProgressExpanded(!progressExpanded)} className={`flex items-center gap-3 py-3 ${taskEntries.length > 0 ? 'cursor-pointer' : ''}`}>
+            <span className="text-[#7f70ff]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M9 2h6" /><path d="M12 5V2" /></svg>
+            </span>
+            <span className="flex-1 text-[15px] text-[#7f70ff] font-medium">Progreso</span>
+            <span className="text-[15px] font-bold text-[#7f70ff] tabular-nums">{formatElapsed(totalTaskSeconds)}</span>
+            {taskEntries.length > 0 && (
+              <motion.svg animate={{ rotate: progressExpanded ? 180 : 0 }} className="text-[#a0a0a0] w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></motion.svg>
+            )}
+          </div>
+          <AnimatePresence>
+            {progressExpanded && taskEntries.length > 0 && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                <div className="pb-3 pl-[32px] flex flex-col gap-1.5">
+                  {sortedDates.map((date) => (
+                    <div key={date} className="flex items-center justify-between">
+                      <span className="text-[12px] text-[#999] capitalize">{dayLabel(date)}</span>
+                      <span className="text-[12px] text-[#b0b0b0] tabular-nums shrink-0 ml-2">{formatElapsed(entriesByDate[date])}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Actividad */}
+        {!isCompleted && (
+          <div className="border-b border-[#f0f0f5]">
+            <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+              {!taskActivity && (
+                <span className="text-[#a0a0a0]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                </span>
+              )}
+              {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
+              <span className={`flex-1 text-left text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Seleccionar actividad'}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            </button>
+          </div>
+        )}
+
+        {/* Focus */}
+        {!isCompleted && (
+          <button onClick={handleStartTimer} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+            <span className="text-[#7f70ff]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>
+            </span>
+            <span className="flex-1 text-left text-[15px] text-[#7f70ff] font-medium">Ir a Focus</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+        )}
+      </div>
+
       {/* Toolbar de formato cuando se editan notas */}
       <AnimatePresence>
         {notesEditing && (
@@ -403,24 +488,25 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         )}
       </AnimatePresence>
 
-      {/* Barra inferior: eliminar + completar */}
+      {/* Barra inferior: eliminar + timer + completar */}
       <div className="flex justify-between items-center px-5 py-4 border-t border-[#f0f0f5] shrink-0">
         <button onClick={() => onDelete(task.id)} className="text-[#ff4d4d] p-2.5 rounded-full hover:bg-[#fff5f5] transition-colors border-none bg-transparent cursor-pointer">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
         </button>
-
-        {isCompleted ? (
-          <button onClick={handleComplete} className="bg-[#fff0f0] text-[#ff4d4d] hover:bg-[#ff4d4d] hover:text-white px-4 py-2.5 rounded-[12px] text-[14px] font-semibold flex items-center gap-2 transition-all border-none cursor-pointer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10h10a5 5 0 0 1 5 5v2" /><polyline points="7 6 3 10 7 14" /></svg>
-            Desmarcar
-          </button>
-        ) : (
-          <button onClick={handleComplete} className="relative overflow-hidden bg-[#f0edff] text-[#7f70ff] hover:bg-[#7f70ff] hover:text-white px-4 py-2.5 rounded-[12px] text-[14px] font-semibold flex items-center gap-2 transition-all border-none cursor-pointer">
-            {sparkle && <Sparkles />}
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            Completada
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isCompleted ? (
+            <button onClick={handleComplete} className="bg-[#fff0f0] text-[#ff4d4d] hover:bg-[#ff4d4d] hover:text-white px-4 py-2.5 rounded-[12px] text-[14px] font-semibold flex items-center gap-2 transition-all border-none cursor-pointer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10h10a5 5 0 0 1 5 5v2" /><polyline points="7 6 3 10 7 14" /></svg>
+              Desmarcar
+            </button>
+          ) : (
+            <button onClick={handleComplete} className="relative overflow-hidden bg-[#f0edff] text-[#7f70ff] hover:bg-[#7f70ff] hover:text-white px-4 py-2.5 rounded-[12px] text-[14px] font-semibold flex items-center gap-2 transition-all border-none cursor-pointer">
+              {sparkle && <Sparkles />}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              Completada
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Modal de fecha límite (solo fecha, sin hora) */}
@@ -431,6 +517,21 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
           onSave={(d) => onUpdate(task.id, { deadline: d })}
         />
       )}
+
+      {/* Selector de actividad */}
+      <ActivityPicker
+        isOpen={activityPickerOpen}
+        onClose={() => setActivityPickerOpen(false)}
+        activities={activities}
+        selectedId={task.activityId}
+        onSelect={(id) => { onUpdate(task.id, { activityId: id }); setActivityPickerOpen(false); }}
+        onCreate={(name, color) => {
+          const id = `act-${Date.now()}`;
+          setActivities((prev) => [...prev, { id, name: name.trim(), color }]);
+          onUpdate(task.id, { activityId: id });
+          setActivityPickerOpen(false);
+        }}
+      />
 
       {/* Modal flotante de calendario */}
       <AnimatePresence>
