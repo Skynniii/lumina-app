@@ -224,8 +224,8 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   const pending = useMemo(() => {
     const filtered = tasks.filter((t) => !t.completed);
     if (settings.hideNoDateInPrincipal) {
-      if (sortMode === 'deadline') return filtered.filter((t) => t.deadline);
-      return filtered.filter((t) => t.dueDate);
+      if (sortMode === 'deadline') return filtered.filter((t) => t.deadline || t.isImportant);
+      return filtered.filter((t) => t.dueDate || t.isImportant);
     }
     return filtered;
   }, [tasks, settings.hideNoDateInPrincipal, sortMode]);
@@ -286,10 +286,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     return (
       <>
         {hasImportant && (
-          <>
-            {importantDated.length > 0 && <TaskList items={importantDated} render={renderTask} />}
-            {importantNoDate.length > 0 && <TaskList items={importantNoDate} render={renderTask} />}
-          </>
+          <TaskList items={[...importantDated, ...importantNoDate]} render={renderTask} />
         )}
 
         {hasOverdue && (

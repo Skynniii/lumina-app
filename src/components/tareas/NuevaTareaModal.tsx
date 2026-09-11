@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
-import type { RepeatConfig, TaskList } from '../../types';
+import { ActivityPicker } from '../timer/ActivityPicker';
+import { useUserStorage } from '../../hooks/useUserStorage';
+import type { RepeatConfig, TaskList, Activity } from '../../types';
 
 interface Props {
   isOpen: boolean;
@@ -10,7 +12,7 @@ interface Props {
   availableLists?: TaskList[];
   listName?: string;
   onClose: () => void;
-  onCreate: (data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean; repeat?: RepeatConfig }, listId: string) => void;
+  onCreate: (data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string }, listId: string) => void;
 }
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -39,7 +41,12 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
   const [important, setImportant] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [targetListId, setTargetListId] = useState(defaultListId);
+  const [activities, setActivities] = useUserStorage<Activity[]>('tracker-activities', []);
+  const [activityId, setActivityId] = useState<string | undefined>(undefined);
+  const [showActivityPicker, setShowActivityPicker] = useState(false);
   const notesRef = useRef<HTMLDivElement>(null);
+
+  const selectedActivity = activities.find((a) => a.id === activityId);
 
   useEffect(() => {
     if (isOpen) {
@@ -47,6 +54,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
       setDueDate(undefined); setDueTime(undefined); setRepeat(undefined);
       setImportant(false); setShowPicker(false);
       setTargetListId(defaultListId);
+      setActivityId(undefined); setShowActivityPicker(false);
     }
   }, [isOpen, defaultListId]);
 
@@ -67,7 +75,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
     const trimmed = text.trim();
     if (!trimmed) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
-    onCreate({ text: trimmed, notes: notesClean || undefined, dueDate, dueTime, isImportant: important, repeat }, targetListId);
+    onCreate({ text: trimmed, notes: notesClean || undefined, dueDate, dueTime, isImportant: important, repeat, activityId }, targetListId);
     onClose();
   };
 
@@ -143,6 +151,15 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
                 {iconBtn(notesOpen || hasNotes, () => setNotesOpen((v) => !v), 'Notas',
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setShowActivityPicker(true)}
+                  title="Actividad"
+                  className="w-11 h-11 flex-none flex items-center justify-center rounded-full border transition-colors"
+                  style={activityId ? { borderColor: `${selectedActivity?.color ?? '#bbb'}30`, background: `${selectedActivity?.color ?? '#bbb'}08` } : { borderColor: '#e8e8ed', background: '#fcfcfd' }}
+                >
+                  <span className="w-5 h-5 rounded-full" style={{ background: activityId ? (selectedActivity?.color ?? '#bbb') : '#d1d1d6' }} />
+                </button>
                 {fechaLabel && <span className="text-[12px] text-[#6b5cdb] font-medium ml-1 truncate">{fechaLabel}</span>}
               </div>
 
@@ -188,6 +205,20 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
                 onSave={(d, t, r) => { setDueDate(d); setDueTime(t); setRepeat(r); }}
               />
             )}
+
+            <ActivityPicker
+              isOpen={showActivityPicker}
+              onClose={() => setShowActivityPicker(false)}
+              activities={activities}
+              selectedId={activityId}
+              onSelect={(id) => { setActivityId(id); setShowActivityPicker(false); }}
+              onCreate={(name, color) => {
+                const id = `act-${Date.now()}`;
+                setActivities((prev) => [...prev, { id, name: name.trim(), color }]);
+                setActivityId(id);
+                setShowActivityPicker(false);
+              }}
+            />
           </>
         )}
       </AnimatePresence>

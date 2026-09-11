@@ -414,13 +414,6 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
           </div>
         )}
 
-        {/* Separador Tracker */}
-        <div className="flex items-center gap-3 py-3 mt-2">
-          <div className="flex-1 h-px bg-[#f0f0f5]" />
-          <span className="text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]">Tracker</span>
-          <div className="flex-1 h-px bg-[#f0f0f5]" />
-        </div>
-
         {/* Progreso - solo cuando hay tiempo añadido y no está completada */}
         {taskEntries.length > 0 && !isCompleted && (
           <div className="border-b border-[#f0f0f5]">

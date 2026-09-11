@@ -104,8 +104,6 @@ export function ListaTareasCard({
       drag.current = { startY: e.clientY, height: r.height, startTop: r.top, ulTop: ulR.top, id, others: baseIds.filter((x) => x !== id) };
     }
 
-    // touchAction:'none' permite el arrastre. Para el scroll usamos touchmove en el elemento
-    // (más confiable en móvil que pointermove en window) con inercia al soltar.
     const startX = e.clientX;
     const startY = e.clientY;
     let scrolling = false;
@@ -116,26 +114,13 @@ export function ListaTareasCard({
     let velocityX = 0;
     let velocityY = 0;
     let momentumId: number | null = null;
-    const isTouch = e.pointerType === 'touch';
+    let touchActive = false;
+    let ended = false;
 
     const getScrollTargets = () => {
       const cardEl = li.closest('[data-lista]') as HTMLElement;
       const visorEl = document.getElementById('visor-de-listas');
       return { cardEl, visorEl };
-    };
-
-    const cleanupPreDrag = () => {
-      if (momentumId) { cancelAnimationFrame(momentumId); momentumId = null; }
-      if (isTouch) {
-        li.removeEventListener('touchmove', onTouchMove);
-        li.removeEventListener('touchend', onUpPreDrag);
-        li.removeEventListener('touchcancel', onUpPreDrag);
-      } else {
-        window.removeEventListener('pointermove', onPointerMove);
-        window.removeEventListener('pointerup', onUpPreDrag);
-        window.removeEventListener('pointercancel', onUpPreDrag);
-      }
-      preDragCleanup.current = null;
     };
 
     const doScroll = (clientX: number, clientY: number) => {
@@ -198,27 +183,40 @@ export function ListaTareasCard({
       momentumId = requestAnimationFrame(step);
     };
 
-    const onPointerMove = (ev: PointerEvent) => doScroll(ev.clientX, ev.clientY);
+    const cleanupPreDrag = () => {
+      if (momentumId) { cancelAnimationFrame(momentumId); momentumId = null; }
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onUp);
+      window.removeEventListener('touchcancel', onUp);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      preDragCleanup.current = null;
+    };
+
     const onTouchMove = (ev: TouchEvent) => {
+      touchActive = true;
       const t = ev.touches[0];
       if (t) doScroll(t.clientX, t.clientY);
     };
-    const onUpPreDrag = () => {
+    const onPointerMove = (ev: PointerEvent) => {
+      if (touchActive) return;
+      doScroll(ev.clientX, ev.clientY);
+    };
+    const onUp = () => {
+      if (ended) return;
+      ended = true;
       if (!scrolling) { cleanupPreDrag(); return; }
       startMomentum();
     };
 
     preDragCleanup.current = cleanupPreDrag;
-
-    if (isTouch) {
-      li.addEventListener('touchmove', onTouchMove, { passive: true });
-      li.addEventListener('touchend', onUpPreDrag);
-      li.addEventListener('touchcancel', onUpPreDrag);
-    } else {
-      window.addEventListener('pointermove', onPointerMove);
-      window.addEventListener('pointerup', onUpPreDrag);
-      window.addEventListener('pointercancel', onUpPreDrag);
-    }
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onUp);
+    window.addEventListener('touchcancel', onUp);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
 
     lpTimer.current = window.setTimeout(() => {
       if (scrolling) return;
