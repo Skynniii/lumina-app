@@ -162,7 +162,18 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         )}
       </div>
 
-      {!isCompleted && (
+      {reorderable ? (
+        <div
+          onPointerDown={!isCompleted && onDragPointerDown ? (e) => { e.stopPropagation(); onDragPointerDown?.(e, task.id); } : undefined}
+          className="flex-none p-2 ml-2 self-center text-[#c0c0c0] touch-none"
+          style={{ cursor: isDragged ? 'grabbing' : 'grab' }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="4" y1="9" x2="20" y2="9" />
+            <line x1="4" y1="15" x2="20" y2="15" />
+          </svg>
+        </div>
+      ) : !isCompleted ? (
         <motion.button
           onClick={handleImportant}
           animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
@@ -174,7 +185,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
         </motion.button>
-      )}
+      ) : null}
     </>
   );
 
@@ -189,12 +200,12 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       animate={{ opacity: 1, y: 0, scale: isDragged ? 1.03 : 1 }}
       exit={{ opacity: 0, x: -30, height: 0, marginBottom: 0, overflow: 'hidden' }}
       transition={{ duration: 0.3, ease: 'easeInOut', layout: { type: 'spring', stiffness: 700, damping: 45 } }}
-      onPointerDown={reorderable && !isCompleted ? (e) => onDragPointerDown?.(e, task.id) : undefined}
-      onPointerUp={reorderable ? () => onDragPointerEnd?.() : undefined}
-      onPointerLeave={reorderable ? () => onDragPointerEnd?.() : undefined}
+      onPointerDown={!reorderable && !isCompleted && onDragPointerDown ? (e) => onDragPointerDown?.(e, task.id) : undefined}
+      onPointerUp={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
+      onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onClick={() => onExpand(task.id)}
-      className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-grab' : 'cursor-pointer'}`}
-      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'none' : 'auto' }}
+      className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-default' : 'cursor-pointer'}`}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto') }}
     >
       {inner}
     </motion.li>

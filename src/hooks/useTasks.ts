@@ -71,7 +71,7 @@ export function useTasks() {
       const principal = hasPrincipal ? deduped.find((l) => l.id === PRINCIPAL_ID)! : { id: PRINCIPAL_ID, name: 'Principal' as const };
       const rest = deduped.filter((l) => l.id !== PRINCIPAL_ID);
       const next = [principal, ...rest];
-      const same = next.length === prev.length && next.every((l, i) => l.id === prev[i]?.id && l.sortMode === prev[i]?.sortMode);
+      const same = next.length === prev.length && next.every((l, i) => l.id === prev[i]?.id && l.sortMode === prev[i]?.sortMode && l.name === prev[i]?.name && l.hoyListId === prev[i]?.hoyListId);
       return same ? prev : next;
     });
   }, [setLists]);
@@ -156,12 +156,12 @@ export function useTasks() {
   }, [setTasks, closeModal, settings.newTaskPosition]);
 
   // Crea una tarea con detalles (notas, fecha/hora, importante) ya configurados.
-  const addTaskWithData = useCallback((listId: string, data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean; repeat?: RepeatConfig }) => {
+  const addTaskWithData = useCallback((listId: string, data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string }) => {
     const trimmed = (data.text || '').trim();
     if (!trimmed) return;
     const newTask: Task = {
       id: Date.now().toString(), listId, text: trimmed, completed: false, subtasks: [],
-      notes: data.notes || '', dueDate: data.dueDate, dueTime: data.dueTime, isImportant: !!data.isImportant, repeat: data.repeat,
+      notes: data.notes || '', dueDate: data.dueDate, dueTime: data.dueTime, isImportant: !!data.isImportant, repeat: data.repeat, activityId: data.activityId,
     };
     setTasks((prev) => settings.newTaskPosition === 'last' ? [...prev, newTask] : [newTask, ...prev]);
   }, [setTasks, settings.newTaskPosition]);

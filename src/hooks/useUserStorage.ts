@@ -222,6 +222,7 @@ export function useUserStorage<T>(key: string, initialValue: T) {
       setValueInternal((prev) => {
         const next =
           typeof updater === 'function' ? (updater as (p: T) => T)(prev) : updater;
+        if (next === prev) return prev; // Sin cambios: no marcar como sucio ni escribir
         if (uid === null) {
           try {
             localStorage.setItem(key, JSON.stringify(next));

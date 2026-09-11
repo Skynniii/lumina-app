@@ -7,6 +7,8 @@ import { ActivityPicker } from './ActivityPicker';
 import { FocusRing } from './FocusRing';
 import { TaskPicker } from './TaskPicker';
 import { CustomDurationModal } from './CustomDurationModal';
+import { DatePickerModal } from '../tareas/DatePickerModal';
+import { TimePickerModal } from '../tareas/TimePickerModal';
 import { useSettings } from '../../context/SettingsContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
 import type { Task, TaskList } from '../../types';
@@ -35,6 +37,8 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const holdIntervalRef = useRef<number | null>(null);
   const isHoldingRef = useRef(false);
@@ -240,6 +244,39 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
             </button>
           </div>
 
+          {/* Fecha y hora */}
+          <div className="border-b border-[#f0f0f5]">
+            <div className="flex items-center gap-3 py-3">
+              <span className="text-[#a0a0a0]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+              </span>
+              <button onClick={() => setShowDatePicker(true)} className="text-[15px] font-medium text-[#333] capitalize bg-transparent border-none cursor-pointer">
+                {(() => {
+                  const ms = mode === 'rastreador' && props.running ? props.running.sessionStart : Date.now() - elapsedCount * 1000;
+                  return new Date(ms).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                })()}
+              </button>
+              <div className="flex-1" />
+              <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none cursor-pointer">
+                {(() => {
+                  const is12h = settings.timeFormat !== '24h';
+                  if (mode === 'rastreador') {
+                    if (!props.running) return '--:--';
+                    const startMs = props.running.sessionStart;
+                    const startStr = new Date(startMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: is12h });
+                    return startStr;
+                  }
+                  const now = Date.now();
+                  const startMs = now - elapsedCount * 1000;
+                  const endMs = now + countdown.remaining * 1000;
+                  const startStr = new Date(startMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: is12h });
+                  const endStr = new Date(endMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: is12h });
+                  return `${startStr} – ${endStr}`;
+                })()}
+              </button>
+            </div>
+          </div>
+
           {/* Descripción */}
           <div className="border-b border-[#f0f0f5]">
             <div className="flex items-center gap-3 py-3">
@@ -319,6 +356,45 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Date picker */}
+      {showDatePicker && mode === 'rastreador' && props.running && (
+        <DatePickerModal
+          initialDate={new Date(props.running.sessionStart).toISOString().slice(0, 10)}
+          onClose={() => setShowDatePicker(false)}
+          onSave={(d) => {
+            const [y, m, day] = d.split('-').map(Number);
+            const newDate = new Date(props.running!.sessionStart);
+            newDate.setFullYear(y, m - 1, day);
+            props.onSetStartTime?.(newDate.getTime());
+            setShowDatePicker(false);
+          }}
+        />
+      )}
+
+      {/* Start time picker */}
+      {showStartTimePicker && (
+        <TimePickerModal
+          initialHour={(() => {
+            if (mode === 'rastreador' && props.running) return new Date(props.running.sessionStart).getHours();
+            return new Date(Date.now() - elapsedCount * 1000).getHours();
+          })()}
+          initialMinute={(() => {
+            if (mode === 'rastreador' && props.running) return new Date(props.running.sessionStart).getMinutes();
+            return new Date(Date.now() - elapsedCount * 1000).getMinutes();
+          })()}
+          onClose={() => setShowStartTimePicker(false)}
+          onSave={(h, m) => {
+            if (mode === 'rastreador' && props.running) {
+              const newStart = new Date(props.running.sessionStart);
+              newStart.setHours(parseInt(h), parseInt(m), 0, 0);
+              props.onSetStartTime?.(newStart.getTime());
+            }
+            setShowStartTimePicker(false);
+          }}
+          onClear={() => setShowStartTimePicker(false)}
+        />
+      )}
 
       <ActivityPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} activities={props.activities} selectedId={props.draft.activityId} onSelect={(id) => { props.onActivityChange(id); setPickerOpen(false); }} onCreate={(name, color) => { const id = props.onCreateActivity(name, color); props.onActivityChange(id); setPickerOpen(false); }} />
       <TaskPicker isOpen={taskPickerOpen} onClose={() => setTaskPickerOpen(false)} lists={taskLists} tasks={tasks} onSelect={handleSelectTask} />

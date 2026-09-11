@@ -10,7 +10,8 @@ import { TopBar } from '../ui/TopBar';
 import { TodaySummary } from './TodaySummary';
 import { FocusScreen } from './FocusScreen';
 import { EntryList } from './EntryList';
-import type { Task, TaskList } from '../../types';
+import { SessionDetailModal } from './SessionDetailModal';
+import type { Task, TaskList, TimeEntry } from '../../types';
 
 interface Props {
   onMenuClick: () => void;
@@ -28,8 +29,11 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   const [pomodoroPhase, setPomodoroPhase] = useState<'work' | 'break'>('work');
   const [pomodoroCycle, setPomodoroCycle] = useState(0);
   const [showFocus, setShowFocus] = useState(false);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [taskLists] = useUserStorage<TaskList[]>('lumina_lists', []);
   const [tasks, setTasks] = useUserStorage<Task[]>('lumina_tasks', []);
+
+  const selectedEntry = selectedEntryId ? tracker.entries.find((e) => e.id === selectedEntryId) ?? null : null;
 
   // Escuchar botón + de la barra de navegación y timer desde tareas
   useEffect(() => {
@@ -119,6 +123,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     running: tracker.running, elapsed: tracker.elapsed,
     draft: tracker.draft, activities: tracker.activities,
     onStart: tracker.start, onPause: tracker.pause, onResume: tracker.resume, onStop: handleStop,
+    onSetStartTime: tracker.setStartTime,
     onDescriptionChange: (v: string) => tracker.setDraft((d) => ({ ...d, description: v })),
     onActivityChange: (id: string) => tracker.setDraft((d) => ({ ...d, activityId: id })),
     onCreateActivity: (name: string, color: string) => tracker.addActivity(name, color),
@@ -141,6 +146,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               isRunning={tracker.isTicking}
               liveActivityId={tracker.draft.activityId}
               liveDescription={tracker.draft.description}
+              onSelectEntry={(e) => setSelectedEntryId(e.id)}
             />
 
             <div className="flex items-center gap-3 pt-2">
@@ -153,6 +159,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               entries={historyEntries}
               activities={tracker.activities}
               onDelete={tracker.deleteEntry}
+              onSelectEntry={(e) => setSelectedEntryId(e.id)}
             />
           </div>
         </div>
@@ -206,6 +213,18 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             onNotesChange={(v) => tracker.setDraft((d) => ({ ...d, notes: v }))}
             onDiscard={handleDiscard}
             onSaveSession={handleSaveSession}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedEntry && (
+          <SessionDetailModal
+            key={selectedEntry.id}
+            entry={selectedEntry}
+            onUpdate={tracker.updateEntry}
+            onDelete={tracker.deleteEntry}
+            onClose={() => setSelectedEntryId(null)}
           />
         )}
       </AnimatePresence>

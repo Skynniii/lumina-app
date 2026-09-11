@@ -55,10 +55,10 @@ export function LoginScreen() {
         transition={{ duration: 0.4 }}
         className="flex flex-col items-center text-center"
       >
-        <div className="w-16 h-16 rounded-2xl bg-[#7f70ff] flex items-center justify-center mb-5 shadow-[0_8px_24px_rgba(127,112,255,0.35)]">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 11 12 14 22 4" />
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 shadow-[0_8px_24px_rgba(127,112,255,0.35)]" style={{ background: 'linear-gradient(135deg, #7f70ff, #9d8aff)' }}>
+          <svg width="36" height="36" viewBox="0 0 512 512" fill="none">
+            <circle cx="256" cy="256" r="140" fill="none" stroke="white" strokeWidth="26" strokeLinecap="round" strokeDasharray="660 220" transform="rotate(-90 256 256)"/>
+            <circle cx="256" cy="256" r="38" fill="white"/>
           </svg>
         </div>
         <h1 className="text-[26px] font-bold text-[#1a1a2e] mb-1.5">Lumina</h1>

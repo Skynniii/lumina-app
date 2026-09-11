@@ -56,7 +56,10 @@ export function Sidebar({ isOpen, onClose, activeView, onNavigate, onOpenSetting
               {/* Logo */}
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] flex items-center justify-center">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8 5.8 21.3l2.4-7.4L2 9.4h7.6z" /></svg>
+                  <svg width="20" height="20" viewBox="0 0 512 512" fill="none">
+                    <circle cx="256" cy="256" r="140" fill="none" stroke="white" strokeWidth="26" strokeLinecap="round" strokeDasharray="660 220" transform="rotate(-90 256 256)"/>
+                    <circle cx="256" cy="256" r="38" fill="white"/>
+                  </svg>
                 </div>
                 <h2 className="text-xl font-bold text-[#2b2b2b]">Lumina</h2>
               </div>

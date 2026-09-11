@@ -38,8 +38,8 @@ function isOverdue(dk: string | undefined): boolean {
   return d < t;
 }
 
-function groupLabel(dateKey: string | undefined): string {
-  if (!dateKey) return 'Sin fecha';
+function groupLabel(dateKey: string | undefined, isDeadline: boolean = false): string {
+  if (!dateKey) return isDeadline ? 'Sin fecha límite' : 'Sin fecha';
   const d = new Date(dateKey + 'T00:00:00');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -55,16 +55,21 @@ export function ListaTareasCard({
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
 
-  // --- Arrastre fluido (solo modo personalizado) ---
+  // --- Modo reordenar + arrastre fluido ---
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
   const [overlayY, setOverlayY] = useState(0);
+  const [reorderMode, setReorderMode] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const ulRef = useRef<HTMLUListElement>(null);
   const lpTimer = useRef<number | null>(null);
   const didDrag = useRef(false);
   const dragOrderRef = useRef<string[] | null>(null);
   const taskByIdRef = useRef<Record<string, Task>>({});
-  const drag = useRef({ startY: 0, height: 0, startTop: 0, ulTop: 0, id: '', others: [] as string[] });
+  const drag = useRef({ startY: 0, height: 0, startTop: 0, ulTop: 0, initScroll: 0, id: '', others: [] as string[] });
+  const preDragCleanup = useRef<(() => void) | null>(null);
+  const autoScrollRef = useRef<number | null>(null);
 
   const sortMode: SortMode = list.sortMode || 'custom';
   const active = tasks.filter((t) => !t.completed);
@@ -80,7 +85,7 @@ export function ListaTareasCard({
 
   const showGroups = sortMode === 'date' || sortMode === 'deadline';
   const groupKey: 'dueDate' | 'deadline' = sortMode === 'date' ? 'dueDate' : 'deadline';
-  const reorderable = sortMode === 'custom';
+  const reorderable = reorderMode;
 
   taskByIdRef.current = Object.fromEntries(active.map((t) => [t.id, t]));
 
@@ -93,24 +98,59 @@ export function ListaTareasCard({
   }, []);
 
   const onItemPointerDown = useCallback((e: React.PointerEvent, id: string) => {
-    if (!reorderable) return;
     if (lpTimer.current) clearTimeout(lpTimer.current);
+    if (preDragCleanup.current) preDragCleanup.current();
     const li = e.currentTarget as HTMLElement;
     const r = li.getBoundingClientRect();
     const ulR = ulRef.current?.getBoundingClientRect();
     if (r && ulR) {
-      drag.current = { startY: e.clientY, height: r.height, startTop: r.top, ulTop: ulR.top, id, others: baseIds.filter((x) => x !== id) };
+      drag.current = { startY: e.clientY, height: r.height, startTop: r.top, ulTop: ulR.top, initScroll: scrollRef.current?.scrollTop ?? 0, id, others: baseIds.filter((x) => x !== id) };
     }
-    lpTimer.current = window.setTimeout(() => {
+
+    const onTouchMoveBlock = (ev: TouchEvent) => ev.preventDefault();
+
+    // --- Modo reordenar ya activo: drag inmediato desde el drag handle ---
+    if (reorderMode) {
       didDrag.current = true;
       setDragId(id);
       setDragOrderBoth(baseIds.slice());
       setOverlayY(drag.current.startTop - drag.current.ulTop);
+      window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
+      preDragCleanup.current = () => window.removeEventListener('touchmove', onTouchMoveBlock);
+      return;
+    }
+
+    // --- No estamos en modo reordenar: long-press para entrar ---
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const onMoveCheck = (ev: PointerEvent) => {
+      if (Math.abs(ev.clientX - startX) > 8 || Math.abs(ev.clientY - startY) > 8) cleanup();
+    };
+
+    const cleanup = () => {
+      if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+      window.removeEventListener('pointermove', onMoveCheck);
+      preDragCleanup.current = null;
+    };
+
+    preDragCleanup.current = cleanup;
+    window.addEventListener('pointermove', onMoveCheck);
+
+    lpTimer.current = window.setTimeout(() => {
+      window.removeEventListener('pointermove', onMoveCheck);
+      if (sortMode !== 'custom') onUpdateList(list.id, { sortMode: 'custom' });
+      setReorderMode(true);
+      didDrag.current = true;
+      setDragId(id);
+      setDragOrderBoth(baseIds.slice());
+      setOverlayY(drag.current.startTop - drag.current.ulTop);
+      window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
     }, 450);
-  }, [reorderable, baseIds, setDragOrderBoth]);
+  }, [reorderMode, sortMode, baseIds, setDragOrderBoth, onUpdateList, list.id]);
 
   const onItemPointerEnd = useCallback(() => {
-    if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+    if (preDragCleanup.current) preDragCleanup.current();
   }, []);
 
   const onExpandGuarded = useCallback((id: string) => {
@@ -120,9 +160,47 @@ export function ListaTareasCard({
 
   useEffect(() => {
     if (!dragId) return;
+
+    const stopAutoScroll = () => {
+      if (autoScrollRef.current !== null) {
+        cancelAnimationFrame(autoScrollRef.current);
+        autoScrollRef.current = null;
+      }
+    };
+
+    const checkAutoScroll = (clientY: number) => {
+      const container = scrollRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const edge = 70;
+      const speed = 10;
+      if (clientY < rect.top + edge && container.scrollTop > 0) {
+        const intensity = Math.max(0.3, 1 - (clientY - rect.top) / edge);
+        if (autoScrollRef.current === null) {
+          const step = () => {
+            container.scrollTop = Math.max(0, container.scrollTop - speed * intensity);
+            autoScrollRef.current = requestAnimationFrame(step);
+          };
+          autoScrollRef.current = requestAnimationFrame(step);
+        }
+      } else if (clientY > rect.bottom - edge && container.scrollTop < container.scrollHeight - container.clientHeight) {
+        const intensity = Math.max(0.3, (clientY - (rect.bottom - edge)) / edge);
+        if (autoScrollRef.current === null) {
+          const step = () => {
+            container.scrollTop = Math.min(container.scrollHeight, container.scrollTop + speed * intensity);
+            autoScrollRef.current = requestAnimationFrame(step);
+          };
+          autoScrollRef.current = requestAnimationFrame(step);
+        }
+      } else {
+        stopAutoScroll();
+      }
+    };
+
     const onMove = (e: PointerEvent) => {
       const d = drag.current;
-      setOverlayY((d.startTop - d.ulTop) + (e.clientY - d.startY));
+      const scrollDelta = (scrollRef.current?.scrollTop ?? 0) - d.initScroll;
+      setOverlayY((d.startTop - d.ulTop) + (e.clientY - d.startY) + scrollDelta);
       const ul = ulRef.current;
       if (!ul) return;
       const els = Array.from(ul.querySelectorAll('[data-task]'));
@@ -134,8 +212,11 @@ export function ListaTareasCard({
       });
       const next = [...d.others.slice(0, above), d.id, ...d.others.slice(above)];
       setDragOrderBoth(next);
+      checkAutoScroll(e.clientY);
     };
     const onUp = () => {
+      if (preDragCleanup.current) preDragCleanup.current();
+      stopAutoScroll();
       const cur = dragOrderRef.current;
       if (cur) {
         const ordered = cur.map((id) => taskByIdRef.current[id]).filter(Boolean) as Task[];
@@ -149,8 +230,21 @@ export function ListaTareasCard({
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      stopAutoScroll();
     };
   }, [dragId, list.id, onReorderListTasks, setDragOrderBoth]);
+
+  // Salir del modo reordenar al tocar fuera de la tarjeta
+  useEffect(() => {
+    if (!reorderMode) return;
+    const handler = (e: PointerEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setReorderMode(false);
+      }
+    };
+    const timer = setTimeout(() => document.addEventListener('pointerdown', handler), 100);
+    return () => { clearTimeout(timer); document.removeEventListener('pointerdown', handler); };
+  }, [reorderMode]);
 
   // Estructura para modos con agrupación por fecha (cabeceras + tareas)
   const grouped = showGroups
@@ -166,12 +260,12 @@ export function ListaTareasCard({
               layout
               className={`list-none pt-3 first:pt-0 pb-1 text-[12px] font-bold uppercase tracking-wider ${overdue ? 'text-[#e53935]' : 'text-[#a0a0a0]'}`}
             >
-              {groupLabel(key)}{overdue ? ' · Atrasado' : ''}
+              {groupLabel(key, groupKey === 'deadline')}{overdue ? ' · Atrasado' : ''}
             </motion.li>
           );
         }
         items.push(
-          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />
         );
         return items;
       })
@@ -180,14 +274,26 @@ export function ListaTareasCard({
   const draggedTask = dragId ? taskByIdRef.current[dragId] : null;
 
   return (
-    <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[130px]" data-lista={list.id}>
-      <div className="bg-white rounded-[24px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-[#f2f2f2] flex flex-col relative">
+    <div ref={scrollRef} style={{ touchAction: reorderMode ? 'pan-y' : undefined }} className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista={list.id}>
+      <div ref={cardRef} className="bg-white rounded-[24px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-[#f2f2f2] flex flex-col relative">
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
           <div className="relative z-20 bg-white rounded-t-[24px] pt-5 px-5">
             <div className="flex justify-between items-center mb-4 flex-none">
-              <SortMenu value={sortMode} onChange={(m) => onUpdateList(list.id, { sortMode: m })} />
+              {reorderMode ? (
+                <button
+                  onClick={() => setReorderMode(false)}
+                  title="Salir del modo reordenar"
+                  className="bg-transparent border-none text-[#7f70ff] cursor-pointer w-[36px] h-[36px] flex items-center justify-center rounded-full transition-colors hover:bg-[#f5f5f5]"
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </button>
+              ) : (
+                <SortMenu value={sortMode} onChange={(m) => { onUpdateList(list.id, { sortMode: m }); setReorderMode(m === 'custom'); }} />
+              )}
               <h3 className="flex-1 text-center leading-none m-0 p-0 text-[22px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
               <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} />
             </div>
@@ -224,10 +330,19 @@ export function ListaTareasCard({
                 </div>
               )}
             </ul>
-          ) : (
-            <ul className="list-none m-0 p-0 flex flex-col mb-2 relative">
+          ) : showGroups ? (
+            <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
               <AnimatePresence mode="popLayout">
                 {grouped}
+              </AnimatePresence>
+              {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
+            </ul>
+          ) : (
+            <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
+              <AnimatePresence mode="popLayout">
+                {activeSorted.map((task) => (
+                  <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />
+                ))}
               </AnimatePresence>
               {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
             </ul>
