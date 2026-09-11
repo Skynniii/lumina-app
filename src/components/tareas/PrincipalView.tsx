@@ -119,12 +119,12 @@ function GroupHeader({ title, color }: { title: string; color?: string }) {
   );
 }
 
-function DateSectionHeader({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) {
+function DateSectionHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
     <div className="flex items-center justify-between pt-4 first:pt-1 pb-1.5">
       <div className="flex items-baseline gap-2">
         <span className="text-[14px] font-bold uppercase tracking-wide text-[#2b2b2b]">{title}</span>
-        <span className="text-[12px] text-[#b0b0b0] capitalize">{subtitle}</span>
+        {subtitle && <span className="text-[12px] text-[#b0b0b0] capitalize">{subtitle}</span>}
       </div>
       {action}
     </div>
@@ -315,7 +315,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         {hasUpcoming && (
           <>
-            <GroupHeader title="Próximamente" />
+            <DateSectionHeader title="Próximamente" />
             {upcoming.map((g) => (
               <div key={g.label}>
                 <GroupHeader title={g.label} color={g.color} />
@@ -327,7 +327,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         {hasUndated && (
           <>
-            <GroupHeader title="Sin fecha" />
+            <DateSectionHeader title="Sin fecha" />
             {Array.from(undatedByList.entries()).map(([listId, ts]) => (
               <div key={listId}>
                 <SubLabel label={listNameById[listId] || 'Lista'} />
@@ -398,7 +398,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           <p className="text-[13px] text-[#c0c0c0] py-2">Sin tareas para mañana.</p>
         )}
 
-        <GroupHeader title="Próximamente" />
+        <DateSectionHeader title="Próximamente" />
         {upcoming.length > 0 ? (
           upcoming.map((g) => (
             <div key={g.label}>
@@ -412,7 +412,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         {undated.length > 0 && (
           <>
-            <GroupHeader title="Sin fecha" />
+            <DateSectionHeader title="Sin fecha" />
             {Array.from(undatedByList.entries()).map(([listId, ts]) => (
               <div key={listId}>
                 <SubLabel label={listNameById[listId] || 'Lista'} />
@@ -447,7 +447,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
         ))}
         {noDeadline.length > 0 && (
           <>
-            <GroupHeader title="Sin fecha límite" />
+            <DateSectionHeader title="Sin fecha límite" />
             {Array.from(noDeadlineByList.entries()).map(([listId, ts]) => (
               <div key={listId}>
                 <SubLabel label={listNameById[listId] || 'Lista'} />
