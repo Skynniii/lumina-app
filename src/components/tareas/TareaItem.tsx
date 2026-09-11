@@ -205,7 +205,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onClick={() => onExpand(task.id)}
       className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : 'auto' }}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto') }}
     >
       {inner}
     </motion.li>
