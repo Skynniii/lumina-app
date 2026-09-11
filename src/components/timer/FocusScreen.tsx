@@ -38,8 +38,16 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const [holdProgress, setHoldProgress] = useState(0);
   const holdIntervalRef = useRef<number | null>(null);
   const isHoldingRef = useRef(false);
-  const [customDurations, setCustomDurations] = useUserStorage<number[]>('timer-custom-durations', [15, 25, 45]);
+  const [customDurations, setCustomDurations] = useUserStorage<number[]>('timer-custom-durations', [25, 45, 60]);
   const [showCustomDuration, setShowCustomDuration] = useState(false);
+
+  const formatDurationLabel = (min: number) => {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (h > 0 && m > 0) return `${h}hr ${m}min`;
+    if (h > 0) return `${h}hr`;
+    return `${m} min`;
+  };
 
   const activity = props.activities.find((a) => a.id === props.draft.activityId);
   const isPaused = props.running !== null && props.running.startedAt === null;
@@ -123,10 +131,14 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
         </button>
         <div className="relative">
-          <button onClick={() => setModeDropdownOpen(!modeDropdownOpen)} className="flex items-center gap-1.5 px-4 py-2 rounded-full hover:bg-black/5 transition-colors">
-            <span className="text-[16px] font-bold text-[#333]">{MODE_LABELS[mode]}</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${modeDropdownOpen ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
-          </button>
+          {!hasStarted ? (
+            <button onClick={() => setModeDropdownOpen(!modeDropdownOpen)} className="flex items-center gap-1.5 px-4 py-2 rounded-full hover:bg-black/5 transition-colors">
+              <span className="text-[16px] font-bold text-[#333]">{MODE_LABELS[mode]}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${modeDropdownOpen ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
+            </button>
+          ) : (
+            <div className="w-[80px]" />
+          )}
           <AnimatePresence>
             {modeDropdownOpen && (
               <>
@@ -205,10 +217,14 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           {/* Presets de temporizador */}
           {mode === 'temporizador' && (
             <div className="flex gap-2 mt-4 flex-wrap justify-center max-w-[320px]">
-              {customDurations.map((min) => (
-                <button key={min} onClick={() => countdown.setTarget(min)} className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold border-none cursor-pointer transition-colors ${countdown.targetSeconds === min * 60 ? 'bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.2)]' : 'bg-[#f7f6f9] text-[#777] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff]'}`}>{min} min</button>
-              ))}
-              <button onClick={() => setShowCustomDuration(true)} className="px-3.5 py-1.5 rounded-full text-[13px] font-semibold bg-[#f7f6f9] text-[#777] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors">Personalizado</button>
+              {customDurations
+                .filter((min) => !hasStarted || countdown.targetSeconds === min * 60)
+                .map((min) => (
+                  <button key={min} onClick={() => countdown.setTarget(min)} className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold border-none cursor-pointer transition-colors ${countdown.targetSeconds === min * 60 ? 'bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.2)]' : 'bg-[#f7f6f9] text-[#777] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff]'}`}>{formatDurationLabel(min)}</button>
+                ))}
+              {!hasStarted && (
+                <button onClick={() => setShowCustomDuration(true)} className="px-3.5 py-1.5 rounded-full text-[13px] font-semibold bg-[#f7f6f9] text-[#777] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors">Personalizado</button>
+              )}
             </div>
           )}
         </div>
