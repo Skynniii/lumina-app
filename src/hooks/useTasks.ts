@@ -71,7 +71,7 @@ export function useTasks() {
       const principal = hasPrincipal ? deduped.find((l) => l.id === PRINCIPAL_ID)! : { id: PRINCIPAL_ID, name: 'Principal' as const };
       const rest = deduped.filter((l) => l.id !== PRINCIPAL_ID);
       const next = [principal, ...rest];
-      const same = next.length === prev.length && next.every((l, i) => l.id === prev[i]?.id && l.sortMode === prev[i]?.sortMode);
+      const same = next.length === prev.length && next.every((l, i) => l.id === prev[i]?.id && l.sortMode === prev[i]?.sortMode && l.name === prev[i]?.name && l.hoyListId === prev[i]?.hoyListId);
       return same ? prev : next;
     });
   }, [setLists]);
