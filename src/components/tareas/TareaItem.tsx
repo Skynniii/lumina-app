@@ -163,7 +163,11 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       </div>
 
       {reorderable ? (
-        <div className="flex-none p-2 ml-2 self-center text-[#c0c0c0]" style={{ cursor: isDragged ? 'grabbing' : 'grab' }}>
+        <div
+          onPointerDown={!isCompleted && onDragPointerDown ? (e) => { e.stopPropagation(); onDragPointerDown?.(e, task.id); } : undefined}
+          className="flex-none p-2 ml-2 self-center text-[#c0c0c0] touch-none"
+          style={{ cursor: isDragged ? 'grabbing' : 'grab' }}
+        >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="4" y1="9" x2="20" y2="9" />
             <line x1="4" y1="15" x2="20" y2="15" />
@@ -196,12 +200,12 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       animate={{ opacity: 1, y: 0, scale: isDragged ? 1.03 : 1 }}
       exit={{ opacity: 0, x: -30, height: 0, marginBottom: 0, overflow: 'hidden' }}
       transition={{ duration: 0.3, ease: 'easeInOut', layout: { type: 'spring', stiffness: 700, damping: 45 } }}
-      onPointerDown={!isCompleted && onDragPointerDown ? (e) => onDragPointerDown?.(e, task.id) : undefined}
-      onPointerUp={onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
-      onPointerLeave={onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
+      onPointerDown={!reorderable && !isCompleted && onDragPointerDown ? (e) => onDragPointerDown?.(e, task.id) : undefined}
+      onPointerUp={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
+      onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onClick={() => onExpand(task.id)}
-      className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-grab' : 'cursor-pointer'}`}
-      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: onDragPointerDown ? 'pan-x pan-y' : 'auto' }}
+      className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-default' : 'cursor-pointer'}`}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : 'auto' }}
     >
       {inner}
     </motion.li>

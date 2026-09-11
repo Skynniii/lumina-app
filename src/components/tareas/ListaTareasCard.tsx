@@ -55,12 +55,13 @@ export function ListaTareasCard({
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
 
-  // --- Arrastre fluido (solo modo personalizado) ---
+  // --- Modo reordenar + arrastre fluido ---
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
   const [overlayY, setOverlayY] = useState(0);
-  const [reorderOverride, setReorderOverride] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const ulRef = useRef<HTMLUListElement>(null);
   const lpTimer = useRef<number | null>(null);
   const didDrag = useRef(false);
@@ -84,8 +85,7 @@ export function ListaTareasCard({
 
   const showGroups = sortMode === 'date' || sortMode === 'deadline';
   const groupKey: 'dueDate' | 'deadline' = sortMode === 'date' ? 'dueDate' : 'deadline';
-  const reorderable = sortMode === 'custom';
-  const isReorderActive = reorderable || reorderOverride;
+  const reorderable = reorderMode;
 
   taskByIdRef.current = Object.fromEntries(active.map((t) => [t.id, t]));
 
@@ -100,7 +100,6 @@ export function ListaTareasCard({
   const onItemPointerDown = useCallback((e: React.PointerEvent, id: string) => {
     if (lpTimer.current) clearTimeout(lpTimer.current);
     if (preDragCleanup.current) preDragCleanup.current();
-    const willOverride = !reorderable;
     const li = e.currentTarget as HTMLElement;
     const r = li.getBoundingClientRect();
     const ulR = ulRef.current?.getBoundingClientRect();
@@ -108,28 +107,30 @@ export function ListaTareasCard({
       drag.current = { startY: e.clientY, height: r.height, startTop: r.top, ulTop: ulR.top, initScroll: scrollRef.current?.scrollTop ?? 0, id, others: baseIds.filter((x) => x !== id) };
     }
 
+    const onTouchMoveBlock = (ev: TouchEvent) => ev.preventDefault();
+
+    // --- Modo reordenar ya activo: drag inmediato desde el drag handle ---
+    if (reorderMode) {
+      didDrag.current = true;
+      setDragId(id);
+      setDragOrderBoth(baseIds.slice());
+      setOverlayY(drag.current.startTop - drag.current.ulTop);
+      window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
+      preDragCleanup.current = () => window.removeEventListener('touchmove', onTouchMoveBlock);
+      return;
+    }
+
+    // --- No estamos en modo reordenar: long-press para entrar ---
     const startX = e.clientX;
     const startY = e.clientY;
 
-    // Bloquea el scroll nativo SOLO cuando el drag está activo (post long-press).
-    // Antes del timer, el scroll nativo funciona con touchAction: 'pan-x pan-y'.
-    const onTouchMoveBlock = (ev: TouchEvent) => {
-      ev.preventDefault();
-    };
-
-    // Cancela el long-press si el usuario se mueve (scroll nativo en curso).
     const onMoveCheck = (ev: PointerEvent) => {
-      const dx = Math.abs(ev.clientX - startX);
-      const dy = Math.abs(ev.clientY - startY);
-      if (dx > 8 || dy > 8) {
-        cleanup();
-      }
+      if (Math.abs(ev.clientX - startX) > 8 || Math.abs(ev.clientY - startY) > 8) cleanup();
     };
 
     const cleanup = () => {
       if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
       window.removeEventListener('pointermove', onMoveCheck);
-      window.removeEventListener('touchmove', onTouchMoveBlock);
       preDragCleanup.current = null;
     };
 
@@ -138,15 +139,15 @@ export function ListaTareasCard({
 
     lpTimer.current = window.setTimeout(() => {
       window.removeEventListener('pointermove', onMoveCheck);
-      if (willOverride) setReorderOverride(true);
+      if (sortMode !== 'custom') onUpdateList(list.id, { sortMode: 'custom' });
+      setReorderMode(true);
       didDrag.current = true;
       setDragId(id);
       setDragOrderBoth(baseIds.slice());
       setOverlayY(drag.current.startTop - drag.current.ulTop);
-      // Bloquea el scroll nativo durante el drag
       window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
     }, 450);
-  }, [reorderable, baseIds, setDragOrderBoth]);
+  }, [reorderMode, sortMode, baseIds, setDragOrderBoth, onUpdateList, list.id]);
 
   const onItemPointerEnd = useCallback(() => {
     if (preDragCleanup.current) preDragCleanup.current();
@@ -219,14 +220,8 @@ export function ListaTareasCard({
       const cur = dragOrderRef.current;
       if (cur) {
         const ordered = cur.map((id) => taskByIdRef.current[id]).filter(Boolean) as Task[];
-        if (ordered.length) {
-          onReorderListTasks(list.id, ordered);
-          if (reorderOverride) {
-            onUpdateList(list.id, { sortMode: 'custom' });
-          }
-        }
+        if (ordered.length) onReorderListTasks(list.id, ordered);
       }
-      setReorderOverride(false);
       setDragId(null);
       setDragOrderBoth(null);
     };
@@ -237,7 +232,19 @@ export function ListaTareasCard({
       window.removeEventListener('pointerup', onUp);
       stopAutoScroll();
     };
-  }, [dragId, list.id, onReorderListTasks, onUpdateList, reorderOverride, setDragOrderBoth]);
+  }, [dragId, list.id, onReorderListTasks, setDragOrderBoth]);
+
+  // Salir del modo reordenar al tocar fuera de la tarjeta
+  useEffect(() => {
+    if (!reorderMode) return;
+    const handler = (e: PointerEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setReorderMode(false);
+      }
+    };
+    const timer = setTimeout(() => document.addEventListener('pointerdown', handler), 100);
+    return () => { clearTimeout(timer); document.removeEventListener('pointerdown', handler); };
+  }, [reorderMode]);
 
   // Estructura para modos con agrupación por fecha (cabeceras + tareas)
   const grouped = showGroups
@@ -267,14 +274,26 @@ export function ListaTareasCard({
   const draggedTask = dragId ? taskByIdRef.current[dragId] : null;
 
   return (
-    <div ref={scrollRef} className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista={list.id}>
-      <div className="bg-white rounded-[24px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-[#f2f2f2] flex flex-col relative">
+    <div ref={scrollRef} style={{ touchAction: reorderMode ? 'pan-y' : 'auto' }} className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista={list.id}>
+      <div ref={cardRef} className="bg-white rounded-[24px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-[#f2f2f2] flex flex-col relative">
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
           <div className="relative z-20 bg-white rounded-t-[24px] pt-5 px-5">
             <div className="flex justify-between items-center mb-4 flex-none">
-              <SortMenu value={sortMode} onChange={(m) => onUpdateList(list.id, { sortMode: m })} />
+              {reorderMode ? (
+                <button
+                  onClick={() => setReorderMode(false)}
+                  title="Salir del modo reordenar"
+                  className="bg-transparent border-none text-[#7f70ff] cursor-pointer w-[36px] h-[36px] flex items-center justify-center rounded-full transition-colors hover:bg-[#f5f5f5]"
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </button>
+              ) : (
+                <SortMenu value={sortMode} onChange={(m) => { onUpdateList(list.id, { sortMode: m }); setReorderMode(m === 'custom'); }} />
+              )}
               <h3 className="flex-1 text-center leading-none m-0 p-0 text-[22px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
               <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} />
             </div>
@@ -284,7 +303,7 @@ export function ListaTareasCard({
 
         {/* Lista de tareas activas */}
         <div className="flex flex-col px-5 pb-5 pt-3">
-          {isReorderActive ? (
+          {reorderable ? (
             <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
               {orderedIds.map((id) =>
                 id === dragId ? (
