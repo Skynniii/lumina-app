@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { Task, TaskList, SortMode } from '../../types';
 import { TareaItem } from './TareaItem';
 import { SortMenu } from './SortMenu';
+import { useSettings } from '../../context/SettingsContext';
 
 interface Props {
   lists: TaskList[];
@@ -211,6 +212,7 @@ function HoyLinkMenu({ lists, hoyListId, onLink }: { lists: TaskList[]; hoyListI
 /* ---------- componente ---------- */
 
 export function PrincipalView({ lists, tasks, principalList, onUpdateList, onToggleTask, onUpdateTask, onExpandTask }: Props) {
+  const { settings } = useSettings();
   const sortMode: SortMode = principalList.sortMode || 'custom';
 
   const listNameById = useMemo(() => {
@@ -219,7 +221,14 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     return m;
   }, [lists]);
 
-  const pending = useMemo(() => tasks.filter((t) => !t.completed), [tasks]);
+  const pending = useMemo(() => {
+    const filtered = tasks.filter((t) => !t.completed);
+    if (settings.hideNoDateInPrincipal) {
+      if (sortMode === 'deadline') return filtered.filter((t) => t.deadline);
+      return filtered.filter((t) => t.dueDate);
+    }
+    return filtered;
+  }, [tasks, settings.hideNoDateInPrincipal, sortMode]);
 
   // Importante: muestra lista + fecha (la fecha no está en cabecera aquí).
   const renderTask = (t: Task) => (
@@ -278,14 +287,8 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
       <>
         {hasImportant && (
           <>
-            <Divider label="Importante" color="#eab308" />
             {importantDated.length > 0 && <TaskList items={importantDated} render={renderTask} />}
-            {importantNoDate.length > 0 && (
-              <>
-                {importantDated.length > 0 && <SubLabel label="Sin fecha" />}
-                <TaskList items={importantNoDate} render={renderTask} />
-              </>
-            )}
+            {importantNoDate.length > 0 && <TaskList items={importantNoDate} render={renderTask} />}
           </>
         )}
 
@@ -312,7 +315,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         {hasUpcoming && (
           <>
-            <Divider label="Próximamente" />
+            <GroupHeader title="Próximamente" />
             {upcoming.map((g) => (
               <div key={g.label}>
                 <GroupHeader title={g.label} color={g.color} />
@@ -324,7 +327,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         {hasUndated && (
           <>
-            <Divider label="Sin fecha" />
+            <GroupHeader title="Sin fecha" />
             {Array.from(undatedByList.entries()).map(([listId, ts]) => (
               <div key={listId}>
                 <SubLabel label={listNameById[listId] || 'Lista'} />
@@ -395,7 +398,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           <p className="text-[13px] text-[#c0c0c0] py-2">Sin tareas para mañana.</p>
         )}
 
-        <Divider label="Próximamente" />
+        <GroupHeader title="Próximamente" />
         {upcoming.length > 0 ? (
           upcoming.map((g) => (
             <div key={g.label}>
@@ -409,7 +412,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         {undated.length > 0 && (
           <>
-            <Divider label="Sin fecha" />
+            <GroupHeader title="Sin fecha" />
             {Array.from(undatedByList.entries()).map(([listId, ts]) => (
               <div key={listId}>
                 <SubLabel label={listNameById[listId] || 'Lista'} />
@@ -444,7 +447,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
         ))}
         {noDeadline.length > 0 && (
           <>
-            <Divider label="Sin fecha" />
+            <GroupHeader title="Sin fecha límite" />
             {Array.from(noDeadlineByList.entries()).map(([listId, ts]) => (
               <div key={listId}>
                 <SubLabel label={listNameById[listId] || 'Lista'} />

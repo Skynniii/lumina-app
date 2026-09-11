@@ -207,6 +207,12 @@ export function SettingsPage({ onBack }: Props) {
             value={settings.newTaskPosition}
             onChange={(v) => update('newTaskPosition', v as Settings['newTaskPosition'])}
           />
+          <ToggleRow
+            title="Ocultar sin fecha"
+            subtitle="No mostrar tareas sin fecha en Principal"
+            on={settings.hideNoDateInPrincipal}
+            onChange={(v) => update('hideNoDateInPrincipal', v)}
+          />
         </div>
 
         {/* NOTIFICACIONES */}

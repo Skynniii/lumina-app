@@ -38,8 +38,8 @@ function isOverdue(dk: string | undefined): boolean {
   return d < t;
 }
 
-function groupLabel(dateKey: string | undefined): string {
-  if (!dateKey) return 'Sin fecha';
+function groupLabel(dateKey: string | undefined, isDeadline: boolean = false): string {
+  if (!dateKey) return isDeadline ? 'Sin fecha límite' : 'Sin fecha';
   const d = new Date(dateKey + 'T00:00:00');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -96,6 +96,7 @@ export function ListaTareasCard({
   const onItemPointerDown = useCallback((e: React.PointerEvent, id: string) => {
     if (!reorderable) return;
     if (lpTimer.current) clearTimeout(lpTimer.current);
+    if (preDragCleanup.current) preDragCleanup.current();
     const li = e.currentTarget as HTMLElement;
     const r = li.getBoundingClientRect();
     const ulR = ulRef.current?.getBoundingClientRect();
@@ -103,43 +104,104 @@ export function ListaTareasCard({
       drag.current = { startY: e.clientY, height: r.height, startTop: r.top, ulTop: ulR.top, id, others: baseIds.filter((x) => x !== id) };
     }
 
-    // Con touchAction:'pan-x pan-y', el navegador maneja el scroll nativamente (con inercia).
-    // Solo necesitamos prevenir el scroll con preventDefault() en touchmove DESPUÉS de que
-    // el long-press active el arrastre. Antes del timer, el usuario puede hacer scroll libremente.
+    // Con touchAction:'none', el navegador no scrollea. Implementamos scroll manual con inercia
+    // para que el usuario pueda deslizar horizontalmente (entre listas) y verticalmente (dentro de la tarjeta).
+    // Si mantiene presionado 450ms sin moverse, se activa el arrastre de tareas.
     const startX = e.clientX;
     const startY = e.clientY;
-    let dragActive = false;
+    let scrolling = false;
+    let scrollAxis: 'x' | 'y' | null = null;
+    let lastX = startX;
+    let lastY = startY;
+    let lastTime = performance.now();
+    let velocityX = 0;
+    let velocityY = 0;
+    let momentumId: number | null = null;
 
-    const onTouchMove = (ev: TouchEvent) => {
-      if (dragActive) {
-        ev.preventDefault(); // Prevenir scroll durante el arrastre
-        return;
-      }
-      // Antes del long-press: si el usuario se mueve, cancelar el timer (está scrolleando)
-      const touch = ev.touches[0];
-      const dx = touch.clientX - startX;
-      const dy = touch.clientY - startY;
-      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-        if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
-        cleanupTouch();
-      }
+    const getScrollTargets = () => {
+      const cardEl = li.closest('[data-lista]') as HTMLElement;
+      const visorEl = document.getElementById('visor-de-listas');
+      return { cardEl, visorEl };
     };
 
-    const cleanupTouch = () => {
-      if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', cleanupTouch);
-      window.removeEventListener('touchcancel', cleanupTouch);
+    const cleanupPreDrag = () => {
+      if (momentumId) { cancelAnimationFrame(momentumId); momentumId = null; }
+      window.removeEventListener('pointermove', onMovePreDrag);
+      window.removeEventListener('pointerup', onUpPreDrag);
+      window.removeEventListener('pointercancel', onUpPreDrag);
       preDragCleanup.current = null;
     };
-    preDragCleanup.current = cleanupTouch;
 
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
-    window.addEventListener('touchend', cleanupTouch);
-    window.addEventListener('touchcancel', cleanupTouch);
+    const onMovePreDrag = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!scrolling) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        scrolling = true;
+        scrollAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+      }
+      const now = performance.now();
+      const dt = Math.max(1, now - lastTime);
+      if (scrollAxis === 'x') {
+        const { visorEl } = getScrollTargets();
+        if (visorEl) {
+          const deltaX = ev.clientX - lastX;
+          visorEl.scrollLeft -= deltaX;
+          velocityX = -deltaX / dt;
+        }
+      } else {
+        const { cardEl } = getScrollTargets();
+        if (cardEl) {
+          const deltaY = ev.clientY - lastY;
+          cardEl.scrollTop -= deltaY;
+          velocityY = -deltaY / dt;
+        }
+      }
+      lastX = ev.clientX;
+      lastY = ev.clientY;
+      lastTime = now;
+    };
+
+    const onUpPreDrag = () => {
+      if (!scrolling) { cleanupPreDrag(); return; }
+      // Inercia: continuar el scroll con fricción hasta detenerse
+      const decay = 0.94;
+      const minVel = 0.02;
+      const step = () => {
+        const { visorEl, cardEl } = getScrollTargets();
+        if (scrollAxis === 'x' && visorEl) {
+          if (Math.abs(velocityX) < minVel) {
+            const idx = Math.round(visorEl.scrollLeft / visorEl.offsetWidth);
+            visorEl.scrollTo({ left: idx * visorEl.offsetWidth, behavior: 'smooth' });
+            momentumId = null;
+            cleanupPreDrag();
+            return;
+          }
+          visorEl.scrollLeft += velocityX * 16;
+          velocityX *= decay;
+        } else if (scrollAxis === 'y' && cardEl) {
+          if (Math.abs(velocityY) < minVel) {
+            momentumId = null;
+            cleanupPreDrag();
+            return;
+          }
+          cardEl.scrollTop += velocityY * 16;
+          velocityY *= decay;
+        }
+        momentumId = requestAnimationFrame(step);
+      };
+      momentumId = requestAnimationFrame(step);
+    };
+
+    preDragCleanup.current = cleanupPreDrag;
+    window.addEventListener('pointermove', onMovePreDrag);
+    window.addEventListener('pointerup', onUpPreDrag);
+    window.addEventListener('pointercancel', onUpPreDrag);
 
     lpTimer.current = window.setTimeout(() => {
-      dragActive = true;
+      if (scrolling) return;
+      cleanupPreDrag();
       didDrag.current = true;
       setDragId(id);
       setDragOrderBoth(baseIds.slice());
@@ -205,7 +267,7 @@ export function ListaTareasCard({
               layout
               className={`list-none pt-3 first:pt-0 pb-1 text-[12px] font-bold uppercase tracking-wider ${overdue ? 'text-[#e53935]' : 'text-[#a0a0a0]'}`}
             >
-              {groupLabel(key)}{overdue ? ' · Atrasado' : ''}
+              {groupLabel(key, groupKey === 'deadline')}{overdue ? ' · Atrasado' : ''}
             </motion.li>
           );
         }

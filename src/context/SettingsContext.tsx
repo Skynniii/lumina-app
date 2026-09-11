@@ -13,6 +13,7 @@ export interface Settings {
   notifyOnEnd: boolean;
   newTaskPosition: 'first' | 'last';
   defaultView: ViewType;
+  hideNoDateInPrincipal: boolean;
 }
 
 const DEFAULTS: Settings = {
@@ -26,6 +27,7 @@ const DEFAULTS: Settings = {
   notifyOnEnd: true,
   newTaskPosition: 'first',
   defaultView: 'cronometro',
+  hideNoDateInPrincipal: false,
 };
 
 interface Ctx {
