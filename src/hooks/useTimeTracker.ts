@@ -12,6 +12,7 @@ export interface RunningTimer {
 export interface TrackerDraft {
   activityId: string;
   description: string;
+  notes: string;
 }
 
 const DEFAULT_ACTIVITIES: Activity[] = [
@@ -51,8 +52,9 @@ export function useTimeTracker() {
   const [entries, setEntries] = useUserStorage<TimeEntry[]>('tracker-entries', []);
   const [running, setRunning] = useUserStorage<RunningTimer | null>('tracker-running', null);
   const [draft, setDraft] = useUserStorage<TrackerDraft>('tracker-draft', {
-    activityId: DEFAULT_ACTIVITIES[0].id,
+    activityId: '',
     description: '',
+    notes: '',
   });
   const [now, setNow] = useState(Date.now());
 
@@ -98,6 +100,7 @@ export function useTimeTracker() {
       id: `${end}`,
       activityId: draft.activityId,
       description: draft.description.trim(),
+      notes: draft.notes.trim(),
       date: todayKey(),
       startedAt: running.sessionStart,
       endedAt: end,
@@ -106,6 +109,29 @@ export function useTimeTracker() {
     setEntries((prev) => [entry, ...prev]);
     return entry;
   }, [running, draft, setRunning, setEntries]);
+
+  /** Guarda una sesión con segundos calculados externamente (para temporizador/pomodoro). */
+  const saveSession = useCallback((seconds: number): TimeEntry | null => {
+    if (seconds < 1) return null;
+    const now = Date.now();
+    const entry: TimeEntry = {
+      id: `${now}`,
+      activityId: draft.activityId,
+      description: draft.description.trim(),
+      notes: draft.notes.trim(),
+      date: todayKey(),
+      startedAt: now - seconds * 1000,
+      endedAt: now,
+      seconds,
+    };
+    setEntries((prev) => [entry, ...prev]);
+    return entry;
+  }, [draft, setEntries]);
+
+  /** Descarta la sesión en curso sin guardar. */
+  const discard = useCallback(() => {
+    setRunning(null);
+  }, [setRunning]);
 
   const deleteEntry = useCallback((id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -128,6 +154,8 @@ export function useTimeTracker() {
     pause,
     resume,
     stop,
+    saveSession,
+    discard,
     deleteEntry,
     addActivity,
     setDraft,

@@ -7,31 +7,66 @@ interface Props {
   activities: Activity[];
   liveElapsed: number;
   isRunning: boolean;
+  liveActivityId?: string;
+  liveDescription?: string;
 }
 
-interface BreakdownRow {
+interface SessionInfo {
   key: string;
-  label: string;
-  color: string;
+  description: string;
   seconds: number;
 }
 
-export function TodaySummary({ entries, activities, liveElapsed, isRunning }: Props) {
+interface ActivityGroup {
+  key: string;
+  activityName: string;
+  color: string;
+  totalSeconds: number;
+  sessions: SessionInfo[];
+}
+
+export function TodaySummary({ entries, activities, liveElapsed, isRunning, liveActivityId, liveDescription }: Props) {
   const todayEntries = entries.filter((e) => e.date === todayKey());
 
-  const totals = new Map<string, number>();
-  todayEntries.forEach((e) => totals.set(e.activityId, (totals.get(e.activityId) ?? 0) + e.seconds));
+  const activityMap = new Map<string, ActivityGroup>();
 
-  const rows: BreakdownRow[] = [];
-  totals.forEach((seconds, activityId) => {
-    const activity = activities.find((a) => a.id === activityId);
-    rows.push({ key: activityId, label: activity?.name ?? 'Otra', color: activity?.color ?? '#bbb', seconds });
+  todayEntries.forEach((e) => {
+    const activity = activities.find((a) => a.id === e.activityId);
+    const group = activityMap.get(e.activityId) ?? {
+      key: e.activityId,
+      activityName: activity?.name ?? 'Sin actividad',
+      color: activity?.color ?? '#bbb',
+      totalSeconds: 0,
+      sessions: [],
+    };
+    group.totalSeconds += e.seconds;
+    const desc = e.description.trim() || 'Sin descripción';
+    const session = group.sessions.find((s) => s.description === desc);
+    if (session) {
+      session.seconds += e.seconds;
+    } else {
+      group.sessions.push({ key: `${e.activityId}-${desc}`, description: desc, seconds: e.seconds });
+    }
+    activityMap.set(e.activityId, group);
   });
-  if (liveElapsed >= 1) {
-    rows.unshift({ key: 'live', label: 'En curso', color: '#34c77b', seconds: liveElapsed });
-  }
-  rows.sort((a, b) => b.seconds - a.seconds);
 
+  // Sesión en vivo
+  if (liveElapsed >= 1 && liveActivityId !== undefined) {
+    const activity = activities.find((a) => a.id === liveActivityId);
+    const group = activityMap.get(liveActivityId) ?? {
+      key: liveActivityId,
+      activityName: activity?.name ?? 'Sin actividad',
+      color: activity?.color ?? '#34c77b',
+      totalSeconds: 0,
+      sessions: [],
+    };
+    group.totalSeconds += liveElapsed;
+    const desc = liveDescription?.trim() || 'En curso';
+    group.sessions.unshift({ key: 'live', description: desc, seconds: liveElapsed });
+    activityMap.set(liveActivityId, group);
+  }
+
+  const groups = Array.from(activityMap.values()).sort((a, b) => b.totalSeconds - a.totalSeconds);
   const total = todayEntries.reduce((s, e) => s + e.seconds, 0) + (liveElapsed >= 1 ? liveElapsed : 0);
 
   return (
@@ -44,14 +79,14 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning }: Pr
         </div>
       </div>
 
-      {rows.length > 0 && (
-        <div className="flex flex-col gap-2.5">
+      {groups.length > 0 && (
+        <div className="flex flex-col gap-3">
           <AnimatePresence initial={false}>
-            {rows.map((r) => {
-              const pct = total > 0 ? Math.min(100, (r.seconds / total) * 100) : 0;
+            {groups.map((g) => {
+              const pct = total > 0 ? Math.min(100, (g.totalSeconds / total) * 100) : 0;
               return (
                 <motion.div
-                  key={r.key}
+                  key={g.key}
                   layout
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
@@ -61,17 +96,24 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning }: Pr
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: r.color }} />
-                      <span className="text-[13px] text-[#555]">{r.label}</span>
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.color }} />
+                      <span className="text-[13px] font-semibold text-[#555]">{g.activityName}</span>
                     </div>
-                    <span className="text-[13px] font-semibold text-[#777] tabular-nums">{formatElapsed(r.seconds)}</span>
+                    <span className="text-[13px] font-semibold text-[#777] tabular-nums">{formatElapsed(g.totalSeconds)}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-[#f0f0f0] overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-[width] duration-700 ease-out"
-                      style={{ width: `${pct}%`, background: r.color }}
-                    />
+                    <div className="h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: `${pct}%`, background: g.color }} />
                   </div>
+                  {g.sessions.length > 1 && (
+                    <div className="flex flex-col gap-0.5 pl-[18px]">
+                      {g.sessions.map((s) => (
+                        <div key={s.key} className="flex items-center justify-between">
+                          <span className="text-[12px] text-[#999] truncate">{s.description}</span>
+                          <span className="text-[12px] text-[#b0b0b0] tabular-nums shrink-0 ml-2">{formatElapsed(s.seconds)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               );
             })}

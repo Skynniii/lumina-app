@@ -65,6 +65,7 @@ export interface TimeEntry {
   id: string;
   activityId: string;
   description: string;
+  notes?: string;
   date: string; // YYYY-MM-DD
   startedAt: number; // epoch ms
   endedAt: number; // epoch ms

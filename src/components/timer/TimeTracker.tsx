@@ -28,7 +28,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   const [pomodoroCycle, setPomodoroCycle] = useState(0);
   const [showFocus, setShowFocus] = useState(false);
   const [taskLists] = useUserStorage<TaskList[]>('lumina_lists', []);
-  const [tasks] = useUserStorage<Task[]>('lumina_tasks', []);
+  const [tasks, setTasks] = useUserStorage<Task[]>('lumina_tasks', []);
 
   const handleStop = () => {
     const saved = tracker.stop();
@@ -57,14 +57,35 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     else { setPomodoroPhase('work'); countdown.start(WORK_SEC); }
   };
 
+  const handleDiscard = () => {
+    if (mode === 'rastreador') tracker.discard();
+    else countdown.reset();
+    setShowFocus(false);
+  };
+
+  const handleSaveSession = (completeTask: boolean, taskId?: string) => {
+    if (mode === 'rastreador') {
+      handleStop();
+    } else {
+      const elapsed = countdown.targetSeconds - countdown.remaining;
+      if (elapsed >= 1) {
+        const saved = tracker.saveSession(elapsed);
+        if (saved && settings.sounds) playCompleteSound();
+      }
+      countdown.reset();
+    }
+    if (completeTask && taskId) {
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, completed: true, completedAt: new Date().toISOString() } : t)));
+    }
+    setShowFocus(false);
+  };
+
   const historyEntries = tracker.entries.filter((e) => e.date !== todayKey());
 
-  // ¿Hay una sesión activa?
   const isTimerActive = mode === 'rastreador'
     ? tracker.running !== null
     : countdown.running || (countdown.remaining > 0 && countdown.remaining < countdown.targetSeconds);
 
-  // Tiempo transcurrido para la barra flotante
   const activeElapsed = mode === 'rastreador'
     ? tracker.elapsed
     : countdown.targetSeconds - countdown.remaining;
@@ -85,12 +106,10 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   return (
     <>
       <section className="absolute top-0 left-0 w-full h-full flex flex-col">
-        {/* Header fijo */}
         <div className="px-5 pt-5 pb-2 shrink-0 z-50 bg-[#f7f6f9]">
           <TopBar title="Timer" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
         </div>
 
-        {/* Contenido scrolleable */}
         <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-[110px]">
           <div className="flex flex-col gap-5 mt-3">
             <TodaySummary
@@ -98,6 +117,8 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               activities={tracker.activities}
               liveElapsed={tracker.running ? tracker.elapsed : 0}
               isRunning={tracker.isTicking}
+              liveActivityId={tracker.draft.activityId}
+              liveDescription={tracker.draft.description}
             />
 
             <div className="flex items-center gap-3 pt-2">
@@ -114,7 +135,6 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
           </div>
         </div>
 
-        {/* Botón + o barra flotante */}
         <AnimatePresence>
           {!showFocus && isTimerActive ? (
             <motion.div
@@ -129,7 +149,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               {mode === 'rastreador' && (
                 <>
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: activity?.color ?? '#bbb' }} />
-                  <span className="text-[14px] font-medium text-[#333] flex-1 truncate">{activity?.name ?? 'Actividad'}</span>
+                  <span className="text-[14px] font-medium text-[#333] flex-1 truncate">{activity?.name ?? 'Sin actividad'}</span>
                   {tracker.isTicking && <span className="w-2 h-2 rounded-full bg-[#34c77b] animate-pulse shrink-0" />}
                   <span className="text-[15px] font-bold text-[#7f70ff] tabular-nums shrink-0">{formatElapsed(activeElapsed)}</span>
                 </>
@@ -165,7 +185,6 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
         </AnimatePresence>
       </section>
 
-      {/* Pantalla completa de focus */}
       <AnimatePresence>
         {showFocus && (
           <FocusScreen
@@ -174,6 +193,9 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             {...timerProps}
             taskLists={taskLists}
             tasks={tasks}
+            onNotesChange={(v) => tracker.setDraft((d) => ({ ...d, notes: v }))}
+            onDiscard={handleDiscard}
+            onSaveSession={handleSaveSession}
           />
         )}
       </AnimatePresence>
