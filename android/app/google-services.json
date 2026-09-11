@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "664146917749",
+    "project_id": "aplicacion-ff63f",
+    "storage_bucket": "aplicacion-ff63f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:664146917749:android:f4b824b540778e562d3b3c",
+        "android_client_info": {
+          "package_name": "com.lumina.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "664146917749-c849bj98hmsj67qvjjs2ar2bul5e1jgb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lumina.app",
+            "certificate_hash": "87ade8c2533ef16025c20f1ff1bbf9ff8f0a2982"
+          }
+        },
+        {
+          "client_id": "664146917749-iiks6duvimlol93itb46sqcighguqd0h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbDSuwBGCfwe31MqRYblU8FzHXy2uv5b8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "664146917749-iiks6duvimlol93itb46sqcighguqd0h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
