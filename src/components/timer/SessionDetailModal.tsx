@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { Activity, TimeSession } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
-import { useAuth } from '../../context/AuthContext';
-import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
+import { useActivities } from '../../hooks/useActivities';
 import { formatElapsed, dayLabel, isoToDateKey } from '../../hooks/useTimeTracker';
 import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
@@ -18,10 +17,7 @@ interface Props {
 
 export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props) {
   const { settings } = useSettings();
-  const { user } = useAuth();
-  const uid = user?.uid ?? null;
-  const activitiesColl = useFirestoreCollection<Activity>(uid, 'activities');
-  const activities = activitiesColl.items;
+  const { activities, addActivity } = useActivities();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
@@ -210,9 +206,8 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
         activities={activities}
         selectedId={entry.activityId}
         onSelect={(id) => { onUpdate(entry.id, { activityId: id }); setShowActivityPicker(false); }}
-        onCreate={(name, color) => {
-          const id = `act-${Date.now()}`;
-          activitiesColl.set(id, { name: name.trim(), color });
+        onCreate={async (name, color) => {
+          const id = await addActivity({ name: name.trim(), color });
           onUpdate(entry.id, { activityId: id });
           setShowActivityPicker(false);
         }}

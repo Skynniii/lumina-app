@@ -9,6 +9,8 @@ const LOCAL_KEYS = [
   'lumina_settings',
   'tracker-running',
   'tracker-draft',
+  'timer-mode',
+  'timer-custom-durations',
 ];
 
 // Elimina recursivamente las claves con valor `undefined`.

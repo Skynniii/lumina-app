@@ -4,7 +4,8 @@ import type { Task, TaskList, SubTask, TimeSession, Activity, ViewType } from '.
 import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
 import { useAuth } from '../../context/AuthContext';
-import { useFirestoreCollection, clean } from '../../hooks/useFirestoreCollection';
+import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
+import { useActivities } from '../../hooks/useActivities';
 import { formatElapsed, dayLabel, isoToDateKey } from '../../hooks/useTimeTracker';
 import { setPendingTimerTask } from '../../shared/pendingTimerTask';
 import { Sparkles } from './Sparkles';
@@ -27,9 +28,8 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const { settings } = useSettings();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  const activitiesColl = useFirestoreCollection<Activity>(uid, 'activities');
+  const { activities, addActivity } = useActivities();
   const sessionsColl = useFirestoreCollection<TimeSession>(uid, 'timeSessions');
-  const activities = activitiesColl.items;
   const [activityPickerOpen, setActivityPickerOpen] = useState(false);
   const [sparkle, setSparkle] = useState(false);
   const [showListMenu, setShowListMenu] = useState(false);
@@ -524,9 +524,8 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         activities={activities}
         selectedId={task.activityId}
         onSelect={(id) => { onUpdate(task.id, { activityId: id }); setActivityPickerOpen(false); }}
-        onCreate={(name, color) => {
-          const id = `act-${Date.now()}`;
-          activitiesColl.set(id, { name: name.trim(), color });
+        onCreate={async (name, color) => {
+          const id = await addActivity({ name: name.trim(), color });
           onUpdate(task.id, { activityId: id });
           setActivityPickerOpen(false);
         }}
