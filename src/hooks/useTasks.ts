@@ -173,7 +173,12 @@ export function useTasks() {
   }, [tasks, tasksColl]);
 
   const updateTask = useCallback((taskId: string, updates: Partial<Task>) => {
-    tasksColl.update(taskId, updates);
+    // Convierte undefined a deleteField() para que Firestore elimine el campo
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      cleaned[key] = value === undefined ? deleteField() : value;
+    }
+    tasksColl.update(taskId, cleaned as Partial<Task>);
   }, [tasksColl]);
 
   const updateList = useCallback((id: string, updates: Partial<TaskList>) => {

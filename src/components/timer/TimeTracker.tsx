@@ -93,6 +93,8 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   const handleDiscard = () => {
     if (mode === 'rastreador') tracker.discard();
     else countdown.reset();
+    // Limpia taskId del draft para que no se herede en la próxima sesión
+    tracker.setDraft((d) => ({ ...d, taskId: undefined }));
     setShowFocus(false);
   };
 
@@ -111,6 +113,8 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     if (completeTask && taskId) {
       tasksColl.update(taskId, { completed: true, completedAt: new Date().toISOString() });
     }
+    // Limpia taskId del draft para que la próxima sesión no se asocie a esta tarea
+    tracker.setDraft((d) => ({ ...d, taskId: undefined }));
     setShowFocus(false);
   };
 
@@ -134,6 +138,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     onSetStartTime: tracker.setStartTime,
     onDescriptionChange: (v: string) => tracker.setDraft((d) => ({ ...d, description: v })),
     onActivityChange: (id: string) => tracker.setDraft((d) => ({ ...d, activityId: id })),
+    onTaskIdChange: (id: string | undefined) => tracker.setDraft((d) => ({ ...d, taskId: id })),
     onCreateActivity: (name: string, color: string) => tracker.addActivity(name, color),
     countdown, pomodoroPhase, pomodoroCycle, onPomodoroSkip: handlePomodoroSkip,
   };

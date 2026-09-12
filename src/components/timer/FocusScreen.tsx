@@ -20,6 +20,7 @@ interface Props extends ActiveTimerCardProps {
   onNotesChange: (v: string) => void;
   onDiscard: () => void;
   onSaveSession: (completeTask: boolean, taskId?: string) => void;
+  onTaskIdChange?: (id: string | undefined) => void;
 }
 
 const MODE_LABELS: Record<TimerMode, string> = {
@@ -90,6 +91,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
     if (task.activityId) props.onActivityChange(task.activityId);
     const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
     onNotesChange(plainNotes);
+    props.onTaskIdChange?.(task.id);
   };
 
   const handleCustomDuration = (hours: number, minutes: number) => {

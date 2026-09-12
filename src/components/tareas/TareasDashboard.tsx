@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { TaskList, ViewType } from '../../types';
 import { useTasks } from '../../hooks/useTasks';
@@ -16,7 +16,13 @@ interface Props {
 }
 
 export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Props) {
-  const { lists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
+  const { lists: rawLists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
+  // Principal siempre aparece de primera
+  const lists = useMemo(() => [...rawLists].sort((a, b) => {
+    if (a.id === 'principal') return -1;
+    if (b.id === 'principal') return 1;
+    return (a.position ?? 0) - (b.position ?? 0);
+  }), [rawLists]);
   const [activeListId, setActiveListId] = useState(lists[0]?.id || '');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);

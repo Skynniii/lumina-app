@@ -225,6 +225,10 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const filtered = tasks.filter((t) => !t.completed);
     if (settings.hideNoDateInPrincipal) {
       if (sortMode === 'deadline') return filtered.filter((t) => t.dueDate || t.isImportant);
+      if (sortMode === 'date' && principalList.hoyListId) {
+        // Permite ver tareas sin fecha de la lista vinculada a "Hoy"
+        return filtered.filter((t) => t.scheduledDate || t.isImportant || t.listId === principalList.hoyListId);
+      }
       return filtered.filter((t) => t.scheduledDate || t.isImportant);
     }
     return filtered;
@@ -360,7 +364,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const upcomingNI = beyond.filter((t) => dayDiff(t.scheduledDate!) > 1);
     const upcoming = groupByKey(upcomingNI, 'dueDate', true);
     // Sin fecha: tareas sin dueDate (importantes y no), agrupadas por lista.
-    const undated = pending.filter((t) => !t.scheduledDate);
+    const undated = pending.filter((t) => !t.scheduledDate && (!linkedList || t.listId !== linkedList.id));
     const undatedByList = new Map<string, Task[]>();
     for (const t of undated) {
       const arr = undatedByList.get(t.listId) ?? [];
