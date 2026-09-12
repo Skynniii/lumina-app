@@ -343,9 +343,11 @@ export function ListaTareasCard({
           ) : (
             <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
               <AnimatePresence mode="popLayout">
-                {activeSorted.map((task) => (
-                  <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />
-                ))}
+                {orderedIds.map((id) => {
+                  const task = taskByIdRef.current[id];
+                  if (!task) return null;
+                  return <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />;
+                })}
               </AnimatePresence>
               {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
             </ul>
