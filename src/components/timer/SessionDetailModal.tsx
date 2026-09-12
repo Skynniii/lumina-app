@@ -101,6 +101,19 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
     });
   };
 
+  // Desvincular tarea: limpia los campos
+  const handleUnlink = () => {
+    if (entry.taskId) {
+      onUnlinkTask(entry);
+      onUpdate(entry.id, {
+        taskId: undefined,
+        description: '',
+        activityId: '',
+        notes: undefined,
+      });
+    }
+  };
+
   const updateDate = (dateStr: string) => {
     const [y, m, d] = dateStr.split('-').map(Number);
     const newStart = new Date(entry.startTime);
@@ -167,6 +180,38 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
           </button>
         </div>
 
+        {/* Descripción — con flecha (vincular) o X (desvincular) en el borde derecho */}
+        <div className="border-b border-[#f0f0f5]">
+          <div className="flex items-center gap-3 py-3">
+            {linkedTask ? (
+              <span className="text-[#7f70ff] shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+              </span>
+            ) : (
+              <span className="text-[#a0a0a0] shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+              </span>
+            )}
+            <input
+              type="text"
+              value={entry.description}
+              onChange={(e) => handleDescriptionChange(e.target.value)}
+              placeholder="Sin descripción"
+              className={`flex-1 text-[15px] bg-transparent border-none outline-none placeholder-[#bbb] ${linkedTask ? 'text-[#7f70ff] font-medium' : 'text-[#333]'}`}
+            />
+            {linkedTask ? (
+              <button onClick={handleUnlink} className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#fff5f5] transition-colors border-none bg-transparent cursor-pointer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            ) : (
+              <button onClick={() => setShowTaskPicker(true)} className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#f0edff] transition-colors border-none bg-transparent cursor-pointer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7" /><polyline points="7 7 17 7 17 17" /></svg>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Actividad */}
         <div className="border-b border-[#f0f0f5]">
           <button onClick={() => setShowActivityPicker(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
             {activity ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: activity.color }} /> : (
@@ -176,33 +221,6 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
             )}
             <span className={`flex-1 text-left text-[15px] ${activity ? 'text-[#333]' : 'text-[#555]'}`}>{activity?.name ?? 'Seleccionar actividad'}</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-          </button>
-        </div>
-
-        <div className="border-b border-[#f0f0f5]">
-          <div className="flex items-center gap-3 py-3">
-            <span className="text-[#a0a0a0]">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
-            </span>
-            <input
-              type="text"
-              value={entry.description}
-              onChange={(e) => handleDescriptionChange(e.target.value)}
-              placeholder="Sin descripción"
-              className="flex-1 text-[15px] text-[#333] bg-transparent border-none outline-none placeholder-[#bbb]"
-            />
-          </div>
-        </div>
-
-        <div className="border-b border-[#f0f0f5]">
-          <button onClick={() => setShowTaskPicker(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
-            <span className="text-[#a0a0a0]">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-            </span>
-            <span className={`flex-1 text-left text-[15px] ${linkedTask ? 'text-[#7f70ff] font-medium' : 'text-[#555]'}`}>
-              {linkedTask ? linkedTask.title : 'Vincular a tarea'}
-            </span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7" /><polyline points="7 7 17 7 17 17" /></svg>
           </button>
         </div>
 
