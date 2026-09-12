@@ -4,7 +4,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
 import { playCompleteSound } from '../../utils/sound';
 import { useTimeTracker, todayKey, formatElapsed, isoToDateKey } from '../../hooks/useTimeTracker';
-import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
+import { useFirestoreCollection, incrementTaskTime } from '../../hooks/useFirestoreCollection';
 import { useCountdownTimer, type TimerMode } from '../../hooks/useCountdownTimer';
 import { useUserStorage } from '../../hooks/useUserStorage';
 import { setPendingTimerTask, getPendingTimerTask, clearPendingTimerTask } from '../../shared/pendingTimerTask';
@@ -238,6 +238,10 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             onUpdate={tracker.updateSession}
             onDelete={tracker.deleteSession}
             onClose={() => setSelectedEntryId(null)}
+            tasks={tasks}
+            taskLists={taskLists}
+            onLinkTask={(entry, task) => { if (uid) incrementTaskTime(uid, task.id, entry.duration); }}
+            onUnlinkTask={(entry) => { if (uid && entry.taskId) incrementTaskTime(uid, entry.taskId, -entry.duration); }}
           />
         )}
       </AnimatePresence>

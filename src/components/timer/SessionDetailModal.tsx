@@ -1,30 +1,37 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import type { Activity, TimeSession } from '../../types';
+import type { Activity, Task, TaskList, TimeSession } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { useActivities } from '../../hooks/useActivities';
 import { formatElapsed, dayLabel, isoToDateKey } from '../../hooks/useTimeTracker';
 import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { ActivityPicker } from './ActivityPicker';
+import { TaskPicker } from './TaskPicker';
 
 interface Props {
   entry: TimeSession;
   onUpdate: (id: string, updates: Partial<TimeSession>) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
+  tasks: Task[];
+  taskLists: TaskList[];
+  onLinkTask: (entry: TimeSession, task: Task) => void;
+  onUnlinkTask: (entry: TimeSession) => void;
 }
 
-export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props) {
+export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, taskLists, onLinkTask, onUnlinkTask }: Props) {
   const { settings } = useSettings();
   const { activities, addActivity } = useActivities();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showActivityPicker, setShowActivityPicker] = useState(false);
+  const [showTaskPicker, setShowTaskPicker] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const activity = activities.find((a) => a.id === entry.activityId);
+  const linkedTask = entry.taskId ? tasks.find((t) => t.id === entry.taskId) : undefined;
   const entryDateKey = isoToDateKey(entry.startTime);
 
   const fmtFullDate = (iso: string) => {
@@ -59,6 +66,42 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
     const newEndTime = newEnd.toISOString();
     const newDuration = Math.max(0, Math.floor((newEnd.getTime() - new Date(entry.startTime).getTime()) / 1000));
     onUpdate(entry.id, { endTime: newEndTime, duration: newDuration });
+  };
+
+  // Al cambiar la descripción, si estaba vinculada y ya no coincide con el título, desvincular
+  const handleDescriptionChange = (value: string) => {
+    const updates: Partial<TimeSession> = { description: value };
+    if (entry.taskId && linkedTask && value !== linkedTask.title) {
+      onUnlinkTask(entry);
+      updates.taskId = undefined;
+    }
+    onUpdate(entry.id, updates);
+  };
+
+  // Al cambiar la actividad, si estaba vinculada y la actividad difiere, desvincular
+  const handleActivityChange = (id: string) => {
+    const updates: Partial<TimeSession> = { activityId: id };
+    if (entry.taskId && linkedTask && id !== (linkedTask.activityId || '')) {
+      onUnlinkTask(entry);
+      updates.taskId = undefined;
+    }
+    onUpdate(entry.id, updates);
+    setShowActivityPicker(false);
+  };
+
+  // Vincular sesión a una tarea: trae title, activity, notes y taskId
+  const handleSelectTask = (task: Task) => {
+    if (entry.taskId && entry.taskId !== task.id) {
+      onUnlinkTask(entry);
+    }
+    const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
+    onLinkTask(entry, task);
+    onUpdate(entry.id, {
+      taskId: task.id,
+      description: task.title,
+      activityId: task.activityId || '',
+      notes: plainNotes || undefined,
+    });
   };
 
   const updateDate = (dateStr: string) => {
@@ -147,11 +190,23 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
             <input
               type="text"
               value={entry.description}
-              onChange={(e) => onUpdate(entry.id, { description: e.target.value })}
+              onChange={(e) => handleDescriptionChange(e.target.value)}
               placeholder="Sin descripción"
               className="flex-1 text-[15px] text-[#333] bg-transparent border-none outline-none placeholder-[#bbb]"
             />
           </div>
+        </div>
+
+        <div className="border-b border-[#f0f0f5]">
+          <button onClick={() => setShowTaskPicker(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+            <span className="text-[#a0a0a0]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+            </span>
+            <span className={`flex-1 text-left text-[15px] ${linkedTask ? 'text-[#7f70ff] font-medium' : 'text-[#555]'}`}>
+              {linkedTask ? linkedTask.title : 'Vincular a tarea'}
+            </span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7" /><polyline points="7 7 17 7 17 17" /></svg>
+          </button>
         </div>
 
         <div className="border-b border-[#f0f0f5]">
@@ -205,12 +260,20 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
         onClose={() => setShowActivityPicker(false)}
         activities={activities}
         selectedId={entry.activityId}
-        onSelect={(id) => { onUpdate(entry.id, { activityId: id }); setShowActivityPicker(false); }}
+        onSelect={(id) => handleActivityChange(id)}
         onCreate={async (name, color) => {
           const id = await addActivity({ name: name.trim(), color });
           onUpdate(entry.id, { activityId: id });
           setShowActivityPicker(false);
         }}
+      />
+
+      <TaskPicker
+        isOpen={showTaskPicker}
+        onClose={() => setShowTaskPicker(false)}
+        lists={taskLists}
+        tasks={tasks}
+        onSelect={handleSelectTask}
       />
 
       {confirmDelete && (

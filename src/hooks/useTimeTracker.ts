@@ -178,7 +178,11 @@ export function useTimeTracker() {
   }, [sessionsColl]);
 
   const updateSession = useCallback((id: string, updates: Partial<TimeSession>) => {
-    sessionsColl.update(id, updates);
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      cleaned[key] = value === undefined ? deleteField() : value;
+    }
+    sessionsColl.update(id, cleaned as Partial<TimeSession>);
   }, [sessionsColl]);
 
   const addActivity = useCallback((name: string, color: string): string => {

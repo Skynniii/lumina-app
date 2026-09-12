@@ -58,17 +58,18 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
     });
   }
 
+  // Agrupa por actividad real; si no existe la actividad, usa '__none__' para agruparlas juntas
   const groupMap = new Map<string, Session[]>();
   for (const s of allSessions) {
-    // Normaliza activityId vacío/undefined a '' para que se agrupen juntos
-    const key = s.activityId || '';
+    const act = activities.find((a) => a.id === s.activityId);
+    const key = act ? act.id : '__none__';
     const arr = groupMap.get(key) ?? [];
     arr.push(s);
     groupMap.set(key, arr);
   }
 
   const groups: ActivityGroup[] = Array.from(groupMap.entries()).map(([activityId, sessions]) => {
-    const activity = activities.find((a) => a.id === activityId);
+    const activity = activityId === '__none__' ? undefined : activities.find((a) => a.id === activityId);
     sessions.sort((a, b) => b.sortTime - a.sortTime);
     return {
       activityId,
