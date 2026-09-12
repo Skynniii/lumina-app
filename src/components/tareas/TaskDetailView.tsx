@@ -43,6 +43,28 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
 
   const taskActivity = activities.find((a) => a.id === task.activityId);
   const taskSessions = sessionsColl.items.filter((s) => s.taskId === task.id);
+
+  // Sincroniza cambios de título, actividad o notas hacia las sesiones vinculadas
+  const syncToSessions = (updates: Partial<Task>) => {
+    const sessionUpdates: Partial<TimeSession> = {};
+    if (updates.title !== undefined) sessionUpdates.description = updates.title;
+    if (updates.activityId !== undefined) sessionUpdates.activityId = updates.activityId;
+    if (updates.notes !== undefined) {
+      const plainNotes = updates.notes ? updates.notes.replace(/<[^>]*>/g, '').trim() : '';
+      sessionUpdates.notes = plainNotes || undefined;
+    }
+    if (Object.keys(sessionUpdates).length > 0) {
+      for (const s of taskSessions) {
+        sessionsColl.update(s.id, sessionUpdates);
+      }
+    }
+  };
+
+  // Wrapper que actualiza la tarea y sincroniza a sesiones vinculadas
+  const handleSyncedUpdate = (id: string, updates: Partial<Task>) => {
+    onUpdate(id, updates);
+    syncToSessions(updates);
+  };
   const totalTaskSeconds = task.totalTimeSpent || 0;
   const entriesByDate = taskSessions.reduce((acc, s) => {
     const dk = isoToDateKey(s.startTime);
@@ -145,14 +167,14 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   };
 
   const handleNotesInput = (e: React.FormEvent<HTMLDivElement>) => {
-    onUpdate(task.id, { notes: e.currentTarget.innerHTML });
+    handleSyncedUpdate(task.id, { notes: e.currentTarget.innerHTML });
   };
 
   const execCommand = (cmd: string, value?: string) => {
     notesEditRef.current?.focus();
     document.execCommand(cmd, false, value);
     if (notesEditRef.current) {
-      onUpdate(task.id, { notes: notesEditRef.current.innerHTML });
+      handleSyncedUpdate(task.id, { notes: notesEditRef.current.innerHTML });
     }
   };
 
@@ -281,7 +303,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         <textarea
           ref={titleRef}
           value={task.title}
-          onChange={(e) => onUpdate(task.id, { title: e.target.value })}
+          onChange={(e) => handleSyncedUpdate(task.id, { title: e.target.value })}
           readOnly={isCompleted || !editingTitle}
           onClick={() => { if (!isCompleted) { setEditingTitle(true); setTimeout(() => titleRef.current?.focus(), 10); } }}
           onBlur={() => setEditingTitle(false)}
@@ -523,10 +545,10 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         onClose={() => setActivityPickerOpen(false)}
         activities={activities}
         selectedId={task.activityId}
-        onSelect={(id) => { onUpdate(task.id, { activityId: id }); setActivityPickerOpen(false); }}
+        onSelect={(id) => { handleSyncedUpdate(task.id, { activityId: id }); setActivityPickerOpen(false); }}
         onCreate={async (name, color) => {
           const id = await addActivity({ name: name.trim(), color });
-          onUpdate(task.id, { activityId: id });
+          handleSyncedUpdate(task.id, { activityId: id });
           setActivityPickerOpen(false);
         }}
       />

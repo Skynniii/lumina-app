@@ -18,9 +18,10 @@ interface Props {
   taskLists: TaskList[];
   onLinkTask: (entry: TimeSession, task: Task) => void;
   onUnlinkTask: (entry: TimeSession) => void;
+  onSyncToTask: (taskId: string, updates: Partial<Task>) => void;
 }
 
-export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, taskLists, onLinkTask, onUnlinkTask }: Props) {
+export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, taskLists, onLinkTask, onUnlinkTask, onSyncToTask }: Props) {
   const { settings } = useSettings();
   const { activities, addActivity } = useActivities();
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -68,25 +69,21 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
     onUpdate(entry.id, { endTime: newEndTime, duration: newDuration });
   };
 
-  // Al cambiar la descripción, si estaba vinculada y ya no coincide con el título, desvincular
+  // Si la sesión está vinculada, los cambios a descripción/actividad/notas se sincronizan con la tarea
   const handleDescriptionChange = (value: string) => {
-    const updates: Partial<TimeSession> = { description: value };
-    if (entry.taskId && linkedTask && value !== linkedTask.title) {
-      onUnlinkTask(entry);
-      updates.taskId = undefined;
-    }
-    onUpdate(entry.id, updates);
+    onUpdate(entry.id, { description: value });
+    if (entry.taskId) onSyncToTask(entry.taskId, { title: value });
   };
 
-  // Al cambiar la actividad, si estaba vinculada y la actividad difiere, desvincular
   const handleActivityChange = (id: string) => {
-    const updates: Partial<TimeSession> = { activityId: id };
-    if (entry.taskId && linkedTask && id !== (linkedTask.activityId || '')) {
-      onUnlinkTask(entry);
-      updates.taskId = undefined;
-    }
-    onUpdate(entry.id, updates);
+    onUpdate(entry.id, { activityId: id });
+    if (entry.taskId) onSyncToTask(entry.taskId, { activityId: id });
     setShowActivityPicker(false);
+  };
+
+  const handleNotesChange = (value: string) => {
+    onUpdate(entry.id, { notes: value || undefined });
+    if (entry.taskId) onSyncToTask(entry.taskId, { notes: value });
   };
 
   // Vincular sesión a una tarea: trae title, activity, notes y taskId
@@ -216,7 +213,7 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
             </span>
             <textarea
               value={entry.notes || ''}
-              onChange={(e) => onUpdate(entry.id, { notes: e.target.value })}
+              onChange={(e) => handleNotesChange(e.target.value)}
               placeholder="Añadir notas..."
               rows={2}
               className="flex-1 text-[15px] text-[#333] bg-transparent border-none outline-none resize-none placeholder-[#bbb]"

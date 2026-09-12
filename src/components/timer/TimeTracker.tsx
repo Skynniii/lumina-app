@@ -242,6 +242,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             taskLists={taskLists}
             onLinkTask={(entry, task) => { if (uid) incrementTaskTime(uid, task.id, entry.duration); }}
             onUnlinkTask={(entry) => { if (uid && entry.taskId) incrementTaskTime(uid, entry.taskId, -entry.duration); }}
+            onSyncToTask={(taskId, updates) => tasksColl.update(taskId, updates)}
           />
         )}
       </AnimatePresence>
