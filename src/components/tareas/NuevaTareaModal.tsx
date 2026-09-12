@@ -73,7 +73,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
   };
 
   const submit = () => {
-    const trimmed = text.trim();
+    const trimmed = title.trim();
     if (!trimmed) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
     onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, isImportant: important, repeat, activityId }, targetListId);
