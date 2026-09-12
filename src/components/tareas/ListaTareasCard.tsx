@@ -23,15 +23,14 @@ function sortByDateKey(key: 'scheduledDate' | 'dueDate') {
   return (a: Task, b: Task) => {
     const av = a[key];
     const bv = b[key];
-    if (!av && !bv) return 0;
-    if (!av) return 1;
-    if (!bv) return -1;
+    if (typeof av !== 'string' || !av) return 1;
+    if (typeof bv !== 'string' || !bv) return -1;
     return av.localeCompare(bv);
   };
 }
 
 function isOverdue(dk: string | undefined): boolean {
-  if (!dk) return false;
+  if (!dk || typeof dk !== 'string') return false;
   const d = new Date(dk + 'T00:00:00');
   const t = new Date();
   t.setHours(0, 0, 0, 0);
@@ -39,7 +38,7 @@ function isOverdue(dk: string | undefined): boolean {
 }
 
 function groupLabel(dateKey: string | undefined, isDeadline: boolean = false): string {
-  if (!dateKey) return isDeadline ? 'Sin fecha límite' : 'Sin fecha';
+  if (!dateKey || typeof dateKey !== 'string') return isDeadline ? 'Sin fecha límite' : 'Sin fecha';
   const d = new Date(dateKey + 'T00:00:00');
   const today = new Date();
   today.setHours(0, 0, 0, 0);

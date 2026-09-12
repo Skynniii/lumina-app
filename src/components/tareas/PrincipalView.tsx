@@ -24,6 +24,7 @@ const PRINCIPAL_SORTS: { value: SortMode; label: string }[] = [
 /* ---------- helpers de fecha (robustos a zona horaria) ---------- */
 
 function dayDiff(dateStr: string): number {
+  if (typeof dateStr !== 'string' || !dateStr) return NaN;
   const now = new Date();
   const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -36,6 +37,7 @@ function todayStr(): string {
 }
 
 function addDaysStr(dateStr: string, n: number): string {
+  if (typeof dateStr !== 'string' || !dateStr) return dateStr;
   const [y, m, d] = dateStr.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + n);
@@ -43,11 +45,13 @@ function addDaysStr(dateStr: string, n: number): string {
 }
 
 function shortDate(dateStr: string): string {
+  if (typeof dateStr !== 'string' || !dateStr) return '';
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
 function dateLabel(dateStr: string): string {
+  if (typeof dateStr !== 'string' || !dateStr) return 'Sin fecha';
   const diff = dayDiff(dateStr);
   if (diff === 0) return 'Hoy';
   if (diff === 1) return 'Mañana';
@@ -60,9 +64,8 @@ function sortByDateKey(key: 'scheduledDate' | 'dueDate') {
   return (a: Task, b: Task) => {
     const av = a[key];
     const bv = b[key];
-    if (!av && !bv) return 0;
-    if (!av) return 1;
-    if (!bv) return -1;
+    if (typeof av !== 'string' || !av) return 1;
+    if (typeof bv !== 'string' || !bv) return -1;
     return av.localeCompare(bv);
   };
 }

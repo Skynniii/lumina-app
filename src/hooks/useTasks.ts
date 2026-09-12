@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { deleteField } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useFirestoreCollection, incrementTaskTime } from './useFirestoreCollection';
@@ -64,6 +64,29 @@ export function useTasks() {
       }));
     }
   }, [uid, listsColl, tasksColl]);
+
+  // Limpieza de campos de fecha corruptos (objetos enviados por error a Firestore)
+  const cleanedTasksRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!uid || tasksColl.loading) return;
+    for (const task of tasksColl.items) {
+      if (cleanedTasksRef.current.has(task.id)) continue;
+      const updates: Record<string, unknown> = {};
+      if (task.scheduledDate != null && typeof task.scheduledDate !== 'string') {
+        updates.scheduledDate = deleteField();
+      }
+      if (task.dueDate != null && typeof task.dueDate !== 'string') {
+        updates.dueDate = deleteField();
+      }
+      if (task.scheduledTime != null && typeof task.scheduledTime !== 'string') {
+        updates.scheduledTime = deleteField();
+      }
+      if (Object.keys(updates).length > 0) {
+        cleanedTasksRef.current.add(task.id);
+        tasksColl.update(task.id, updates as Partial<Task>);
+      }
+    }
+  }, [uid, tasksColl, tasksColl.loading]);
 
   const lists = listsColl.items;
   const tasks = tasksColl.items;

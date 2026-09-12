@@ -51,18 +51,18 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   // el resto de iconos (notas, subtareas, fecha límite) aparecen en su lista propia.
   const inPrincipal = !!listTag || !!compact;
   const showListTag = !!listTag && !hideListTag;
-  const showDeadline = !!task.dueDate && sortMode !== 'deadline' && !inPrincipal;
-  const showDue = !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
+  const showDeadline = typeof task.dueDate === 'string' && !!task.dueDate && sortMode !== 'deadline' && !inPrincipal;
+  const showDue = typeof task.scheduledDate === 'string' && !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
   const showNotes = hasNotes && !inPrincipal;
   const showSub = hasSub && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
   const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue;
 
   const dueLabel = () => {
-    if (!task.scheduledDate) return '';
+    if (typeof task.scheduledDate !== 'string' || !task.scheduledDate) return '';
     const d = new Date(task.scheduledDate + 'T00:00:00');
     let s = d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
-    if (task.scheduledTime) {
+    if (typeof task.scheduledTime === 'string' && task.scheduledTime) {
       const [h, min] = task.scheduledTime.split(':').map(Number);
       const h12 = h % 12 || 12;
       s += ` · ${h12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;

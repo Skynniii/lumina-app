@@ -12,6 +12,8 @@ import { db } from '../firebase';
 export function clean<T>(obj: T): T {
   if (Array.isArray(obj)) return obj.map(clean) as unknown as T;
   if (obj && typeof obj === 'object') {
+    // Preserva sentinelas de Firestore (deleteField, increment, etc.)
+    if (typeof (obj as { isEqual?: unknown }).isEqual === 'function') return obj;
     const out: Record<string, unknown> = {};
     for (const k of Object.keys(obj)) {
       const v = (obj as Record<string, unknown>)[k];

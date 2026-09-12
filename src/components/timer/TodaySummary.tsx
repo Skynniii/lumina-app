@@ -60,9 +60,11 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
 
   const groupMap = new Map<string, Session[]>();
   for (const s of allSessions) {
-    const arr = groupMap.get(s.activityId) ?? [];
+    // Normaliza activityId vacío/undefined a '' para que se agrupen juntos
+    const key = s.activityId || '';
+    const arr = groupMap.get(key) ?? [];
     arr.push(s);
-    groupMap.set(s.activityId, arr);
+    groupMap.set(key, arr);
   }
 
   const groups: ActivityGroup[] = Array.from(groupMap.entries()).map(([activityId, sessions]) => {
