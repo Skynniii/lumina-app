@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { ViewType } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
+import { migrateToSubcollections } from './hooks/useFirestoreCollection';
 import { NavegacionBar } from './components/navegacion/NavegacionBar';
 import { TimeTracker } from './components/timer/TimeTracker';
 import { TareasDashboard } from './components/tareas/TareasDashboard';
@@ -23,6 +24,11 @@ function AppContent() {
   const [showAccount, setShowAccount] = useState(false);
   const [showActivities, setShowActivities] = useState(false);
   const userNavigated = useRef(false);
+
+  // Migración one-time: mueve datos del documento único a subcolecciones.
+  useEffect(() => {
+    if (user?.uid) migrateToSubcollections(user.uid).catch(console.error);
+  }, [user?.uid]);
 
   // Aplica la sección inicial definida en configuración mientras el usuario
   // no haya navegado manualmente. Se reevalúa cuando los ajustes se cargan.

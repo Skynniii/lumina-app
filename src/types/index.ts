@@ -1,8 +1,10 @@
 export type ViewType = 'cronometro' | 'habitos' | 'tracker' | 'calendar';
+export type SortMode = 'custom' | 'date' | 'deadline' | 'recent';
+export type TimerMode = 'stopwatch' | 'timer' | 'pomodoro';
 
 export interface SubTask {
   id: string;
-  text: string;
+  title: string;
   completed: boolean;
 }
 
@@ -21,28 +23,30 @@ export interface RepeatConfig {
 export interface Task {
   id: string;
   listId: string;
-  text: string;
+  title: string;
   completed: boolean;
-  notes?: string;
-  dueDate?: string;
-  dueTime?: string;
-  deadline?: string;
-  isImportant?: boolean;
-  subtasks?: SubTask[];
-  completedAt?: string;
-  repeat?: RepeatConfig;
+  isImportant: boolean;
+  createdAt: string;
+  // Campos opcionales (se omiten en Firestore si no tienen datos):
   activityId?: string;
+  notes?: string;
+  scheduledDate?: string;          // YYYY-MM-DD: fecha de la tarea
+  scheduledTime?: string;           // HH:MM: hora de la tarea
+  dueDate?: string;                 // YYYY-MM-DD: fecha LÍMITE (deadline)
+  totalTimeSpent?: number;          // segundos acumulados
+  completedAt?: string;
+  subtasks?: SubTask[];
+  repeat?: RepeatConfig;
 }
-
-export type SortMode = 'custom' | 'date' | 'deadline' | 'recent';
 
 export interface TaskList {
   id: string;
   name: string;
+  position: number;
+  createdAt?: string;
   sortMode?: SortMode;
-  // Solo para la lista "Principal" (orden por fecha): id de la lista cuyas
-  // tareas se reflejan en la sección "Hoy".
   hoyListId?: string;
+  taskOrder?: string[];             // orden personalizado de tareas (IDs)
 }
 
 export interface Activity {
@@ -54,22 +58,23 @@ export interface Activity {
 export interface CalendarEvent {
   id: string;
   title: string;
-  date: string; // YYYY-MM-DD
-  start: string; // HH:MM (24h)
-  end: string; // HH:MM (24h)
+  date: string;                     // YYYY-MM-DD
+  start: string;                    // HH:MM
+  end: string;                      // HH:MM
   color: string;
   location?: string;
   notes?: string;
 }
 
-export interface TimeEntry {
+export interface TimeSession {
   id: string;
+  taskId?: string;
   activityId: string;
   description: string;
   notes?: string;
-  taskId?: string;
-  date: string; // YYYY-MM-DD
-  startedAt: number; // epoch ms
-  endedAt: number; // epoch ms
-  seconds: number;
+  startTime: string;               // ISO datetime
+  endTime: string;                  // ISO datetime
+  duration: number;                 // segundos
+  mode: TimerMode;
+  createdAt: string;                // ISO datetime
 }

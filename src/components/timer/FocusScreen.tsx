@@ -86,7 +86,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
   const handleSelectTask = (task: Task) => {
     setSelectedTask(task);
-    props.onDescriptionChange(task.text);
+    props.onDescriptionChange(task.title);
     if (task.activityId) props.onActivityChange(task.activityId);
     const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
     onNotesChange(plainNotes);

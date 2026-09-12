@@ -3,16 +3,12 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 
-// Claves de datos locales que se migran a Firestore en el primer inicio de sesión.
+// Claves de datos locales que se migran al documento de Firestore en el primer inicio de sesión.
+// Solo se guardan en el documento raíz users/{uid}; el resto vive en subcolecciones.
 const LOCAL_KEYS = [
   'lumina_settings',
-  'lumina_lists',
-  'lumina_tasks',
-  'tracker-activities',
-  'tracker-entries',
   'tracker-running',
   'tracker-draft',
-  'calendar-events',
 ];
 
 // Elimina recursivamente las claves con valor `undefined`.

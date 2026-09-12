@@ -1,5 +1,6 @@
-import { useCallback } from 'react';
-import { useUserStorage } from './useUserStorage';
+import { useCallback, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useFirestoreCollection } from './useFirestoreCollection';
 import type { CalendarEvent } from '../types';
 
 export const EVENT_COLORS = ['#4d7cfe', '#7f70ff', '#9d51ff', '#34c77b', '#00b8a9', '#ffa94d', '#ff6b81', '#f26f5b'];
@@ -26,23 +27,33 @@ function seed(): CalendarEvent[] {
 }
 
 export function useCalendarEvents() {
-  const [events, setEvents] = useUserStorage<CalendarEvent[]>('calendar-events', seed());
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
+  const coll = useFirestoreCollection<CalendarEvent>(uid, 'calendarEvents');
+
+  // Semilla para usuarios nuevos
+  useEffect(() => {
+    if (!uid || coll.loading) return;
+    if (coll.items.length === 0) {
+      seed().forEach((e) => coll.set(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location }));
+    }
+  }, [uid, coll]);
 
   const addEvent = useCallback((e: Omit<CalendarEvent, 'id'>): string => {
     const id = `ev-${Date.now()}`;
-    setEvents((prev) => [...prev, { ...e, id }]);
+    coll.set(id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes });
     return id;
-  }, [setEvents]);
+  }, [coll]);
 
   const updateEvent = useCallback((e: CalendarEvent) => {
-    setEvents((prev) => prev.map((x) => (x.id === e.id ? e : x)));
-  }, [setEvents]);
+    coll.update(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes });
+  }, [coll]);
 
   const deleteEvent = useCallback((id: string) => {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-  }, [setEvents]);
+    coll.remove(id);
+  }, [coll]);
 
-  return { events, addEvent, updateEvent, deleteEvent };
+  return { events: coll.items, addEvent, updateEvent, deleteEvent };
 }
 
 /** Semanas del mes: array de fechas YYYY-MM-DD (null = celda vacía). */

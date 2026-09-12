@@ -1,33 +1,35 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useUserStorage } from './useUserStorage';
+import { deleteField } from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
+import { useFirestoreCollection, incrementTaskTime } from './useFirestoreCollection';
 import { useSettings } from '../context/SettingsContext';
-import type { Task, TaskList, RepeatConfig } from '../types';
+import type { Task, TaskList, RepeatConfig, SubTask } from '../types';
 
 function calculateNextDate(currentDate: string | undefined, repeat: RepeatConfig): string | undefined {
   if (!currentDate) return undefined;
-  const d = new Date(currentDate + 'T00:00:00');
+  const d = new Date(currentDate);
   switch (repeat.frequency) {
     case 'daily': d.setDate(d.getDate() + repeat.interval); break;
     case 'weekly': d.setDate(d.getDate() + repeat.interval * 7); break;
     case 'monthly': d.setMonth(d.getMonth() + repeat.interval); break;
     case 'yearly': d.setFullYear(d.getFullYear() + repeat.interval); break;
   }
-  return d.toISOString().slice(0, 10);
+  return d.toISOString();
 }
 
 const PRINCIPAL_ID = 'principal';
 
 const SEED_LISTS: TaskList[] = [
-  { id: PRINCIPAL_ID, name: 'Principal' },
-  { id: 'general', name: 'General' },
-  { id: 'books', name: 'Books' },
-  { id: 'movies', name: 'Movies' },
+  { id: PRINCIPAL_ID, name: 'Principal', position: 0 },
+  { id: 'general', name: 'General', position: 1 },
+  { id: 'books', name: 'Books', position: 2 },
+  { id: 'movies', name: 'Movies', position: 3 },
 ];
 
 const SEED_TASKS: Task[] = [
-  { id: 't1', listId: 'general', text: 'Rutina de levantamiento de pesas', completed: false, subtasks: [] },
-  { id: 't2', listId: 'general', text: 'Avanzar en el reporte socioeconómico', completed: false, subtasks: [] },
-  { id: 't3', listId: 'general', text: 'Tomar 2 litros de agua', completed: false, subtasks: [] },
+  { id: 't1', listId: 'general', title: 'Rutina de levantamiento de pesas', completed: false, isImportant: false, createdAt: new Date().toISOString(), subtasks: [] },
+  { id: 't2', listId: 'general', title: 'Avanzar en el reporte socioeconómico', completed: false, isImportant: false, createdAt: new Date().toISOString(), subtasks: [] },
+  { id: 't3', listId: 'general', title: 'Tomar 2 litros de agua', completed: false, isImportant: false, createdAt: new Date().toISOString(), subtasks: [] },
 ];
 
 export interface ModalConfig {
@@ -41,58 +43,48 @@ export interface ModalConfig {
 }
 
 const CLOSED: ModalConfig = {
-  isOpen: false,
-  type: 'alert',
-  title: '',
-  onConfirm: () => {},
-  onCancel: () => {},
+  isOpen: false, type: 'alert', title: '', onConfirm: () => {}, onCancel: () => {},
 };
 
 export function useTasks() {
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
   const { settings } = useSettings();
-  const [lists, setLists] = useUserStorage<TaskList[]>('lumina_lists', SEED_LISTS);
-  const [tasks, setTasks] = useUserStorage<Task[]>('lumina_tasks', SEED_TASKS);
-  const [modal, setModal] = useState<ModalConfig>(CLOSED);
 
-  const closeModal = useCallback(() => setModal((p) => ({ ...p, isOpen: false })), []);
+  const listsColl = useFirestoreCollection<TaskList>(uid, 'taskLists');
+  const tasksColl = useFirestoreCollection<Task>(uid, 'tasks');
 
-  // Garantiza que la lista "Principal" (por defecto, no borrable ni renombrable) siempre exista
-  // y sea la primera. También elimina duplicados (puede ocurrir por la doble invocación de
-  // efectos en StrictMode). Usa actualización funcional con guarda interna para ser idempotente.
+  // Semilla para usuarios nuevos (sin datos en Firestore)
   useEffect(() => {
-    setLists((prev) => {
-      const seen = new Set<string>();
-      const deduped = prev.filter((l) => {
-        if (seen.has(l.id)) return false;
-        seen.add(l.id);
-        return true;
-      });
-      const hasPrincipal = deduped.some((l) => l.id === PRINCIPAL_ID);
-      const principal = hasPrincipal ? deduped.find((l) => l.id === PRINCIPAL_ID)! : { id: PRINCIPAL_ID, name: 'Principal' as const };
-      const rest = deduped.filter((l) => l.id !== PRINCIPAL_ID);
-      const next = [principal, ...rest];
-      const same = next.length === prev.length && next.every((l, i) => l.id === prev[i]?.id && l.sortMode === prev[i]?.sortMode && l.name === prev[i]?.name && l.hoyListId === prev[i]?.hoyListId);
-      return same ? prev : next;
-    });
-  }, [setLists]);
+    if (!uid || listsColl.loading || tasksColl.loading) return;
+    if (listsColl.items.length === 0 && tasksColl.items.length === 0) {
+      SEED_LISTS.forEach((l) => listsColl.set(l.id, { name: l.name, position: l.position }));
+      SEED_TASKS.forEach((t) => tasksColl.set(t.id, {
+        listId: t.listId, title: t.title, completed: t.completed, isImportant: t.isImportant, createdAt: t.createdAt, subtasks: t.subtasks,
+      }));
+    }
+  }, [uid, listsColl, tasksColl]);
+
+  const lists = listsColl.items;
+  const tasks = tasksColl.items;
+  const [modal, setModal] = useState<ModalConfig>(CLOSED);
+  const closeModal = useCallback(() => setModal((p) => ({ ...p, isOpen: false })), []);
 
   const addList = useCallback(() => {
     setModal({
-      isOpen: true,
-      type: 'prompt',
-      title: 'Nueva Lista',
-      placeholder: '¿Cómo se llamará la nueva lista?',
-      defaultValue: '',
+      isOpen: true, type: 'prompt', title: 'Nueva Lista',
+      placeholder: '¿Cómo se llamará la nueva lista?', defaultValue: '',
       onConfirm: (name) => {
         const trimmed = name.trim();
         if (trimmed) {
-          setLists((prev) => [...prev, { id: trimmed.toLowerCase().replace(/\s+/g, '-'), name: trimmed }]);
+          const id = trimmed.toLowerCase().replace(/\s+/g, '-');
+          listsColl.set(id, { name: trimmed, position: lists.length, createdAt: new Date().toISOString() });
         }
         closeModal();
       },
       onCancel: closeModal,
     });
-  }, [setLists, closeModal]);
+  }, [listsColl, lists.length, closeModal]);
 
   const deleteList = useCallback((id: string) => {
     if (id === PRINCIPAL_ID) {
@@ -104,17 +96,15 @@ export function useTasks() {
       return;
     }
     setModal({
-      isOpen: true,
-      type: 'confirm',
-      title: '¿Estás seguro de que deseas borrar esta lista?',
+      isOpen: true, type: 'confirm', title: '¿Estás seguro de que deseas borrar esta lista?',
       onConfirm: () => {
-        setLists((prev) => prev.filter((l) => l.id !== id));
-        setTasks((prev) => prev.filter((t) => t.listId !== id));
+        listsColl.remove(id);
+        tasks.filter((t) => t.listId === id).forEach((t) => tasksColl.remove(t.id));
         closeModal();
       },
       onCancel: closeModal,
     });
-  }, [lists.length, setLists, setTasks, closeModal]);
+  }, [lists.length, lists, tasks, listsColl, tasksColl, closeModal]);
 
   const renameList = useCallback((id: string, currentName: string) => {
     if (id === PRINCIPAL_ID) {
@@ -122,127 +112,100 @@ export function useTasks() {
       return;
     }
     setModal({
-      isOpen: true,
-      type: 'prompt',
-      title: 'Renombrar Lista',
-      placeholder: 'Nuevo nombre...',
-      defaultValue: currentName,
+      isOpen: true, type: 'prompt', title: 'Renombrar Lista',
+      placeholder: 'Nuevo nombre...', defaultValue: currentName,
       onConfirm: (newName) => {
         const trimmed = newName.trim();
-        if (trimmed) setLists((prev) => prev.map((l) => (l.id === id ? { ...l, name: trimmed } : l)));
+        if (trimmed) listsColl.update(id, { name: trimmed });
         closeModal();
       },
       onCancel: closeModal,
     });
-  }, [setLists, closeModal]);
+  }, [listsColl, closeModal]);
 
   const addTask = useCallback((listId: string) => {
     setModal({
-      isOpen: true,
-      type: 'prompt',
-      title: 'Nueva Tarea',
-      placeholder: '¿Qué nueva tarea quieres añadir?',
-      defaultValue: '',
-      onConfirm: (text) => {
-        const trimmed = text.trim();
+      isOpen: true, type: 'prompt', title: 'Nueva Tarea',
+      placeholder: '¿Qué nueva tarea quieres añadir?', defaultValue: '',
+      onConfirm: (title) => {
+        const trimmed = title.trim();
         if (trimmed) {
-          const newTask: Task = { id: Date.now().toString(), listId, text: trimmed, completed: false, subtasks: [] };
-          setTasks((prev) => settings.newTaskPosition === 'last' ? [...prev, newTask] : [newTask, ...prev]);
+          tasksColl.add({
+            listId, title: trimmed, completed: false, isImportant: false, createdAt: new Date().toISOString(),
+          });
         }
         closeModal();
       },
       onCancel: closeModal,
     });
-  }, [setTasks, closeModal, settings.newTaskPosition]);
+  }, [tasksColl, closeModal]);
 
-  // Crea una tarea con detalles (notas, fecha/hora, importante) ya configurados.
-  const addTaskWithData = useCallback((listId: string, data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string }) => {
-    const trimmed = (data.text || '').trim();
+  const addTaskWithData = useCallback((listId: string, data: { title: string; notes?: string; scheduledDate?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string }) => {
+    const trimmed = (data.title || '').trim();
     if (!trimmed) return;
-    const newTask: Task = {
-      id: Date.now().toString(), listId, text: trimmed, completed: false, subtasks: [],
-      notes: data.notes || '', dueDate: data.dueDate, dueTime: data.dueTime, isImportant: !!data.isImportant, repeat: data.repeat, activityId: data.activityId,
-    };
-    setTasks((prev) => settings.newTaskPosition === 'last' ? [...prev, newTask] : [newTask, ...prev]);
-  }, [setTasks, settings.newTaskPosition]);
+    tasksColl.add({
+      listId, title: trimmed, completed: false, isImportant: !!data.isImportant, createdAt: new Date().toISOString(),
+      notes: data.notes || undefined, scheduledDate: data.scheduledDate || undefined, dueDate: data.dueDate || undefined,
+      repeat: data.repeat, activityId: data.activityId || undefined,
+    });
+  }, [tasksColl]);
 
   const toggleTask = useCallback((taskId: string) => {
-    setTasks((prev) => {
-      const task = prev.find(t => t.id === taskId);
-      if (!task) return prev;
-      const completing = !task.completed;
-      if (completing && task.repeat?.enabled && task.repeat?.hideUntilNextRepeat) {
-        const nextDate = calculateNextDate(task.dueDate, task.repeat);
-        const newTask: Task = {
-          ...task,
-          id: Date.now().toString(),
-          completed: false,
-          completedAt: undefined,
-          dueDate: nextDate,
-          subtasks: task.subtasks?.map(s => ({ ...s, completed: false })),
-        };
-        return [
-          ...prev.map(t => t.id === taskId ? { ...t, completed: true, completedAt: new Date().toISOString() } : t),
-          newTask,
-        ];
-      }
-      return prev.map(t => t.id === taskId ? { ...t, completed: completing, completedAt: completing ? new Date().toISOString() : undefined } : t);
-    });
-  }, [setTasks]);
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const completing = !task.completed;
+
+    if (completing && task.repeat?.enabled && task.repeat?.hideUntilNextRepeat) {
+      const nextDate = calculateNextDate(task.scheduledDate, task.repeat);
+      const newSubtasks: SubTask[] | undefined = task.subtasks?.map((s) => ({ ...s, completed: false }));
+      tasksColl.add({
+        ...task,
+        completed: false, completedAt: undefined,
+        scheduledDate: nextDate, subtasks: newSubtasks,
+      });
+      tasksColl.update(taskId, { completed: true, completedAt: new Date().toISOString() });
+    } else {
+      tasksColl.update(taskId, {
+        completed: completing,
+        completedAt: completing ? new Date().toISOString() : deleteField(),
+      });
+    }
+  }, [tasks, tasksColl]);
 
   const updateTask = useCallback((taskId: string, updates: Partial<Task>) => {
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
-  }, [setTasks]);
+    tasksColl.update(taskId, updates);
+  }, [tasksColl]);
 
   const updateList = useCallback((id: string, updates: Partial<TaskList>) => {
-    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
-  }, [setLists]);
+    listsColl.update(id, updates);
+  }, [listsColl]);
 
-  // Reordena las tareas activas de una lista al nuevo orden indicado (modo personalizado,
-  // arrastre). Conserva las posiciones de las tareas completadas y de otras listas.
   const reorderListTasks = useCallback((listId: string, orderedActive: Task[]) => {
-    setTasks((prev) => {
-      // Solo reordena dentro de la lista indicada; conserva el resto intacto.
-      const activeIds = new Set(orderedActive.map((t) => t.id));
-      let i = 0;
-      let changed = false;
-      const next = prev.map((t) => {
-        if (t.listId === listId && activeIds.has(t.id)) {
-          const replacement = orderedActive[i++];
-          if (replacement.id !== t.id) changed = true;
-          return replacement;
-        }
-        return t;
-      });
-      return changed ? next : prev;
-    });
-  }, [setTasks]);
+    listsColl.update(listId, { taskOrder: orderedActive.map((t) => t.id) });
+  }, [listsColl]);
 
   const deleteTask = useCallback((taskId: string) => {
     setModal({
-      isOpen: true,
-      type: 'confirm',
-      title: '¿Estás seguro de eliminar esta tarea de forma permanente?',
-      onConfirm: () => {
-        setTasks((prev) => prev.filter((t) => t.id !== taskId));
-        closeModal();
-      },
+      isOpen: true, type: 'confirm', title: '¿Estás seguro de eliminar esta tarea de forma permanente?',
+      onConfirm: () => { tasksColl.remove(taskId); closeModal(); },
       onCancel: closeModal,
     });
-  }, [setTasks, closeModal]);
+  }, [tasksColl, closeModal]);
 
   const deleteCompletedTasks = useCallback((listId: string) => {
     setModal({
-      isOpen: true,
-      type: 'confirm',
-      title: '¿Eliminar todas las tareas completadas de esta lista?',
+      isOpen: true, type: 'confirm', title: '¿Eliminar todas las tareas completadas de esta lista?',
       onConfirm: () => {
-        setTasks((prev) => prev.filter(t => !(t.listId === listId && t.completed)));
+        tasks.filter((t) => t.listId === listId && t.completed).forEach((t) => tasksColl.remove(t.id));
         closeModal();
       },
       onCancel: closeModal,
     });
-  }, [setTasks, closeModal]);
+  }, [tasks, tasksColl, closeModal]);
 
-  return { lists, tasks, addList, deleteList, renameList, addTask, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks, modalConfig: modal };
+  return {
+    lists, tasks, addList, deleteList, renameList, addTask, addTaskWithData,
+    toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks,
+    modalConfig: modal,
+  };
 }

@@ -56,7 +56,7 @@ function dateLabel(dateStr: string): string {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-function sortByDateKey(key: 'dueDate' | 'deadline') {
+function sortByDateKey(key: 'scheduledDate' | 'dueDate') {
   return (a: Task, b: Task) => {
     const av = a[key];
     const bv = b[key];
@@ -100,8 +100,8 @@ function sortLikeList(tasks: Task[], list: TaskList): Task[] {
   const mode = list.sortMode || 'custom';
   const arr = [...tasks];
   if (mode === 'recent') arr.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
-  else if (mode === 'date') arr.sort(sortByDateKey('dueDate'));
-  else if (mode === 'deadline') arr.sort(sortByDateKey('deadline'));
+  else if (mode === 'date') arr.sort(sortByDateKey('scheduledDate'));
+  else if (mode === 'deadline') arr.sort(sortByDateKey('dueDate'));
   return arr;
 }
 
@@ -224,8 +224,8 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   const pending = useMemo(() => {
     const filtered = tasks.filter((t) => !t.completed);
     if (settings.hideNoDateInPrincipal) {
-      if (sortMode === 'deadline') return filtered.filter((t) => t.deadline || t.isImportant);
-      return filtered.filter((t) => t.dueDate || t.isImportant);
+      if (sortMode === 'deadline') return filtered.filter((t) => t.dueDate || t.isImportant);
+      return filtered.filter((t) => t.scheduledDate || t.isImportant);
     }
     return filtered;
   }, [tasks, settings.hideNoDateInPrincipal, sortMode]);
@@ -249,7 +249,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   );
   // Tareas atrasadas: muestra "hace X días" en lugar de la fecha.
   const renderTaskOverdue = (t: Task) => (
-    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} hideDueDate overdueDays={Math.abs(dayDiff(t.dueDate!))} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} hideDueDate overdueDays={Math.abs(dayDiff(t.scheduledDate!))} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
   );
 
   const setHoyLink = (id?: string) => onUpdateList('principal', { hoyListId: id });
@@ -259,17 +259,17 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const today = todayStr();
     const tomorrow = addDaysStr(today, 1);
     const important = pending.filter((t) => t.isImportant);
-    const importantDated = important.filter((t) => t.dueDate).sort(sortByDateKey('dueDate'));
-    const importantNoDate = important.filter((t) => !t.dueDate);
+    const importantDated = important.filter((t) => t.scheduledDate).sort(sortByDateKey('dueDate'));
+    const importantNoDate = important.filter((t) => !t.scheduledDate);
     const nonImportant = pending.filter((t) => !t.isImportant);
-    const hoyNI = nonImportant.filter((t) => t.dueDate === today);
-    const mananaNI = nonImportant.filter((t) => t.dueDate === tomorrow);
+    const hoyNI = nonImportant.filter((t) => t.scheduledDate === today);
+    const mananaNI = nonImportant.filter((t) => t.scheduledDate === tomorrow);
     // Atrasadas = vencidas (dayDiff < 0). Próximamente = futuras más allá de Mañana.
-    const beyondNI = nonImportant.filter((t) => t.dueDate && dayDiff(t.dueDate) !== 0 && dayDiff(t.dueDate) !== 1);
-    const overdueNI = beyondNI.filter((t) => dayDiff(t.dueDate!) < 0).sort(sortByDateKey('dueDate'));
-    const upcomingNI = beyondNI.filter((t) => dayDiff(t.dueDate!) > 1);
+    const beyondNI = nonImportant.filter((t) => t.scheduledDate && dayDiff(t.scheduledDate) !== 0 && dayDiff(t.scheduledDate) !== 1);
+    const overdueNI = beyondNI.filter((t) => dayDiff(t.scheduledDate!) < 0).sort(sortByDateKey('dueDate'));
+    const upcomingNI = beyondNI.filter((t) => dayDiff(t.scheduledDate!) > 1);
     const upcoming = groupByKey(upcomingNI, 'dueDate', false);
-    const undatedNI = nonImportant.filter((t) => !t.dueDate);
+    const undatedNI = nonImportant.filter((t) => !t.scheduledDate);
     const undatedByList = new Map<string, Task[]>();
     for (const t of undatedNI) {
       const arr = undatedByList.get(t.listId) ?? [];
@@ -352,15 +352,15 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     if (linkedList) {
       hoyTasks = sortLikeList(pending.filter((t) => t.listId === linkedList.id), linkedList);
     } else {
-      hoyTasks = importantFirst(pending.filter((t) => t.dueDate === today));
+      hoyTasks = importantFirst(pending.filter((t) => t.scheduledDate === today));
     }
-    const mananaTasks = importantFirst(pending.filter((t) => t.dueDate === tomorrow));
-    const beyond = pending.filter((t) => t.dueDate && dayDiff(t.dueDate) !== 0 && dayDiff(t.dueDate) !== 1);
-    const overdueTasks = importantFirst(beyond.filter((t) => dayDiff(t.dueDate!) < 0).sort(sortByDateKey('dueDate')));
-    const upcomingNI = beyond.filter((t) => dayDiff(t.dueDate!) > 1);
+    const mananaTasks = importantFirst(pending.filter((t) => t.scheduledDate === tomorrow));
+    const beyond = pending.filter((t) => t.scheduledDate && dayDiff(t.scheduledDate) !== 0 && dayDiff(t.scheduledDate) !== 1);
+    const overdueTasks = importantFirst(beyond.filter((t) => dayDiff(t.scheduledDate!) < 0).sort(sortByDateKey('dueDate')));
+    const upcomingNI = beyond.filter((t) => dayDiff(t.scheduledDate!) > 1);
     const upcoming = groupByKey(upcomingNI, 'dueDate', true);
     // Sin fecha: tareas sin dueDate (importantes y no), agrupadas por lista.
-    const undated = pending.filter((t) => !t.dueDate);
+    const undated = pending.filter((t) => !t.scheduledDate);
     const undatedByList = new Map<string, Task[]>();
     for (const t of undated) {
       const arr = undatedByList.get(t.listId) ?? [];
@@ -424,8 +424,8 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
   /* ===== MODO POR FECHA LÍMITE ===== */
   const renderByDeadline = () => {
-    const withDeadline = pending.filter((t) => t.deadline);
-    const noDeadline = pending.filter((t) => !t.deadline);
+    const withDeadline = pending.filter((t) => t.dueDate);
+    const noDeadline = pending.filter((t) => !t.dueDate);
     const groups = groupByKey(withDeadline, 'deadline', true);
     const noDeadlineByList = new Map<string, Task[]>();
     for (const t of noDeadline) {

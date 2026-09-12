@@ -1,23 +1,27 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import type { Activity, TimeEntry } from '../../types';
+import type { Activity, TimeSession } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
-import { useUserStorage } from '../../hooks/useUserStorage';
-import { formatElapsed, dayLabel } from '../../hooks/useTimeTracker';
+import { useAuth } from '../../context/AuthContext';
+import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
+import { formatElapsed, dayLabel, isoToDateKey } from '../../hooks/useTimeTracker';
 import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { ActivityPicker } from './ActivityPicker';
 
 interface Props {
-  entry: TimeEntry;
-  onUpdate: (id: string, updates: Partial<TimeEntry>) => void;
+  entry: TimeSession;
+  onUpdate: (id: string, updates: Partial<TimeSession>) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
 }
 
 export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props) {
   const { settings } = useSettings();
-  const [activities, setActivities] = useUserStorage<Activity[]>('tracker-activities', []);
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
+  const activitiesColl = useFirestoreCollection<Activity>(uid, 'activities');
+  const activities = activitiesColl.items;
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
@@ -25,13 +29,14 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const activity = activities.find((a) => a.id === entry.activityId);
+  const entryDateKey = isoToDateKey(entry.startTime);
 
-  const fmtFullDate = (epoch: number) => {
-    return new Date(epoch).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const fmtFullDate = (iso: string) => {
+    return new Date(iso).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const fmtClock = (epoch: number) => {
-    const d = new Date(epoch);
+  const fmtClock = (iso: string) => {
+    const d = new Date(iso);
     const h = d.getHours();
     const min = d.getMinutes();
     if (settings.timeFormat === '12h') {
@@ -43,31 +48,31 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
   const updateStartTime = (hour24: string, minute: string) => {
     const h = parseInt(hour24);
     const m = parseInt(minute);
-    const newStart = new Date(entry.startedAt);
+    const newStart = new Date(entry.startTime);
     newStart.setHours(h, m, 0, 0);
-    const newStartedAt = newStart.getTime();
-    const newSeconds = Math.max(0, Math.floor((entry.endedAt - newStartedAt) / 1000));
-    onUpdate(entry.id, { startedAt: newStartedAt, seconds: newSeconds });
+    const newStartTime = newStart.toISOString();
+    const newDuration = Math.max(0, Math.floor((new Date(entry.endTime).getTime() - newStart.getTime()) / 1000));
+    onUpdate(entry.id, { startTime: newStartTime, duration: newDuration });
   };
 
   const updateEndTime = (hour24: string, minute: string) => {
     const h = parseInt(hour24);
     const m = parseInt(minute);
-    const newEnd = new Date(entry.endedAt);
+    const newEnd = new Date(entry.endTime);
     newEnd.setHours(h, m, 0, 0);
-    const newEndedAt = newEnd.getTime();
-    const newSeconds = Math.max(0, Math.floor((newEndedAt - entry.startedAt) / 1000));
-    onUpdate(entry.id, { endedAt: newEndedAt, seconds: newSeconds });
+    const newEndTime = newEnd.toISOString();
+    const newDuration = Math.max(0, Math.floor((newEnd.getTime() - new Date(entry.startTime).getTime()) / 1000));
+    onUpdate(entry.id, { endTime: newEndTime, duration: newDuration });
   };
 
   const updateDate = (dateStr: string) => {
     const [y, m, d] = dateStr.split('-').map(Number);
-    const newStart = new Date(entry.startedAt);
+    const newStart = new Date(entry.startTime);
     newStart.setFullYear(y, m - 1, d);
-    const newEnd = new Date(entry.endedAt);
+    const newEnd = new Date(entry.endTime);
     newEnd.setFullYear(y, m - 1, d);
-    const newSeconds = Math.max(0, Math.floor((newEnd.getTime() - newStart.getTime()) / 1000));
-    onUpdate(entry.id, { startedAt: newStart.getTime(), endedAt: newEnd.getTime(), date: dateStr, seconds: newSeconds });
+    const newDuration = Math.max(0, Math.floor((newEnd.getTime() - newStart.getTime()) / 1000));
+    onUpdate(entry.id, { startTime: newStart.toISOString(), endTime: newEnd.toISOString(), duration: newDuration });
   };
 
   return (
@@ -78,7 +83,6 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
       transition={{ type: 'spring', stiffness: 320, damping: 30 }}
       className="absolute left-0 right-0 top-0 bottom-0 z-[1000] bg-white flex flex-col origin-top"
     >
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f0f5] shrink-0">
         <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
@@ -88,51 +92,45 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
         </button>
       </div>
 
-      {/* Contenido scrolleable */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 py-4">
-        {/* Duración total */}
         <div className="text-center mb-6">
-          <p className="text-[40px] font-bold text-[#333] tabular-nums m-0 leading-none">{formatElapsed(entry.seconds)}</p>
-          <p className="text-[13px] text-[#999] uppercase tracking-wide mt-2 m-0 capitalize">{dayLabel(entry.date)}</p>
+          <p className="text-[40px] font-bold text-[#333] tabular-nums m-0 leading-none">{formatElapsed(entry.duration)}</p>
+          <p className="text-[13px] text-[#999] uppercase tracking-wide mt-2 m-0 capitalize">{dayLabel(entryDateKey)}</p>
         </div>
 
-        {/* Día y fecha */}
         <div className="border-b border-[#f0f0f5]">
           <div onClick={() => setShowDatePicker(true)} className="flex items-center gap-3 py-3 cursor-pointer">
             <span className="text-[#a0a0a0]">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
             </span>
             <div className="flex-1">
-              <p className="text-[15px] font-medium text-[#333] m-0 capitalize">{dayLabel(entry.date)}</p>
-              <p className="text-[12px] text-[#999] m-0 capitalize">{fmtFullDate(entry.startedAt)}</p>
+              <p className="text-[15px] font-medium text-[#333] m-0 capitalize">{dayLabel(entryDateKey)}</p>
+              <p className="text-[12px] text-[#999] m-0 capitalize">{fmtFullDate(entry.startTime)}</p>
             </div>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
           </div>
         </div>
 
-        {/* Hora de inicio */}
         <div className="border-b border-[#f0f0f5]">
           <button onClick={() => setShowStartTimePicker(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
             <span className="text-[#a0a0a0]">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M9 2h6" /><path d="M12 5V2" /></svg>
             </span>
             <span className="flex-1 text-left text-[15px] text-[#555]">Hora de inicio</span>
-            <span className="text-[15px] font-medium text-[#333] tabular-nums">{fmtClock(entry.startedAt)}</span>
+            <span className="text-[15px] font-medium text-[#333] tabular-nums">{fmtClock(entry.startTime)}</span>
           </button>
         </div>
 
-        {/* Hora de fin */}
         <div className="border-b border-[#f0f0f5]">
           <button onClick={() => setShowEndTimePicker(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
             <span className="text-[#a0a0a0]">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M9 2h6" /><path d="M12 5V2" /></svg>
             </span>
             <span className="flex-1 text-left text-[15px] text-[#555]">Hora de fin</span>
-            <span className="text-[15px] font-medium text-[#333] tabular-nums">{fmtClock(entry.endedAt)}</span>
+            <span className="text-[15px] font-medium text-[#333] tabular-nums">{fmtClock(entry.endTime)}</span>
           </button>
         </div>
 
-        {/* Actividad */}
         <div className="border-b border-[#f0f0f5]">
           <button onClick={() => setShowActivityPicker(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
             {activity ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: activity.color }} /> : (
@@ -145,7 +143,6 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
           </button>
         </div>
 
-        {/* Descripción */}
         <div className="border-b border-[#f0f0f5]">
           <div className="flex items-center gap-3 py-3">
             <span className="text-[#a0a0a0]">
@@ -161,14 +158,13 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
           </div>
         </div>
 
-        {/* Notas */}
         <div className="border-b border-[#f0f0f5]">
           <div className="flex items-start gap-3 py-3">
             <span className="text-[#a0a0a0] mt-1">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
             </span>
             <textarea
-              value={entry.notes}
+              value={entry.notes || ''}
               onChange={(e) => onUpdate(entry.id, { notes: e.target.value })}
               placeholder="Añadir notas..."
               rows={2}
@@ -180,38 +176,34 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
         <div className="min-h-[60px]" />
       </div>
 
-      {/* DatePickerModal */}
       {showDatePicker && (
         <DatePickerModal
-          initialDate={entry.date}
+          initialDate={entryDateKey}
           onClose={() => setShowDatePicker(false)}
           onSave={(d) => { updateDate(d); setShowDatePicker(false); }}
         />
       )}
 
-      {/* TimePickerModal para hora de inicio */}
       {showStartTimePicker && (
         <TimePickerModal
-          initialHour={new Date(entry.startedAt).getHours()}
-          initialMinute={new Date(entry.startedAt).getMinutes()}
+          initialHour={new Date(entry.startTime).getHours()}
+          initialMinute={new Date(entry.startTime).getMinutes()}
           onClose={() => setShowStartTimePicker(false)}
           onSave={(h, m) => { updateStartTime(h, m); setShowStartTimePicker(false); }}
           onClear={() => setShowStartTimePicker(false)}
         />
       )}
 
-      {/* TimePickerModal para hora de fin */}
       {showEndTimePicker && (
         <TimePickerModal
-          initialHour={new Date(entry.endedAt).getHours()}
-          initialMinute={new Date(entry.endedAt).getMinutes()}
+          initialHour={new Date(entry.endTime).getHours()}
+          initialMinute={new Date(entry.endTime).getMinutes()}
           onClose={() => setShowEndTimePicker(false)}
           onSave={(h, m) => { updateEndTime(h, m); setShowEndTimePicker(false); }}
           onClear={() => setShowEndTimePicker(false)}
         />
       )}
 
-      {/* ActivityPicker */}
       <ActivityPicker
         isOpen={showActivityPicker}
         onClose={() => setShowActivityPicker(false)}
@@ -220,13 +212,12 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose }: Props
         onSelect={(id) => { onUpdate(entry.id, { activityId: id }); setShowActivityPicker(false); }}
         onCreate={(name, color) => {
           const id = `act-${Date.now()}`;
-          setActivities((prev) => [...prev, { id, name: name.trim(), color }]);
+          activitiesColl.set(id, { name: name.trim(), color });
           onUpdate(entry.id, { activityId: id });
           setShowActivityPicker(false);
         }}
       />
 
-      {/* Confirmar eliminación */}
       {confirmDelete && (
         <div className="absolute inset-0 z-[1001] bg-black/40 flex items-center justify-center px-8" onClick={() => setConfirmDelete(false)}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl p-5 w-full max-[300px] shadow-xl" onClick={(e) => e.stopPropagation()}>

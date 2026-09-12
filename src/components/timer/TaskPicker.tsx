@@ -56,7 +56,7 @@ export function TaskPicker({ isOpen, onClose, lists, tasks, onSelect }: Props) {
                           className="flex items-center gap-3 px-2 py-2.5 rounded-xl bg-transparent border-none cursor-pointer hover:bg-[#f7f6f9] transition-colors text-left w-full"
                         >
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-                          <span className="flex-1 text-[15px] text-[#333] truncate">{t.text}</span>
+                          <span className="flex-1 text-[15px] text-[#333] truncate">{t.title}</span>
                           {t.isImportant && (
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="#ffcc00" stroke="#ffcc00" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
                           )}

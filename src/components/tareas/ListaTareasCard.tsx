@@ -19,7 +19,7 @@ interface Props {
   isProtected?: boolean;
 }
 
-function sortByDateKey(key: 'dueDate' | 'deadline') {
+function sortByDateKey(key: 'scheduledDate' | 'dueDate') {
   return (a: Task, b: Task) => {
     const av = a[key];
     const bv = b[key];
@@ -78,18 +78,22 @@ export function ListaTareasCard({
   const activeSorted = useMemo(() => {
     const arr = [...active];
     if (sortMode === 'recent') arr.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
-    else if (sortMode === 'date') arr.sort(sortByDateKey('dueDate'));
-    else if (sortMode === 'deadline') arr.sort(sortByDateKey('deadline'));
+    else if (sortMode === 'date') arr.sort(sortByDateKey('scheduledDate'));
+    else if (sortMode === 'deadline') arr.sort(sortByDateKey('dueDate'));
     return arr;
   }, [active, sortMode]);
 
   const showGroups = sortMode === 'date' || sortMode === 'deadline';
-  const groupKey: 'dueDate' | 'deadline' = sortMode === 'date' ? 'dueDate' : 'deadline';
+  const groupKey: 'scheduledDate' | 'dueDate' = sortMode === 'date' ? 'scheduledDate' : 'dueDate';
   const reorderable = reorderMode;
 
   taskByIdRef.current = Object.fromEntries(active.map((t) => [t.id, t]));
 
-  const baseIds = activeSorted.map((t) => t.id);
+  // En modo personalizado, usa taskOrder de la lista si existe (más eficiente que
+  // reordenar el arreglo completo). Las tareas nuevas sin orden se añaden al final.
+  const baseIds = sortMode === 'custom' && list.taskOrder
+    ? [...list.taskOrder.filter((id) => taskByIdRef.current[id]), ...activeSorted.filter((t) => !list.taskOrder!.includes(t.id)).map((t) => t.id)]
+    : activeSorted.map((t) => t.id);
   const orderedIds = dragOrder ?? baseIds;
 
   const setDragOrderBoth = useCallback((v: string[] | null) => {
