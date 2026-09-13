@@ -114,7 +114,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       })()}
 
       <motion.div
-        className="relative flex items-center justify-center w-[22px] h-[22px] flex-none mr-3.5"
+        className="relative flex items-center justify-center w-[20px] h-[20px] flex-none mr-3"
         onClick={handleComplete}
         animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
         transition={{ duration: 0.45, ease: 'easeInOut' }}
@@ -134,7 +134,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           <motion.div
             animate={{ opacity: completingImportant ? 0 : 1 }}
             transition={{ duration: 0.45, ease: 'easeInOut' }}
-            className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mt-2 text-[#8a8a8a]"
+            className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]"
           >
             {showListTag && (
               <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
@@ -189,7 +189,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
     </>
   );
 
-  const baseClass = `relative flex items-center py-3.5 px-2 w-full select-none group min-h-[50px] rounded-[16px] ${overlay ? '' : 'my-1'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
+  const baseClass = `relative flex items-center py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
 
   return (
     <motion.li

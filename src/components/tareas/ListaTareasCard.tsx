@@ -278,11 +278,11 @@ export function ListaTareasCard({
 
   return (
     <div ref={scrollRef} style={{ touchAction: reorderMode ? 'pan-y' : undefined }} className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista={list.id}>
-      <div ref={cardRef} className="bg-white rounded-[24px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-[#f2f2f2] flex flex-col relative">
+      <div ref={cardRef} className="bg-white rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-[#f0f0f3] flex flex-col relative">
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
-          <div className="relative z-20 bg-white rounded-t-[24px] pt-5 px-5">
+          <div className="relative z-20 bg-white rounded-t-[16px] pt-5 px-5">
             <div className="flex justify-between items-center mb-4 flex-none">
               {reorderMode ? (
                 <button
@@ -297,7 +297,7 @@ export function ListaTareasCard({
               ) : (
                 <SortMenu value={sortMode} onChange={(m) => { onUpdateList(list.id, { sortMode: m }); setReorderMode(m === 'custom'); }} />
               )}
-              <h3 className="flex-1 text-center leading-none m-0 p-0 text-[22px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
+              <h3 className="flex-1 text-center leading-none m-0 p-0 text-[18px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
               <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} />
             </div>
             <hr className="border-t border-[#f0f0f5] m-0 mx-1 flex-none" />

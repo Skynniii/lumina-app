@@ -22,8 +22,8 @@ function fmtFecha(scheduledDate?: string, scheduledTime?: string, repeat?: Repea
   if (!d) return null;
   const [, m, day] = d.split('-').map(Number);
   let s = `${day} ${MONTHS[m - 1]}`;
-  if (t) {
-    const [h, min] = t.split(':').map(Number);
+  if (scheduledTime) {
+    const [h, min] = scheduledTime.split(':').map(Number);
     const h12 = h % 12 || 12;
     s += ` · ${h12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
   }

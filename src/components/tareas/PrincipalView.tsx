@@ -305,21 +305,20 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         {hasHoy && (
           <>
-            <DateSectionHeader title="Hoy" subtitle={shortDate(today)} />
+            <DateSectionHeader title="Hoy" />
             <TaskList items={hoyNI} render={renderTaskNoDate} />
           </>
         )}
 
         {hasManana && (
           <>
-            <DateSectionHeader title="Mañana" subtitle={shortDate(tomorrow)} />
+            <DateSectionHeader title="Mañana" />
             <TaskList items={mananaNI} render={renderTaskNoDate} />
           </>
         )}
 
         {hasUpcoming && (
           <>
-            <DateSectionHeader title="Próximamente" />
             {upcoming.map((g) => (
               <div key={g.label}>
                 <GroupHeader title={g.label} color={g.color} />
@@ -386,7 +385,6 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         <DateSectionHeader
           title="Hoy"
-          subtitle={shortDate(today)}
           action={linkedList ? <span className="text-[11px] font-semibold text-[#7f70ff]">{linkedList.name}</span> : <HoyLinkMenu lists={lists} hoyListId={hoyListId} onLink={setHoyLink} />}
         />
         {hoyTasks.length > 0 ? (
@@ -395,14 +393,13 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           <p className="text-[13px] text-[#c0c0c0] py-2">Sin tareas para hoy.</p>
         )}
 
-        <DateSectionHeader title="Mañana" subtitle={shortDate(tomorrow)} />
+        <DateSectionHeader title="Mañana" />
         {mananaTasks.length > 0 ? (
           <TaskList items={mananaTasks} render={renderTaskNoDate} />
         ) : (
           <p className="text-[13px] text-[#c0c0c0] py-2">Sin tareas para mañana.</p>
         )}
 
-        <DateSectionHeader title="Próximamente" />
         {upcoming.length > 0 ? (
           upcoming.map((g) => (
             <div key={g.label}>
@@ -469,14 +466,14 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
   return (
     <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista="principal">
-      <div className="bg-white rounded-[24px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-[#f2f2f2] flex flex-col relative">
+      <div className="bg-white rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-[#f0f0f3] flex flex-col relative">
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
-          <div className="relative z-20 bg-white rounded-t-[24px] pt-5 px-5">
+          <div className="relative z-20 bg-white rounded-t-[16px] pt-5 px-5">
             <div className="flex justify-between items-center mb-4 flex-none">
               <SortMenu value={sortMode} onChange={(m) => onUpdateList('principal', { sortMode: m })} options={PRINCIPAL_SORTS} />
-              <h3 className="flex-1 text-center leading-none m-0 p-0 text-[22px] text-[#2b2b2b] font-bold tracking-tight">Principal</h3>
+              <h3 className="flex-1 text-center leading-none m-0 p-0 text-[18px] text-[#2b2b2b] font-bold tracking-tight">Principal</h3>
               <div className="w-[36px] flex-none" />
             </div>
             <hr className="border-t border-[#f0f0f5] m-0 mx-1 flex-none" />

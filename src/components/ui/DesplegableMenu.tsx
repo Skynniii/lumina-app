@@ -22,12 +22,12 @@ export function DesplegableMenu({ onRename, onDelete, onDeleteCompleted, isProte
   }, [open]);
 
   return (
-    <div className="relative w-[36px] flex-none flex justify-center items-center" ref={ref}>
+    <div className="relative w-[28px] flex-none flex justify-center items-center" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="bg-transparent border-none text-[26px] pb-1 text-[#888] cursor-pointer w-[36px] h-[36px] flex items-center justify-center rounded-full transition-colors hover:bg-[#f5f5f5]"
+        className="bg-transparent border-none text-[#888] cursor-pointer w-[28px] h-[28px] flex items-center justify-center rounded-full transition-colors hover:bg-[#f5f5f5]"
       >
-        ⋮
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
       </button>
       <AnimatePresence>
         {open && (
