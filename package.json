@@ -10,17 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^8.5.2",
-    "@capacitor/browser": "^8.0.4",
-    "@capacitor/core": "^8.5.2",
-    "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "firebase": "^12.19.0",
     "framer-motion": "^12.42.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.5.2",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^24.13.2",
