@@ -65,7 +65,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
     onUpdate(id, updates);
     syncToSessions(updates);
   };
-  const totalTaskSeconds = task.totalTimeSpent || 0;
+  const totalTaskSeconds = taskSessions.reduce((sum, s) => sum + s.duration, 0);
   const entriesByDate = taskSessions.reduce((acc, s) => {
     const dk = isoToDateKey(s.startTime);
     acc[dk] = (acc[dk] || 0) + s.duration;

@@ -282,7 +282,7 @@ export function ListaTareasCard({
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
-          <div className="relative z-20 bg-white rounded-t-[16px] pt-5 px-5">
+          <div className="relative z-20 bg-white rounded-t-[16px] pt-4 px-3.5">
             <div className="flex justify-between items-center mb-4 flex-none">
               {reorderMode ? (
                 <button
@@ -305,7 +305,7 @@ export function ListaTareasCard({
         </div>
 
         {/* Lista de tareas activas */}
-        <div className="flex flex-col px-5 pb-5 pt-3">
+        <div className="flex flex-col px-3.5 pb-3 pt-2">
           {reorderable ? (
             <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
               {orderedIds.map((id) =>

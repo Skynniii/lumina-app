@@ -354,18 +354,18 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const hoyListId = principalList.hoyListId;
     const linkedList = lists.find((l) => l.id === hoyListId && l.id !== 'principal');
 
-    let hoyTasks: Task[];
-    if (linkedList) {
-      hoyTasks = sortLikeList(pending.filter((t) => t.listId === linkedList.id), linkedList);
-    } else {
-      hoyTasks = importantFirst(pending.filter((t) => t.scheduledDate === today));
-    }
+    // Tareas con fecha de hoy (de cualquier lista)
+    const todayDated = importantFirst(pending.filter((t) => t.scheduledDate === today));
+    // Tareas de la lista vinculada sin fecha programada (se muestran después de las de hoy)
+    const linkedUndated = linkedList
+      ? sortLikeList(pending.filter((t) => t.listId === linkedList.id && !t.scheduledDate), linkedList)
+      : [];
     const mananaTasks = importantFirst(pending.filter((t) => t.scheduledDate === tomorrow));
     const beyond = pending.filter((t) => t.scheduledDate && dayDiff(t.scheduledDate) !== 0 && dayDiff(t.scheduledDate) !== 1);
     const overdueTasks = importantFirst(beyond.filter((t) => dayDiff(t.scheduledDate!) < 0).sort(sortByDateKey('dueDate')));
     const upcomingNI = beyond.filter((t) => dayDiff(t.scheduledDate!) > 1);
     const upcoming = groupByKey(upcomingNI, 'dueDate', true);
-    // Sin fecha: tareas sin dueDate (importantes y no), agrupadas por lista.
+    // Sin fecha: tareas sin scheduledDate, excluyendo las de la lista vinculada (ya están en Hoy)
     const undated = pending.filter((t) => !t.scheduledDate && (!linkedList || t.listId !== linkedList.id));
     const undatedByList = new Map<string, Task[]>();
     for (const t of undated) {
@@ -385,10 +385,17 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         <DateSectionHeader
           title="Hoy"
-          action={linkedList ? <span className="text-[11px] font-semibold text-[#7f70ff]">{linkedList.name}</span> : <HoyLinkMenu lists={lists} hoyListId={hoyListId} onLink={setHoyLink} />}
+          action={<HoyLinkMenu lists={lists} hoyListId={hoyListId} onLink={setHoyLink} />}
         />
-        {hoyTasks.length > 0 ? (
-          <TaskList items={hoyTasks} render={linkedList ? renderCompact : renderTaskNoDate} />
+        {todayDated.length > 0 || linkedUndated.length > 0 ? (
+          <>
+            {todayDated.length > 0 && (
+              <TaskList items={todayDated} render={renderTaskNoDate} />
+            )}
+            {linkedUndated.length > 0 && (
+              <TaskList items={linkedUndated} render={renderCompact} />
+            )}
+          </>
         ) : (
           <p className="text-[13px] text-[#c0c0c0] py-2">Sin tareas para hoy.</p>
         )}
@@ -400,15 +407,13 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           <p className="text-[13px] text-[#c0c0c0] py-2">Sin tareas para mañana.</p>
         )}
 
-        {upcoming.length > 0 ? (
+        {upcoming.length > 0 && (
           upcoming.map((g) => (
             <div key={g.label}>
               <GroupHeader title={g.label} color={g.color} />
               <TaskList items={g.tasks} render={renderTaskNoDate} />
             </div>
           ))
-        ) : (
-          <p className="text-[13px] text-[#c0c0c0] py-2">Nada próximo.</p>
         )}
 
         {undated.length > 0 && (
@@ -470,7 +475,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
-          <div className="relative z-20 bg-white rounded-t-[16px] pt-5 px-5">
+          <div className="relative z-20 bg-white rounded-t-[16px] pt-4 px-3.5">
             <div className="flex justify-between items-center mb-4 flex-none">
               <SortMenu value={sortMode} onChange={(m) => onUpdateList('principal', { sortMode: m })} options={PRINCIPAL_SORTS} />
               <h3 className="flex-1 text-center leading-none m-0 p-0 text-[18px] text-[#2b2b2b] font-bold tracking-tight">Principal</h3>
@@ -480,7 +485,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
           </div>
         </div>
 
-        <div className="flex flex-col px-5 pb-5 pt-3">
+        <div className="flex flex-col px-3.5 pb-3 pt-2">
           {sortMode === 'date' ? renderByDate() : sortMode === 'deadline' ? renderByDeadline() : renderNormal()}
         </div>
       </div>

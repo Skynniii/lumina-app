@@ -64,8 +64,14 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   }, [tracker]);
 
   const handleStop = async () => {
+    const taskId = tracker.draft.taskId;
+    const activityId = tracker.draft.activityId;
     await tracker.stop();
     if (settings.sounds) playCompleteSound();
+    // Sincroniza la actividad de la sesión de vuelta a la tarea
+    if (taskId && activityId) {
+      tasksColl.update(taskId, { activityId });
+    }
   };
 
   const { setOnComplete, start: cdStart } = countdown;
@@ -99,6 +105,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   };
 
   const handleSaveSession = async (completeTask: boolean, taskId?: string) => {
+    const actualTaskId = taskId ?? tracker.draft.taskId;
     if (mode === 'rastreador') {
       await handleStop();
     } else {
@@ -110,8 +117,12 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
       }
       countdown.reset();
     }
-    if (completeTask && taskId) {
-      tasksColl.update(taskId, { completed: true, completedAt: new Date().toISOString() });
+    // Sincroniza la actividad de la sesión de vuelta a la tarea
+    if (actualTaskId && tracker.draft.activityId) {
+      tasksColl.update(actualTaskId, { activityId: tracker.draft.activityId });
+    }
+    if (completeTask && actualTaskId) {
+      tasksColl.update(actualTaskId, { completed: true, completedAt: new Date().toISOString() });
     }
     // Limpia taskId del draft para que la próxima sesión no se asocie a esta tarea
     tracker.setDraft((d) => ({ ...d, taskId: undefined }));
