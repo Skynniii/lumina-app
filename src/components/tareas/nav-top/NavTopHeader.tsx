@@ -89,8 +89,8 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
   }, [lists.length]);
 
   return (
-    <div className="relative w-full bg-white z-[999] pt-5 pb-0 shadow-[0_4px_12px_rgba(0,0,0,0.04)] shrink-0 box-border">
-      <div className="px-5">
+    <div className="relative w-full bg-white z-[999] pb-0 shadow-[0_4px_12px_rgba(0,0,0,0.04)] shrink-0 box-border" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
+      <div className="px-5 pt-3">
         <TopBar title="Tasks" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
       </div>
 

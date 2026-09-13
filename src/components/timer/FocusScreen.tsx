@@ -20,6 +20,8 @@ interface Props extends ActiveTimerCardProps {
   onNotesChange: (v: string) => void;
   onDiscard: () => void;
   onSaveSession: (completeTask: boolean, taskId?: string) => void;
+  onSaveManualSession?: (startMs: number, endMs: number) => void;
+  onTaskIdChange?: (id: string | undefined) => void;
 }
 
 const MODE_LABELS: Record<TimerMode, string> = {
@@ -28,7 +30,7 @@ const MODE_LABELS: Record<TimerMode, string> = {
   pomodoro: 'Pomodoro',
 };
 
-export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard, onSaveSession, ...props }: Props) {
+export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard, onSaveSession, onSaveManualSession, ...props }: Props) {
   const { mode, onModeChange, countdown, pomodoroPhase, pomodoroCycle, onPomodoroSkip } = props;
   const { settings, update } = useSettings();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -39,6 +41,14 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const [showConfirm, setShowConfirm] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualDate, setManualDate] = useState(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+  });
+  const [manualStart, setManualStart] = useState('09:00');
+  const [manualEnd, setManualEnd] = useState('10:00');
   const [holdProgress, setHoldProgress] = useState(0);
   const holdIntervalRef = useRef<number | null>(null);
   const isHoldingRef = useRef(false);
@@ -86,10 +96,21 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
   const handleSelectTask = (task: Task) => {
     setSelectedTask(task);
-    props.onDescriptionChange(task.text);
+    props.onDescriptionChange(task.title);
     if (task.activityId) props.onActivityChange(task.activityId);
     const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
     onNotesChange(plainNotes);
+    props.onTaskIdChange?.(task.id);
+  };
+
+  const handleSaveManual = () => {
+    const [y, m, d] = manualDate.split('-').map(Number);
+    const [sh, sm] = manualStart.split(':').map(Number);
+    const [eh, em] = manualEnd.split(':').map(Number);
+    const startMs = new Date(y, m - 1, d, sh, sm, 0, 0).getTime();
+    let endMs = new Date(y, m - 1, d, eh, em, 0, 0).getTime();
+    if (endMs <= startMs) endMs += 86400000; // next day
+    onSaveManualSession?.(startMs, endMs);
   };
 
   const handleCustomDuration = (hours: number, minutes: number) => {
@@ -244,38 +265,53 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
             </button>
           </div>
 
-          {/* Fecha y hora */}
-          <div className="border-b border-[#f0f0f5]">
-            <div className="flex items-center gap-3 py-3">
-              <span className="text-[#a0a0a0]">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-              </span>
-              <button onClick={() => setShowDatePicker(true)} className="text-[15px] font-medium text-[#333] capitalize bg-transparent border-none cursor-pointer">
-                {(() => {
-                  const ms = mode === 'rastreador' && props.running ? props.running.sessionStart : Date.now() - elapsedCount * 1000;
-                  return new Date(ms).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
-                })()}
-              </button>
-              <div className="flex-1" />
-              <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none cursor-pointer">
-                {(() => {
-                  const is12h = settings.timeFormat !== '24h';
-                  if (mode === 'rastreador') {
-                    if (!props.running) return '--:--';
-                    const startMs = props.running.sessionStart;
-                    const startStr = new Date(startMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: is12h });
-                    return startStr;
-                  }
-                  const now = Date.now();
-                  const startMs = now - elapsedCount * 1000;
-                  const endMs = now + countdown.remaining * 1000;
-                  const startStr = new Date(startMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: is12h });
-                  const endStr = new Date(endMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: is12h });
-                  return `${startStr} – ${endStr}`;
-                })()}
-              </button>
+          {/* Fecha y hora - solo visible en sesión activa o modo manual */}
+          {(hasStarted || manualMode) && (
+            <div className="border-b border-[#f0f0f5]">
+              <div className="flex items-center gap-3 py-3">
+                <span className="text-[#a0a0a0]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                </span>
+                {manualMode ? (
+                  <button onClick={() => setShowDatePicker(true)} className="text-[15px] font-medium text-[#7f70ff] capitalize bg-transparent border-none cursor-pointer">
+                    {new Date(manualDate + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  </button>
+                ) : (
+                  <button onClick={() => setShowDatePicker(true)} className="text-[15px] font-medium text-[#333] capitalize bg-transparent border-none cursor-pointer">
+                    {(() => {
+                      const ms = mode === 'rastreador' && props.running ? props.running.sessionStart : Date.now() - elapsedCount * 1000;
+                      return new Date(ms).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                    })()}
+                  </button>
+                )}
+                <div className="flex-1" />
+                {manualMode ? (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#7f70ff] tabular-nums bg-transparent border-none cursor-pointer">{manualStart}</button>
+                    <span className="text-[#bbb]">–</span>
+                    <button onClick={() => setShowEndTimePicker(true)} className="text-[15px] font-medium text-[#7f70ff] tabular-nums bg-transparent border-none cursor-pointer">{manualEnd}</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none cursor-pointer">
+                    {(() => {
+                      const is12h = settings.timeFormat !== '24h';
+                      if (mode === 'rastreador') {
+                        if (!props.running) return '--:--';
+                        const startMs = props.running.sessionStart;
+                        return new Date(startMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: is12h });
+                      }
+                      const now = Date.now();
+                      const startMs = now - elapsedCount * 1000;
+                      const endMs = now + countdown.remaining * 1000;
+                      const startStr = new Date(startMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: is12h });
+                      const endStr = new Date(endMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: is12h });
+                      return `${startStr} – ${endStr}`;
+                    })()}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Descripción */}
           <div className="border-b border-[#f0f0f5]">
@@ -315,21 +351,29 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
       {/* === Botones flotantes inferiores === */}
       <div className="flex items-center justify-center gap-10 pb-8 pt-2 shrink-0">
-        {hasStarted ? (
+        {manualMode ? (
+          <motion.button onClick={() => setManualMode(false)} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </motion.button>
+        ) : hasStarted ? (
           <motion.button onClick={handleXClick} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </motion.button>
         ) : <div className="w-[52px]" />}
 
-        <motion.button onClick={handleCenterButton} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)]">
-          {!hasStarted || (!isRunning && hasStarted) ? (
+        <motion.button onClick={manualMode ? handleSaveManual : handleCenterButton} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)]">
+          {manualMode ? (
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+          ) : !hasStarted || (!isRunning && hasStarted) ? (
             <svg width="28" height="28" viewBox="0 0 24 24" fill="white" className="ml-1"><path d="M8 5v14l11-7z" /></svg>
           ) : (
             <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><rect x="6" y="5" width="4" height="14" rx="1.5" /><rect x="14" y="5" width="4" height="14" rx="1.5" /></svg>
           )}
         </motion.button>
 
-        {hasStarted ? (
+        {manualMode ? (
+          <div className="w-[56px]" />
+        ) : hasStarted ? (
           <div className="relative" style={{ width: checkSize, height: checkSize }}>
             <svg className="absolute inset-0 -rotate-90 pointer-events-none" width={checkSize} height={checkSize}>
               <circle cx={checkSize / 2} cy={checkSize / 2} r={checkRadius} fill="none" stroke="#34c77b" strokeWidth="3" strokeDasharray={checkCircumference} strokeDashoffset={checkCircumference * (1 - holdProgress)} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.05s linear' }} />
@@ -338,7 +382,11 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34c77b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
             </motion.button>
           </div>
-        ) : <div className="w-[56px]" />}
+        ) : (
+          <motion.button onClick={() => setManualMode(true)} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[56px] h-[56px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4" /><path d="M16 2v4" /><rect x="4" y="4" width="16" height="18" rx="2" /><path d="M12 11v5" /><path d="M9.5 13.5h5" /></svg>
+          </motion.button>
+        )}
       </div>
 
       {/* Confirmación de descarte */}
@@ -358,15 +406,19 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       </AnimatePresence>
 
       {/* Date picker */}
-      {showDatePicker && mode === 'rastreador' && props.running && (
+      {showDatePicker && (manualMode || (mode === 'rastreador' && props.running)) && (
         <DatePickerModal
-          initialDate={new Date(props.running.sessionStart).toISOString().slice(0, 10)}
+          initialDate={manualMode ? manualDate : new Date(props.running!.sessionStart).toISOString().slice(0, 10)}
           onClose={() => setShowDatePicker(false)}
           onSave={(d) => {
-            const [y, m, day] = d.split('-').map(Number);
-            const newDate = new Date(props.running!.sessionStart);
-            newDate.setFullYear(y, m - 1, day);
-            props.onSetStartTime?.(newDate.getTime());
+            if (manualMode) {
+              setManualDate(d);
+            } else {
+              const [y, m, day] = d.split('-').map(Number);
+              const newDate = new Date(props.running!.sessionStart);
+              newDate.setFullYear(y, m - 1, day);
+              props.onSetStartTime?.(newDate.getTime());
+            }
             setShowDatePicker(false);
           }}
         />
@@ -375,17 +427,13 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       {/* Start time picker */}
       {showStartTimePicker && (
         <TimePickerModal
-          initialHour={(() => {
-            if (mode === 'rastreador' && props.running) return new Date(props.running.sessionStart).getHours();
-            return new Date(Date.now() - elapsedCount * 1000).getHours();
-          })()}
-          initialMinute={(() => {
-            if (mode === 'rastreador' && props.running) return new Date(props.running.sessionStart).getMinutes();
-            return new Date(Date.now() - elapsedCount * 1000).getMinutes();
-          })()}
+          initialHour={manualMode ? parseInt(manualStart.split(':')[0]) : (mode === 'rastreador' && props.running ? new Date(props.running.sessionStart).getHours() : new Date(Date.now() - elapsedCount * 1000).getHours())}
+          initialMinute={manualMode ? parseInt(manualStart.split(':')[1]) : (mode === 'rastreador' && props.running ? new Date(props.running.sessionStart).getMinutes() : new Date(Date.now() - elapsedCount * 1000).getMinutes())}
           onClose={() => setShowStartTimePicker(false)}
           onSave={(h, m) => {
-            if (mode === 'rastreador' && props.running) {
+            if (manualMode) {
+              setManualStart(`${h}:${m}`);
+            } else if (mode === 'rastreador' && props.running) {
               const newStart = new Date(props.running.sessionStart);
               newStart.setHours(parseInt(h), parseInt(m), 0, 0);
               props.onSetStartTime?.(newStart.getTime());
@@ -393,6 +441,20 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
             setShowStartTimePicker(false);
           }}
           onClear={() => setShowStartTimePicker(false)}
+        />
+      )}
+
+      {/* End time picker (modo manual) */}
+      {showEndTimePicker && (
+        <TimePickerModal
+          initialHour={parseInt(manualEnd.split(':')[0])}
+          initialMinute={parseInt(manualEnd.split(':')[1])}
+          onClose={() => setShowEndTimePicker(false)}
+          onSave={(h, m) => {
+            setManualEnd(`${h}:${m}`);
+            setShowEndTimePicker(false);
+          }}
+          onClear={() => setShowEndTimePicker(false)}
         />
       )}
 

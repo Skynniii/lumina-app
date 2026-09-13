@@ -24,6 +24,7 @@ const PRINCIPAL_SORTS: { value: SortMode; label: string }[] = [
 /* ---------- helpers de fecha (robustos a zona horaria) ---------- */
 
 function dayDiff(dateStr: string): number {
+  if (typeof dateStr !== 'string' || !dateStr) return NaN;
   const now = new Date();
   const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -36,6 +37,7 @@ function todayStr(): string {
 }
 
 function addDaysStr(dateStr: string, n: number): string {
+  if (typeof dateStr !== 'string' || !dateStr) return dateStr;
   const [y, m, d] = dateStr.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + n);
@@ -43,11 +45,13 @@ function addDaysStr(dateStr: string, n: number): string {
 }
 
 function shortDate(dateStr: string): string {
+  if (typeof dateStr !== 'string' || !dateStr) return '';
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
 function dateLabel(dateStr: string): string {
+  if (typeof dateStr !== 'string' || !dateStr) return 'Sin fecha';
   const diff = dayDiff(dateStr);
   if (diff === 0) return 'Hoy';
   if (diff === 1) return 'Mañana';
@@ -56,13 +60,12 @@ function dateLabel(dateStr: string): string {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-function sortByDateKey(key: 'dueDate' | 'deadline') {
+function sortByDateKey(key: 'scheduledDate' | 'dueDate') {
   return (a: Task, b: Task) => {
     const av = a[key];
     const bv = b[key];
-    if (!av && !bv) return 0;
-    if (!av) return 1;
-    if (!bv) return -1;
+    if (typeof av !== 'string' || !av) return 1;
+    if (typeof bv !== 'string' || !bv) return -1;
     return av.localeCompare(bv);
   };
 }
@@ -81,11 +84,12 @@ interface Group {
 }
 
 // Agrupa por la fecha de `key`, ordenadas asc; opcionalmente importantes primero en cada grupo.
-function groupByKey(tasks: Task[], key: 'dueDate' | 'deadline', impFirst: boolean): Group[] {
-  const sorted = [...tasks].sort(sortByDateKey(key));
+function groupByKey(tasks: Task[], key: 'scheduledDate' | 'dueDate' | 'deadline', impFirst: boolean): Group[] {
+  const actualKey = key === 'deadline' ? 'dueDate' : key;
+  const sorted = [...tasks].sort(sortByDateKey(actualKey));
   const groups: Group[] = [];
   for (const t of sorted) {
-    const dk = t[key]!;
+    const dk = t[actualKey]!;
     const label = dateLabel(dk);
     const last = groups[groups.length - 1];
     if (last && last.label === label) last.tasks.push(t);
@@ -100,8 +104,8 @@ function sortLikeList(tasks: Task[], list: TaskList): Task[] {
   const mode = list.sortMode || 'custom';
   const arr = [...tasks];
   if (mode === 'recent') arr.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
-  else if (mode === 'date') arr.sort(sortByDateKey('dueDate'));
-  else if (mode === 'deadline') arr.sort(sortByDateKey('deadline'));
+  else if (mode === 'date') arr.sort(sortByDateKey('scheduledDate'));
+  else if (mode === 'deadline') arr.sort(sortByDateKey('dueDate'));
   return arr;
 }
 
@@ -224,8 +228,12 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   const pending = useMemo(() => {
     const filtered = tasks.filter((t) => !t.completed);
     if (settings.hideNoDateInPrincipal) {
-      if (sortMode === 'deadline') return filtered.filter((t) => t.deadline || t.isImportant);
-      return filtered.filter((t) => t.dueDate || t.isImportant);
+      if (sortMode === 'deadline') return filtered.filter((t) => t.dueDate || t.isImportant);
+      if (sortMode === 'date' && principalList.hoyListId) {
+        // Permite ver tareas sin fecha de la lista vinculada a "Hoy"
+        return filtered.filter((t) => t.scheduledDate || t.isImportant || t.listId === principalList.hoyListId);
+      }
+      return filtered.filter((t) => t.scheduledDate || t.isImportant);
     }
     return filtered;
   }, [tasks, settings.hideNoDateInPrincipal, sortMode]);
@@ -249,7 +257,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   );
   // Tareas atrasadas: muestra "hace X días" en lugar de la fecha.
   const renderTaskOverdue = (t: Task) => (
-    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} hideDueDate overdueDays={Math.abs(dayDiff(t.dueDate!))} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} hideDueDate overdueDays={Math.abs(dayDiff(t.scheduledDate!))} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
   );
 
   const setHoyLink = (id?: string) => onUpdateList('principal', { hoyListId: id });
@@ -259,17 +267,17 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const today = todayStr();
     const tomorrow = addDaysStr(today, 1);
     const important = pending.filter((t) => t.isImportant);
-    const importantDated = important.filter((t) => t.dueDate).sort(sortByDateKey('dueDate'));
-    const importantNoDate = important.filter((t) => !t.dueDate);
+    const importantDated = important.filter((t) => t.scheduledDate).sort(sortByDateKey('dueDate'));
+    const importantNoDate = important.filter((t) => !t.scheduledDate);
     const nonImportant = pending.filter((t) => !t.isImportant);
-    const hoyNI = nonImportant.filter((t) => t.dueDate === today);
-    const mananaNI = nonImportant.filter((t) => t.dueDate === tomorrow);
+    const hoyNI = nonImportant.filter((t) => t.scheduledDate === today);
+    const mananaNI = nonImportant.filter((t) => t.scheduledDate === tomorrow);
     // Atrasadas = vencidas (dayDiff < 0). Próximamente = futuras más allá de Mañana.
-    const beyondNI = nonImportant.filter((t) => t.dueDate && dayDiff(t.dueDate) !== 0 && dayDiff(t.dueDate) !== 1);
-    const overdueNI = beyondNI.filter((t) => dayDiff(t.dueDate!) < 0).sort(sortByDateKey('dueDate'));
-    const upcomingNI = beyondNI.filter((t) => dayDiff(t.dueDate!) > 1);
-    const upcoming = groupByKey(upcomingNI, 'dueDate', false);
-    const undatedNI = nonImportant.filter((t) => !t.dueDate);
+    const beyondNI = nonImportant.filter((t) => t.scheduledDate && dayDiff(t.scheduledDate) !== 0 && dayDiff(t.scheduledDate) !== 1);
+    const overdueNI = beyondNI.filter((t) => dayDiff(t.scheduledDate!) < 0).sort(sortByDateKey('dueDate'));
+    const upcomingNI = beyondNI.filter((t) => dayDiff(t.scheduledDate!) > 1);
+    const upcoming = groupByKey(upcomingNI, 'scheduledDate', false);
+    const undatedNI = nonImportant.filter((t) => !t.scheduledDate);
     const undatedByList = new Map<string, Task[]>();
     for (const t of undatedNI) {
       const arr = undatedByList.get(t.listId) ?? [];
@@ -298,21 +306,20 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         {hasHoy && (
           <>
-            <DateSectionHeader title="Hoy" subtitle={shortDate(today)} />
+            <DateSectionHeader title="Hoy" />
             <TaskList items={hoyNI} render={renderTaskNoDate} />
           </>
         )}
 
         {hasManana && (
           <>
-            <DateSectionHeader title="Mañana" subtitle={shortDate(tomorrow)} />
+            <DateSectionHeader title="Mañana" />
             <TaskList items={mananaNI} render={renderTaskNoDate} />
           </>
         )}
 
         {hasUpcoming && (
           <>
-            <DateSectionHeader title="Próximamente" />
             {upcoming.map((g) => (
               <div key={g.label}>
                 <GroupHeader title={g.label} color={g.color} />
@@ -348,19 +355,19 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const hoyListId = principalList.hoyListId;
     const linkedList = lists.find((l) => l.id === hoyListId && l.id !== 'principal');
 
-    let hoyTasks: Task[];
-    if (linkedList) {
-      hoyTasks = sortLikeList(pending.filter((t) => t.listId === linkedList.id), linkedList);
-    } else {
-      hoyTasks = importantFirst(pending.filter((t) => t.dueDate === today));
-    }
-    const mananaTasks = importantFirst(pending.filter((t) => t.dueDate === tomorrow));
-    const beyond = pending.filter((t) => t.dueDate && dayDiff(t.dueDate) !== 0 && dayDiff(t.dueDate) !== 1);
-    const overdueTasks = importantFirst(beyond.filter((t) => dayDiff(t.dueDate!) < 0).sort(sortByDateKey('dueDate')));
-    const upcomingNI = beyond.filter((t) => dayDiff(t.dueDate!) > 1);
-    const upcoming = groupByKey(upcomingNI, 'dueDate', true);
-    // Sin fecha: tareas sin dueDate (importantes y no), agrupadas por lista.
-    const undated = pending.filter((t) => !t.dueDate);
+    // Tareas con fecha de hoy (de cualquier lista)
+    const todayDated = importantFirst(pending.filter((t) => t.scheduledDate === today));
+    // Tareas de la lista vinculada sin fecha programada (se muestran después de las de hoy)
+    const linkedUndated = linkedList
+      ? sortLikeList(pending.filter((t) => t.listId === linkedList.id && !t.scheduledDate), linkedList)
+      : [];
+    const mananaTasks = importantFirst(pending.filter((t) => t.scheduledDate === tomorrow));
+    const beyond = pending.filter((t) => t.scheduledDate && dayDiff(t.scheduledDate) !== 0 && dayDiff(t.scheduledDate) !== 1);
+    const overdueTasks = importantFirst(beyond.filter((t) => dayDiff(t.scheduledDate!) < 0).sort(sortByDateKey('dueDate')));
+    const upcomingNI = beyond.filter((t) => dayDiff(t.scheduledDate!) > 1);
+    const upcoming = groupByKey(upcomingNI, 'scheduledDate', true);
+    // Sin fecha: tareas sin scheduledDate, excluyendo las de la lista vinculada (ya están en Hoy)
+    const undated = pending.filter((t) => !t.scheduledDate && (!linkedList || t.listId !== linkedList.id));
     const undatedByList = new Map<string, Task[]>();
     for (const t of undated) {
       const arr = undatedByList.get(t.listId) ?? [];
@@ -379,32 +386,35 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
         <DateSectionHeader
           title="Hoy"
-          subtitle={shortDate(today)}
-          action={linkedList ? <span className="text-[11px] font-semibold text-[#7f70ff]">{linkedList.name}</span> : <HoyLinkMenu lists={lists} hoyListId={hoyListId} onLink={setHoyLink} />}
+          action={<HoyLinkMenu lists={lists} hoyListId={hoyListId} onLink={setHoyLink} />}
         />
-        {hoyTasks.length > 0 ? (
-          <TaskList items={hoyTasks} render={linkedList ? renderCompact : renderTaskNoDate} />
+        {todayDated.length > 0 || linkedUndated.length > 0 ? (
+          <>
+            {todayDated.length > 0 && (
+              <TaskList items={todayDated} render={renderTaskNoDate} />
+            )}
+            {linkedUndated.length > 0 && (
+              <TaskList items={linkedUndated} render={renderCompact} />
+            )}
+          </>
         ) : (
           <p className="text-[13px] text-[#c0c0c0] py-2">Sin tareas para hoy.</p>
         )}
 
-        <DateSectionHeader title="Mañana" subtitle={shortDate(tomorrow)} />
+        <DateSectionHeader title="Mañana" />
         {mananaTasks.length > 0 ? (
           <TaskList items={mananaTasks} render={renderTaskNoDate} />
         ) : (
           <p className="text-[13px] text-[#c0c0c0] py-2">Sin tareas para mañana.</p>
         )}
 
-        <DateSectionHeader title="Próximamente" />
-        {upcoming.length > 0 ? (
+        {upcoming.length > 0 && (
           upcoming.map((g) => (
             <div key={g.label}>
               <GroupHeader title={g.label} color={g.color} />
               <TaskList items={g.tasks} render={renderTaskNoDate} />
             </div>
           ))
-        ) : (
-          <p className="text-[13px] text-[#c0c0c0] py-2">Nada próximo.</p>
         )}
 
         {undated.length > 0 && (
@@ -424,8 +434,8 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
   /* ===== MODO POR FECHA LÍMITE ===== */
   const renderByDeadline = () => {
-    const withDeadline = pending.filter((t) => t.deadline);
-    const noDeadline = pending.filter((t) => !t.deadline);
+    const withDeadline = pending.filter((t) => t.dueDate);
+    const noDeadline = pending.filter((t) => !t.dueDate);
     const groups = groupByKey(withDeadline, 'deadline', true);
     const noDeadlineByList = new Map<string, Task[]>();
     for (const t of noDeadline) {
@@ -461,22 +471,22 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   };
 
   return (
-    <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista="principal">
-      <div className="bg-white rounded-[24px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-[#f2f2f2] flex flex-col relative">
+    <div className="w-full flex-none shrink-0 box-border px-2 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista="principal">
+      <div className="bg-white rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-[#f0f0f3] flex flex-col relative">
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
-          <div className="relative z-20 bg-white rounded-t-[24px] pt-5 px-5">
+          <div className="relative z-20 bg-white rounded-t-[10px] pt-4 px-3.5">
             <div className="flex justify-between items-center mb-4 flex-none">
               <SortMenu value={sortMode} onChange={(m) => onUpdateList('principal', { sortMode: m })} options={PRINCIPAL_SORTS} />
-              <h3 className="flex-1 text-center leading-none m-0 p-0 text-[22px] text-[#2b2b2b] font-bold tracking-tight">Principal</h3>
+              <h3 className="flex-1 text-center leading-none m-0 p-0 text-[18px] text-[#2b2b2b] font-bold tracking-tight">Principal</h3>
               <div className="w-[36px] flex-none" />
             </div>
             <hr className="border-t border-[#f0f0f5] m-0 mx-1 flex-none" />
           </div>
         </div>
 
-        <div className="flex flex-col px-5 pb-5 pt-3">
+        <div className="flex flex-col px-3.5 pb-3 pt-2">
           {sortMode === 'date' ? renderByDate() : sortMode === 'deadline' ? renderByDeadline() : renderNormal()}
         </div>
       </div>

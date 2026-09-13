@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import { deleteField } from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
+import { useFirestoreCollection, incrementTaskTime } from './useFirestoreCollection';
 import { useUserStorage } from './useUserStorage';
-import type { Activity, TimeEntry } from '../types';
+import type { Activity, TimeSession, TimerMode } from '../types';
 
 /** Estado del contador en curso. startedAt === null significa pausado. */
 export interface RunningTimer {
@@ -14,6 +17,7 @@ export interface TrackerDraft {
   description: string;
   notes: string;
   taskId?: string;
+  mode?: TimerMode;
 }
 
 const DEFAULT_ACTIVITIES: Activity[] = [
@@ -30,6 +34,12 @@ export function todayKey(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** Convierte un ISO string a clave de fecha local YYYY-MM-DD. */
+export function isoToDateKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function formatElapsed(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
@@ -37,8 +47,8 @@ export function formatElapsed(totalSeconds: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function formatClock(epoch: number): string {
-  return new Date(epoch).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
+export function formatClock(time: number | string): string {
+  return new Date(time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 export function dayLabel(dateKey: string): string {
@@ -49,15 +59,35 @@ export function dayLabel(dateKey: string): string {
 }
 
 export function useTimeTracker() {
-  const [activities, setActivities] = useUserStorage<Activity[]>('tracker-activities', DEFAULT_ACTIVITIES);
-  const [entries, setEntries] = useUserStorage<TimeEntry[]>('tracker-entries', []);
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
+
+  const activitiesColl = useFirestoreCollection<Activity>(uid, 'activities');
+  const sessionsColl = useFirestoreCollection<TimeSession>(uid, 'timeSessions');
+
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [sessions, setSessions] = useState<TimeSession[]>([]);
   const [running, setRunning] = useUserStorage<RunningTimer | null>('tracker-running', null);
   const [draft, setDraft] = useUserStorage<TrackerDraft>('tracker-draft', {
-    activityId: '',
-    description: '',
-    notes: '',
+    activityId: '', description: '', notes: '',
   });
   const [now, setNow] = useState(Date.now());
+
+  // Semilla de actividades para usuarios nuevos
+  useEffect(() => {
+    if (!uid || activitiesColl.loading) return;
+    if (activitiesColl.items.length === 0) {
+      DEFAULT_ACTIVITIES.forEach((a) => activitiesColl.set(a.id, { name: a.name, color: a.color }));
+    }
+  }, [uid, activitiesColl]);
+
+  useEffect(() => {
+    setActivities(activitiesColl.items);
+  }, [activitiesColl.items]);
+
+  useEffect(() => {
+    setSessions(sessionsColl.items);
+  }, [sessionsColl.items]);
 
   const isTicking = running !== null && running.startedAt !== null;
 
@@ -90,65 +120,98 @@ export function useTimeTracker() {
     setRunning((prev) => (prev ? { ...prev, startedAt: t } : prev));
   }, [setRunning]);
 
-  /** Detiene el contador y guarda el registro. Devuelve la entrada creada (o null si fue demasiado corto). */
-  const stop = useCallback((): TimeEntry | null => {
-    if (!running) return null;
+  /** Detiene el cronómetro y guarda la sesión en Firestore. */
+  const stop = useCallback(async (): Promise<void> => {
+    if (!running || !uid) return;
     const end = Date.now();
-    const seconds = running.accumulated + (running.startedAt ? Math.floor((end - running.startedAt) / 1000) : 0);
+    const duration = running.accumulated + (running.startedAt ? Math.floor((end - running.startedAt) / 1000) : 0);
     setRunning(null);
-    if (seconds < 1) return null;
-    const entry: TimeEntry = {
-      id: `${end}`,
-      activityId: draft.activityId,
-      description: draft.description.trim(),
-      notes: draft.notes.trim(),
-      taskId: draft.taskId,
-      date: todayKey(),
-      startedAt: running.sessionStart,
-      endedAt: end,
-      seconds,
-    };
-    setEntries((prev) => [entry, ...prev]);
-    return entry;
-  }, [running, draft, setRunning, setEntries]);
+    if (duration < 1) return;
 
-  /** Guarda una sesión con segundos calculados externamente (para temporizador/pomodoro). */
-  const saveSession = useCallback((seconds: number): TimeEntry | null => {
-    if (seconds < 1) return null;
-    const now = Date.now();
-    const entry: TimeEntry = {
-      id: `${now}`,
-      activityId: draft.activityId,
+    const sessionData: Omit<TimeSession, 'id'> = {
+      taskId: draft.taskId || undefined,
+      activityId: draft.activityId || '',
       description: draft.description.trim(),
-      notes: draft.notes.trim(),
-      taskId: draft.taskId,
-      date: todayKey(),
-      startedAt: now - seconds * 1000,
-      endedAt: now,
-      seconds,
+      notes: draft.notes.trim() || undefined,
+      startTime: new Date(running.sessionStart).toISOString(),
+      endTime: new Date(end).toISOString(),
+      duration,
+      mode: draft.mode || 'stopwatch',
+      createdAt: new Date(end).toISOString(),
     };
-    setEntries((prev) => [entry, ...prev]);
-    return entry;
-  }, [draft, setEntries]);
+    await sessionsColl.add(sessionData);
 
-  /** Descarta la sesión en curso sin guardar. */
+    // Actualiza el acumulador de la tarea atómicamente
+    if (draft.taskId) {
+      await incrementTaskTime(uid, draft.taskId, duration);
+    }
+  }, [running, draft, uid, setRunning, sessionsColl]);
+
+  /** Guarda una sesión con segundos calculados externamente (temporizador/pomodoro). */
+  const saveSession = useCallback(async (seconds: number, mode: TimerMode = 'stopwatch'): Promise<void> => {
+    if (!uid || seconds < 1) return;
+    const end = Date.now();
+    const sessionData: Omit<TimeSession, 'id'> = {
+      taskId: draft.taskId || undefined,
+      activityId: draft.activityId || '',
+      description: draft.description.trim(),
+      notes: draft.notes.trim() || undefined,
+      startTime: new Date(end - seconds * 1000).toISOString(),
+      endTime: new Date(end).toISOString(),
+      duration: seconds,
+      mode,
+      createdAt: new Date(end).toISOString(),
+    };
+    await sessionsColl.add(sessionData);
+
+    if (draft.taskId) {
+      await incrementTaskTime(uid, draft.taskId, seconds);
+    }
+  }, [draft, uid, sessionsColl]);
+
   const discard = useCallback(() => {
     setRunning(null);
   }, [setRunning]);
 
-  const deleteEntry = useCallback((id: string) => {
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-  }, [setEntries]);
+  /** Guarda una sesión con start/end personalizados (registro manual). */
+  const saveManualSession = useCallback(async (startMs: number, endMs: number): Promise<void> => {
+    if (!uid) return;
+    const duration = Math.max(0, Math.floor((endMs - startMs) / 1000));
+    if (duration < 1) return;
+    const sessionData: Omit<TimeSession, 'id'> = {
+      taskId: draft.taskId || undefined,
+      activityId: draft.activityId || '',
+      description: draft.description.trim(),
+      notes: draft.notes.trim() || undefined,
+      startTime: new Date(startMs).toISOString(),
+      endTime: new Date(endMs).toISOString(),
+      duration,
+      mode: 'stopwatch',
+      createdAt: new Date().toISOString(),
+    };
+    await sessionsColl.add(sessionData);
+    if (draft.taskId) {
+      await incrementTaskTime(uid, draft.taskId, duration);
+    }
+  }, [draft, uid, sessionsColl]);
 
-  const updateEntry = useCallback((id: string, updates: Partial<TimeEntry>) => {
-    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
-  }, [setEntries]);
+  const deleteSession = useCallback((id: string) => {
+    sessionsColl.remove(id);
+  }, [sessionsColl]);
+
+  const updateSession = useCallback((id: string, updates: Partial<TimeSession>) => {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      cleaned[key] = value === undefined ? deleteField() : value;
+    }
+    sessionsColl.update(id, cleaned as Partial<TimeSession>);
+  }, [sessionsColl]);
 
   const addActivity = useCallback((name: string, color: string): string => {
     const id = `act-${Date.now()}`;
-    setActivities((prev) => [...prev, { id, name: name.trim(), color }]);
+    activitiesColl.set(id, { name: name.trim(), color });
     return id;
-  }, [setActivities]);
+  }, [activitiesColl]);
 
   const setStartTime = useCallback((epochMs: number) => {
     setRunning((prev) => {
@@ -164,32 +227,17 @@ export function useTimeTracker() {
   }, [setRunning]);
 
   const updateActivity = useCallback((id: string, updates: Partial<Activity>) => {
-    setActivities((prev) => prev.map((a) => (a.id === id ? { ...a, ...updates } : a)));
-  }, [setActivities]);
+    activitiesColl.update(id, updates);
+  }, [activitiesColl]);
 
   const deleteActivity = useCallback((id: string) => {
-    setActivities((prev) => prev.filter((a) => a.id !== id));
-  }, [setActivities]);
+    activitiesColl.remove(id);
+  }, [activitiesColl]);
 
   return {
-    activities,
-    entries,
-    running,
-    draft,
-    elapsed,
-    isTicking,
-    start,
-    pause,
-    resume,
-    stop,
-    saveSession,
-    discard,
-    deleteEntry,
-    updateEntry,
-    addActivity,
-    setStartTime,
-    updateActivity,
-    deleteActivity,
-    setDraft,
+    activities, sessions, running, draft, elapsed, isTicking,
+    start, pause, resume, stop, saveSession, saveManualSession, discard,
+    deleteSession, updateSession, addActivity, setStartTime,
+    updateActivity, deleteActivity, setDraft,
   };
 }

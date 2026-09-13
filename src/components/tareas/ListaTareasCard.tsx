@@ -19,19 +19,18 @@ interface Props {
   isProtected?: boolean;
 }
 
-function sortByDateKey(key: 'dueDate' | 'deadline') {
+function sortByDateKey(key: 'scheduledDate' | 'dueDate') {
   return (a: Task, b: Task) => {
     const av = a[key];
     const bv = b[key];
-    if (!av && !bv) return 0;
-    if (!av) return 1;
-    if (!bv) return -1;
+    if (typeof av !== 'string' || !av) return 1;
+    if (typeof bv !== 'string' || !bv) return -1;
     return av.localeCompare(bv);
   };
 }
 
 function isOverdue(dk: string | undefined): boolean {
-  if (!dk) return false;
+  if (!dk || typeof dk !== 'string') return false;
   const d = new Date(dk + 'T00:00:00');
   const t = new Date();
   t.setHours(0, 0, 0, 0);
@@ -39,7 +38,7 @@ function isOverdue(dk: string | undefined): boolean {
 }
 
 function groupLabel(dateKey: string | undefined, isDeadline: boolean = false): string {
-  if (!dateKey) return isDeadline ? 'Sin fecha límite' : 'Sin fecha';
+  if (!dateKey || typeof dateKey !== 'string') return isDeadline ? 'Sin fecha límite' : 'Sin fecha';
   const d = new Date(dateKey + 'T00:00:00');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -78,18 +77,22 @@ export function ListaTareasCard({
   const activeSorted = useMemo(() => {
     const arr = [...active];
     if (sortMode === 'recent') arr.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
-    else if (sortMode === 'date') arr.sort(sortByDateKey('dueDate'));
-    else if (sortMode === 'deadline') arr.sort(sortByDateKey('deadline'));
+    else if (sortMode === 'date') arr.sort(sortByDateKey('scheduledDate'));
+    else if (sortMode === 'deadline') arr.sort(sortByDateKey('dueDate'));
     return arr;
   }, [active, sortMode]);
 
   const showGroups = sortMode === 'date' || sortMode === 'deadline';
-  const groupKey: 'dueDate' | 'deadline' = sortMode === 'date' ? 'dueDate' : 'deadline';
+  const groupKey: 'scheduledDate' | 'dueDate' = sortMode === 'date' ? 'scheduledDate' : 'dueDate';
   const reorderable = reorderMode;
 
   taskByIdRef.current = Object.fromEntries(active.map((t) => [t.id, t]));
 
-  const baseIds = activeSorted.map((t) => t.id);
+  // En modo personalizado, usa taskOrder de la lista si existe (más eficiente que
+  // reordenar el arreglo completo). Las tareas nuevas sin orden se añaden al final.
+  const baseIds = sortMode === 'custom' && list.taskOrder
+    ? [...list.taskOrder.filter((id) => taskByIdRef.current[id]), ...activeSorted.filter((t) => !list.taskOrder!.includes(t.id)).map((t) => t.id)]
+    : activeSorted.map((t) => t.id);
   const orderedIds = dragOrder ?? baseIds;
 
   const setDragOrderBoth = useCallback((v: string[] | null) => {
@@ -98,7 +101,7 @@ export function ListaTareasCard({
   }, []);
 
   const onItemPointerDown = useCallback((e: React.PointerEvent, id: string) => {
-    if (lpTimer.current) clearTimeout(lpTimer.current);
+    if (!reorderMode) return;
     if (preDragCleanup.current) preDragCleanup.current();
     const li = e.currentTarget as HTMLElement;
     const r = li.getBoundingClientRect();
@@ -108,46 +111,13 @@ export function ListaTareasCard({
     }
 
     const onTouchMoveBlock = (ev: TouchEvent) => ev.preventDefault();
-
-    // --- Modo reordenar ya activo: drag inmediato desde el drag handle ---
-    if (reorderMode) {
-      didDrag.current = true;
-      setDragId(id);
-      setDragOrderBoth(baseIds.slice());
-      setOverlayY(drag.current.startTop - drag.current.ulTop);
-      window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
-      preDragCleanup.current = () => window.removeEventListener('touchmove', onTouchMoveBlock);
-      return;
-    }
-
-    // --- No estamos en modo reordenar: long-press para entrar ---
-    const startX = e.clientX;
-    const startY = e.clientY;
-
-    const onMoveCheck = (ev: PointerEvent) => {
-      if (Math.abs(ev.clientX - startX) > 8 || Math.abs(ev.clientY - startY) > 8) cleanup();
-    };
-
-    const cleanup = () => {
-      if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
-      window.removeEventListener('pointermove', onMoveCheck);
-      preDragCleanup.current = null;
-    };
-
-    preDragCleanup.current = cleanup;
-    window.addEventListener('pointermove', onMoveCheck);
-
-    lpTimer.current = window.setTimeout(() => {
-      window.removeEventListener('pointermove', onMoveCheck);
-      if (sortMode !== 'custom') onUpdateList(list.id, { sortMode: 'custom' });
-      setReorderMode(true);
-      didDrag.current = true;
-      setDragId(id);
-      setDragOrderBoth(baseIds.slice());
-      setOverlayY(drag.current.startTop - drag.current.ulTop);
-      window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
-    }, 450);
-  }, [reorderMode, sortMode, baseIds, setDragOrderBoth, onUpdateList, list.id]);
+    didDrag.current = true;
+    setDragId(id);
+    setDragOrderBoth(baseIds.slice());
+    setOverlayY(drag.current.startTop - drag.current.ulTop);
+    window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
+    preDragCleanup.current = () => window.removeEventListener('touchmove', onTouchMoveBlock);
+  }, [reorderMode, baseIds, setDragOrderBoth]);
 
   const onItemPointerEnd = useCallback(() => {
     if (preDragCleanup.current) preDragCleanup.current();
@@ -265,7 +235,7 @@ export function ListaTareasCard({
           );
         }
         items.push(
-          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />
+          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
         );
         return items;
       })
@@ -274,12 +244,12 @@ export function ListaTareasCard({
   const draggedTask = dragId ? taskByIdRef.current[dragId] : null;
 
   return (
-    <div ref={scrollRef} style={{ touchAction: reorderMode ? 'pan-y' : undefined }} className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista={list.id}>
-      <div ref={cardRef} className="bg-white rounded-[24px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-[#f2f2f2] flex flex-col relative">
+    <div ref={scrollRef} style={{ touchAction: reorderMode ? 'pan-y' : undefined }} className="w-full flex-none shrink-0 box-border px-2 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista={list.id}>
+      <div ref={cardRef} className="bg-white rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-[#f0f0f3] flex flex-col relative">
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
-          <div className="relative z-20 bg-white rounded-t-[24px] pt-5 px-5">
+          <div className="relative z-20 bg-white rounded-t-[10px] pt-4 px-3.5">
             <div className="flex justify-between items-center mb-4 flex-none">
               {reorderMode ? (
                 <button
@@ -292,9 +262,9 @@ export function ListaTareasCard({
                   </svg>
                 </button>
               ) : (
-                <SortMenu value={sortMode} onChange={(m) => { onUpdateList(list.id, { sortMode: m }); setReorderMode(m === 'custom'); }} />
+                <SortMenu value={sortMode} onChange={(m) => { onUpdateList(list.id, { sortMode: m }); setReorderMode(false); }} />
               )}
-              <h3 className="flex-1 text-center leading-none m-0 p-0 text-[22px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
+              <h3 className="flex-1 text-center leading-none m-0 p-0 text-[18px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
               <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} />
             </div>
             <hr className="border-t border-[#f0f0f5] m-0 mx-1 flex-none" />
@@ -302,7 +272,7 @@ export function ListaTareasCard({
         </div>
 
         {/* Lista de tareas activas */}
-        <div className="flex flex-col px-5 pb-5 pt-3">
+        <div className="flex flex-col px-3.5 pb-3 pt-2">
           {reorderable ? (
             <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
               {orderedIds.map((id) =>
@@ -326,7 +296,7 @@ export function ListaTareasCard({
               {active.length === 0 && !dragId && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
               {draggedTask && (
                 <div style={{ position: 'absolute', top: overlayY, left: 0, right: 0, zIndex: 50, pointerEvents: 'none' }}>
-                  <TareaItem task={draggedTask} sortMode={sortMode} dragId={dragId} overlay onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandGuarded} />
+                  <TareaItem task={draggedTask} sortMode={sortMode} reorderable dragId={dragId} overlay onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandGuarded} />
                 </div>
               )}
             </ul>
@@ -340,9 +310,11 @@ export function ListaTareasCard({
           ) : (
             <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
               <AnimatePresence mode="popLayout">
-                {activeSorted.map((task) => (
-                  <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />
-                ))}
+                {orderedIds.map((id) => {
+                  const task = taskByIdRef.current[id];
+                  if (!task) return null;
+                  return <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />;
+                })}
               </AnimatePresence>
               {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
             </ul>

@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Task, TaskList, SubTask, TimeEntry, Activity, ViewType } from '../../types';
+import type { Task, TaskList, SubTask, TimeSession, Activity, ViewType } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
-import { useUserStorage } from '../../hooks/useUserStorage';
-import { formatElapsed, dayLabel } from '../../hooks/useTimeTracker';
+import { useAuth } from '../../context/AuthContext';
+import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
+import { useActivities } from '../../hooks/useActivities';
+import { formatElapsed, dayLabel, isoToDateKey } from '../../hooks/useTimeTracker';
 import { setPendingTimerTask } from '../../shared/pendingTimerTask';
 import { Sparkles } from './Sparkles';
 import { CalendarModal } from './CalendarModal';
@@ -24,8 +26,10 @@ interface Props {
 
 export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDelete, onNavigate }: Props) {
   const { settings } = useSettings();
-  const [activities, setActivities] = useUserStorage<Activity[]>('tracker-activities', []);
-  const [timerEntries] = useUserStorage<TimeEntry[]>('tracker-entries', []);
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
+  const { activities, addActivity } = useActivities();
+  const sessionsColl = useFirestoreCollection<TimeSession>(uid, 'timeSessions');
   const [activityPickerOpen, setActivityPickerOpen] = useState(false);
   const [sparkle, setSparkle] = useState(false);
   const [showListMenu, setShowListMenu] = useState(false);
@@ -38,10 +42,33 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const [progressExpanded, setProgressExpanded] = useState(false);
 
   const taskActivity = activities.find((a) => a.id === task.activityId);
-  const taskEntries = timerEntries.filter((e) => e.taskId === task.id);
-  const totalTaskSeconds = taskEntries.reduce((s, e) => s + e.seconds, 0);
-  const entriesByDate = taskEntries.reduce((acc, e) => {
-    acc[e.date] = (acc[e.date] || 0) + e.seconds;
+  const taskSessions = sessionsColl.items.filter((s) => s.taskId === task.id);
+
+  // Sincroniza cambios de título, actividad o notas hacia las sesiones vinculadas
+  const syncToSessions = (updates: Partial<Task>) => {
+    const sessionUpdates: Partial<TimeSession> = {};
+    if (updates.title !== undefined) sessionUpdates.description = updates.title;
+    if (updates.activityId !== undefined) sessionUpdates.activityId = updates.activityId;
+    if (updates.notes !== undefined) {
+      const plainNotes = updates.notes ? updates.notes.replace(/<[^>]*>/g, '').trim() : '';
+      sessionUpdates.notes = plainNotes || undefined;
+    }
+    if (Object.keys(sessionUpdates).length > 0) {
+      for (const s of taskSessions) {
+        sessionsColl.update(s.id, sessionUpdates);
+      }
+    }
+  };
+
+  // Wrapper que actualiza la tarea y sincroniza a sesiones vinculadas
+  const handleSyncedUpdate = (id: string, updates: Partial<Task>) => {
+    onUpdate(id, updates);
+    syncToSessions(updates);
+  };
+  const totalTaskSeconds = taskSessions.reduce((sum, s) => sum + s.duration, 0);
+  const entriesByDate = taskSessions.reduce((acc, s) => {
+    const dk = isoToDateKey(s.startTime);
+    acc[dk] = (acc[dk] || 0) + s.duration;
     return acc;
   }, {} as Record<string, number>);
   const sortedDates = Object.keys(entriesByDate).sort().reverse();
@@ -76,7 +103,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
     resize();
     const t = setTimeout(resize, 100);
     return () => clearTimeout(t);
-  }, [task.text, editingTitle]);
+  }, [task.title, editingTitle]);
 
   // Inicializar contentEditable de notas al expandir
   useEffect(() => {
@@ -140,27 +167,27 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   };
 
   const handleNotesInput = (e: React.FormEvent<HTMLDivElement>) => {
-    onUpdate(task.id, { notes: e.currentTarget.innerHTML });
+    handleSyncedUpdate(task.id, { notes: e.currentTarget.innerHTML });
   };
 
   const execCommand = (cmd: string, value?: string) => {
     notesEditRef.current?.focus();
     document.execCommand(cmd, false, value);
     if (notesEditRef.current) {
-      onUpdate(task.id, { notes: notesEditRef.current.innerHTML });
+      handleSyncedUpdate(task.id, { notes: notesEditRef.current.innerHTML });
     }
   };
 
   const handleAddSubtask = () => {
     const subId = Date.now().toString();
-    const sub: SubTask = { id: subId, text: '', completed: false };
+    const sub: SubTask = { id: subId, title: '', completed: false };
     onUpdate(task.id, { subtasks: [...(task.subtasks || []), sub] });
     setEditingSubId(subId);
   };
 
   const saveSubtask = (subId: string, text: string) => {
     if (text.trim()) {
-      onUpdate(task.id, { subtasks: (task.subtasks || []).map((s) => (s.id === subId ? { ...s, text: text.trim() } : s)) });
+      onUpdate(task.id, { subtasks: (task.subtasks || []).map((s) => (s.id === subId ? { ...s, title: text.trim() } : s)) });
     } else {
       onUpdate(task.id, { subtasks: (task.subtasks || []).filter((s) => s.id !== subId) });
     }
@@ -176,8 +203,8 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   };
 
   const formatDeadline = () => {
-    if (!task.deadline) return 'Fecha límite';
-    const d = new Date(task.deadline + 'T00:00:00');
+    if (typeof task.dueDate !== 'string' || !task.dueDate) return 'Fecha límite';
+    const d = new Date(task.dueDate + 'T00:00:00');
     const opts: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
     if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
     return d.toLocaleDateString('es-CO', opts);
@@ -195,12 +222,12 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   };
 
   const formatDate = () => {
-    if (!task.dueDate) return 'Seleccionar fecha/hora';
-    const d = new Date(task.dueDate + 'T00:00:00');
+    if (typeof task.scheduledDate !== 'string' || !task.scheduledDate) return 'Seleccionar fecha/hora';
+    const d = new Date(task.scheduledDate + 'T00:00:00');
     const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
     let str = d.toLocaleDateString('es-CO', opts);
-    if (task.dueTime) {
-      const [h, min] = task.dueTime.split(':').map(Number);
+    if (typeof task.scheduledTime === 'string' && task.scheduledTime) {
+      const [h, min] = task.scheduledTime.split(':').map(Number);
       const period = h >= 12 ? 'PM' : 'AM';
       const h12 = h % 12 || 12;
       str += ` · ${h12}:${String(min).padStart(2, '0')} ${period}`;
@@ -275,8 +302,8 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         {/* Texto de la tarea */}
         <textarea
           ref={titleRef}
-          value={task.text}
-          onChange={(e) => onUpdate(task.id, { text: e.target.value })}
+          value={task.title}
+          onChange={(e) => handleSyncedUpdate(task.id, { title: e.target.value })}
           readOnly={isCompleted || !editingTitle}
           onClick={() => { if (!isCompleted) { setEditingTitle(true); setTimeout(() => titleRef.current?.focus(), 10); } }}
           onBlur={() => setEditingTitle(false)}
@@ -342,14 +369,14 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
                     {editingSubId === sub.id ? (
                       <input
                         ref={subInputRef}
-                        defaultValue={sub.text}
+                        defaultValue={sub.title}
                         onBlur={(e) => saveSubtask(sub.id, e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                         placeholder="Escribe la subtarea..."
                         className="flex-1 bg-transparent outline-none text-[14px] text-[#444] placeholder-[#bbb]"
                       />
                     ) : (
-                      <span className={`flex-1 text-[14px] transition-colors ${sub.completed ? 'text-[#a0a0a0] line-through' : 'text-[#444]'}`}>{sub.text}</span>
+                      <span className={`flex-1 text-[14px] transition-colors ${sub.completed ? 'text-[#a0a0a0] line-through' : 'text-[#444]'}`}>{sub.title}</span>
                     )}
                     {!isCompleted && editingSubId !== sub.id && (
                       <button onClick={() => deleteSub(sub.id)} className="p-1 rounded-md text-[#ccc] hover:text-[#ff4d4d] hover:bg-[#fff5f5] transition-all">
@@ -367,15 +394,15 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         {!isCompleted && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setShowDeadlinePicker(true)} className="flex items-center gap-3 py-3 cursor-pointer">
-              <span className={`transition-colors ${task.deadline ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
+              <span className={`transition-colors ${task.dueDate ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
                   <line x1="4" y1="22" x2="4" y2="15" />
                 </svg>
               </span>
-              <span className={`flex-1 text-[15px] ${task.deadline ? 'text-[#7f70ff] font-medium' : 'text-[#555]'}`}>{formatDeadline()}</span>
-              {task.deadline && (
-                <button onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { deadline: undefined }); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#fff5f5] transition-colors">
+              <span className={`flex-1 text-[15px] ${typeof task.dueDate === 'string' && task.dueDate ? 'text-[#7f70ff] font-medium' : 'text-[#555]'}`}>{formatDeadline()}</span>
+              {typeof task.dueDate === 'string' && task.dueDate && (
+                <button onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { dueDate: undefined }); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#fff5f5] transition-colors">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                 </button>
               )}
@@ -387,12 +414,12 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         {!isCompleted && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setShowCalendar(true)} className="flex items-center gap-3 py-3 cursor-pointer">
-              <span className={`transition-colors ${task.dueDate ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
+              <span className={`transition-colors ${task.scheduledDate ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
               </span>
-              <span className={`flex-1 text-[15px] ${task.dueDate ? 'text-[#7f70ff] font-medium' : 'text-[#555]'}`}>{formatDate()}</span>
-              {task.dueDate && (
-                <button onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { dueDate: undefined, dueTime: undefined, repeat: undefined }); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#fff5f5] transition-colors">
+              <span className={`flex-1 text-[15px] ${typeof task.scheduledDate === 'string' && task.scheduledDate ? 'text-[#7f70ff] font-medium' : 'text-[#555]'}`}>{formatDate()}</span>
+              {typeof task.scheduledDate === 'string' && task.scheduledDate && (
+                <button onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { scheduledDate: undefined, scheduledTime: undefined, repeat: undefined }); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#fff5f5] transition-colors">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                 </button>
               )}
@@ -415,7 +442,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         )}
 
         {/* Progreso - solo cuando hay tiempo añadido y no está completada */}
-        {taskEntries.length > 0 && !isCompleted && (
+        {taskSessions.length > 0 && !isCompleted && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setProgressExpanded(!progressExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className="text-[#a0a0a0]">
@@ -506,9 +533,9 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
       {/* Modal de fecha límite (solo fecha, sin hora) */}
       {showDeadlinePicker && (
         <DatePickerModal
-          initialDate={task.deadline}
+          initialDate={task.dueDate}
           onClose={() => setShowDeadlinePicker(false)}
-          onSave={(d) => onUpdate(task.id, { deadline: d })}
+          onSave={(d) => onUpdate(task.id, { dueDate: d })}
         />
       )}
 
@@ -518,11 +545,10 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         onClose={() => setActivityPickerOpen(false)}
         activities={activities}
         selectedId={task.activityId}
-        onSelect={(id) => { onUpdate(task.id, { activityId: id }); setActivityPickerOpen(false); }}
-        onCreate={(name, color) => {
-          const id = `act-${Date.now()}`;
-          setActivities((prev) => [...prev, { id, name: name.trim(), color }]);
-          onUpdate(task.id, { activityId: id });
+        onSelect={(id) => { handleSyncedUpdate(task.id, { activityId: id }); setActivityPickerOpen(false); }}
+        onCreate={async (name, color) => {
+          const id = await addActivity({ name: name.trim(), color });
+          handleSyncedUpdate(task.id, { activityId: id });
           setActivityPickerOpen(false);
         }}
       />
@@ -531,11 +557,11 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
       <AnimatePresence>
         {showCalendar && (
           <CalendarModal
-            initialDate={task.dueDate}
-            initialTime={task.dueTime}
+            initialDate={task.scheduledDate}
+            initialTime={task.scheduledTime}
             initialRepeat={task.repeat}
             onClose={() => setShowCalendar(false)}
-            onSave={(date, time, repeat) => onUpdate(task.id, { dueDate: date, dueTime: time, repeat })}
+            onSave={(date, time, repeat) => onUpdate(task.id, { scheduledDate: date, scheduledTime: time, repeat })}
           />
         )}
       </AnimatePresence>

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
+import { useAuth } from '../../context/AuthContext';
 import { playCompleteSound } from '../../utils/sound';
-import { useTimeTracker, todayKey, formatElapsed } from '../../hooks/useTimeTracker';
+import { useTimeTracker, todayKey, formatElapsed, isoToDateKey } from '../../hooks/useTimeTracker';
+import { useFirestoreCollection, incrementTaskTime } from '../../hooks/useFirestoreCollection';
 import { useCountdownTimer, type TimerMode } from '../../hooks/useCountdownTimer';
 import { useUserStorage } from '../../hooks/useUserStorage';
 import { setPendingTimerTask, getPendingTimerTask, clearPendingTimerTask } from '../../shared/pendingTimerTask';
@@ -11,7 +13,7 @@ import { TodaySummary } from './TodaySummary';
 import { FocusScreen } from './FocusScreen';
 import { EntryList } from './EntryList';
 import { SessionDetailModal } from './SessionDetailModal';
-import type { Task, TaskList, TimeEntry } from '../../types';
+import type { Task, TaskList, TimerMode as AppTimerMode } from '../../types';
 
 interface Props {
   onMenuClick: () => void;
@@ -23,6 +25,8 @@ const BREAK_SEC = 5 * 60;
 
 export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   const { settings } = useSettings();
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
   const tracker = useTimeTracker();
   const countdown = useCountdownTimer();
   const [mode, setMode] = useUserStorage<TimerMode>('timer-mode', 'rastreador');
@@ -30,10 +34,13 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   const [pomodoroCycle, setPomodoroCycle] = useState(0);
   const [showFocus, setShowFocus] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
-  const [taskLists] = useUserStorage<TaskList[]>('lumina_lists', []);
-  const [tasks, setTasks] = useUserStorage<Task[]>('lumina_tasks', []);
 
-  const selectedEntry = selectedEntryId ? tracker.entries.find((e) => e.id === selectedEntryId) ?? null : null;
+  const listsColl = useFirestoreCollection<TaskList>(uid, 'taskLists');
+  const tasksColl = useFirestoreCollection<Task>(uid, 'tasks');
+  const taskLists = listsColl.items;
+  const tasks = tasksColl.items;
+
+  const selectedEntry = selectedEntryId ? tracker.sessions.find((e) => e.id === selectedEntryId) ?? null : null;
 
   // Escuchar botón + de la barra de navegación y timer desde tareas
   useEffect(() => {
@@ -51,14 +58,20 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     if (task) {
       clearPendingTimerTask();
       const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
-      tracker.setDraft({ activityId: task.activityId || '', description: task.text, notes: plainNotes, taskId: task.id });
+      tracker.setDraft({ activityId: task.activityId || '', description: task.title, notes: plainNotes, taskId: task.id });
       setShowFocus(true);
     }
   }, [tracker]);
 
-  const handleStop = () => {
-    const saved = tracker.stop();
-    if (saved && settings.sounds) playCompleteSound();
+  const handleStop = async () => {
+    const taskId = tracker.draft.taskId;
+    const activityId = tracker.draft.activityId;
+    await tracker.stop();
+    if (settings.sounds) playCompleteSound();
+    // Sincroniza la actividad de la sesión de vuelta a la tarea
+    if (taskId && activityId) {
+      tasksColl.update(taskId, { activityId });
+    }
   };
 
   const { setOnComplete, start: cdStart } = countdown;
@@ -86,27 +99,37 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   const handleDiscard = () => {
     if (mode === 'rastreador') tracker.discard();
     else countdown.reset();
+    // Limpia taskId del draft para que no se herede en la próxima sesión
+    tracker.setDraft((d) => ({ ...d, taskId: undefined }));
     setShowFocus(false);
   };
 
-  const handleSaveSession = (completeTask: boolean, taskId?: string) => {
+  const handleSaveSession = async (completeTask: boolean, taskId?: string) => {
+    const actualTaskId = taskId ?? tracker.draft.taskId;
     if (mode === 'rastreador') {
-      handleStop();
+      await handleStop();
     } else {
       const elapsed = countdown.targetSeconds - countdown.remaining;
       if (elapsed >= 1) {
-        const saved = tracker.saveSession(elapsed);
-        if (saved && settings.sounds) playCompleteSound();
+        const timerMode: AppTimerMode = mode === 'pomodoro' ? 'pomodoro' : 'timer';
+        await tracker.saveSession(elapsed, timerMode);
+        if (settings.sounds) playCompleteSound();
       }
       countdown.reset();
     }
-    if (completeTask && taskId) {
-      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, completed: true, completedAt: new Date().toISOString() } : t)));
+    // Sincroniza la actividad de la sesión de vuelta a la tarea
+    if (actualTaskId && tracker.draft.activityId) {
+      tasksColl.update(actualTaskId, { activityId: tracker.draft.activityId });
     }
+    if (completeTask && actualTaskId) {
+      tasksColl.update(actualTaskId, { completed: true, completedAt: new Date().toISOString() });
+    }
+    // Limpia taskId del draft para que la próxima sesión no se asocie a esta tarea
+    tracker.setDraft((d) => ({ ...d, taskId: undefined }));
     setShowFocus(false);
   };
 
-  const historyEntries = tracker.entries.filter((e) => e.date !== todayKey());
+  const historyEntries = tracker.sessions.filter((e) => isoToDateKey(e.startTime) !== todayKey());
 
   const isTimerActive = mode === 'rastreador'
     ? tracker.running !== null
@@ -126,6 +149,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     onSetStartTime: tracker.setStartTime,
     onDescriptionChange: (v: string) => tracker.setDraft((d) => ({ ...d, description: v })),
     onActivityChange: (id: string) => tracker.setDraft((d) => ({ ...d, activityId: id })),
+    onTaskIdChange: (id: string | undefined) => tracker.setDraft((d) => ({ ...d, taskId: id })),
     onCreateActivity: (name: string, color: string) => tracker.addActivity(name, color),
     countdown, pomodoroPhase, pomodoroCycle, onPomodoroSkip: handlePomodoroSkip,
   };
@@ -140,7 +164,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
         <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-[110px]">
           <div className="flex flex-col gap-5 mt-3">
             <TodaySummary
-              entries={tracker.entries}
+              entries={tracker.sessions}
               activities={tracker.activities}
               liveElapsed={tracker.running ? tracker.elapsed : 0}
               isRunning={tracker.isTicking}
@@ -158,7 +182,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             <EntryList
               entries={historyEntries}
               activities={tracker.activities}
-              onDelete={tracker.deleteEntry}
+              onDelete={tracker.deleteSession}
               onSelectEntry={(e) => setSelectedEntryId(e.id)}
             />
           </div>
@@ -213,6 +237,14 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             onNotesChange={(v) => tracker.setDraft((d) => ({ ...d, notes: v }))}
             onDiscard={handleDiscard}
             onSaveSession={handleSaveSession}
+            onSaveManualSession={async (startMs, endMs) => {
+              await tracker.saveManualSession(startMs, endMs);
+              if (tracker.draft.taskId && tracker.draft.activityId) {
+                tasksColl.update(tracker.draft.taskId, { activityId: tracker.draft.activityId });
+              }
+              tracker.setDraft((d) => ({ ...d, taskId: undefined }));
+              setShowFocus(false);
+            }}
           />
         )}
       </AnimatePresence>
@@ -222,9 +254,14 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
           <SessionDetailModal
             key={selectedEntry.id}
             entry={selectedEntry}
-            onUpdate={tracker.updateEntry}
-            onDelete={tracker.deleteEntry}
+            onUpdate={tracker.updateSession}
+            onDelete={tracker.deleteSession}
             onClose={() => setSelectedEntryId(null)}
+            tasks={tasks}
+            taskLists={taskLists}
+            onLinkTask={(entry, task) => { if (uid) incrementTaskTime(uid, task.id, entry.duration); }}
+            onUnlinkTask={(entry) => { if (uid && entry.taskId) incrementTaskTime(uid, entry.taskId, -entry.duration); }}
+            onSyncToTask={(taskId, updates) => tasksColl.update(taskId, updates)}
           />
         )}
       </AnimatePresence>

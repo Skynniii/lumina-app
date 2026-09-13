@@ -51,19 +51,20 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   // el resto de iconos (notas, subtareas, fecha límite) aparecen en su lista propia.
   const inPrincipal = !!listTag || !!compact;
   const showListTag = !!listTag && !hideListTag;
-  const showDeadline = !!task.deadline && sortMode !== 'deadline' && !inPrincipal;
-  const showDue = !!task.dueDate && sortMode !== 'date' && !hideDueDate;
+  const showDeadline = typeof task.dueDate === 'string' && !!task.dueDate && sortMode !== 'deadline' && !inPrincipal;
+  const showDue = typeof task.scheduledDate === 'string' && !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
   const showNotes = hasNotes && !inPrincipal;
   const showSub = hasSub && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
-  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue;
+  const showTimeSpent = (task.totalTimeSpent || 0) > 0;
+  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent;
 
   const dueLabel = () => {
-    if (!task.dueDate) return '';
-    const d = new Date(task.dueDate + 'T00:00:00');
+    if (typeof task.scheduledDate !== 'string' || !task.scheduledDate) return '';
+    const d = new Date(task.scheduledDate + 'T00:00:00');
     let s = d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
-    if (task.dueTime) {
-      const [h, min] = task.dueTime.split(':').map(Number);
+    if (typeof task.scheduledTime === 'string' && task.scheduledTime) {
+      const [h, min] = task.scheduledTime.split(':').map(Number);
       const h12 = h % 12 || 12;
       s += ` · ${h12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
     }
@@ -114,7 +115,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       })()}
 
       <motion.div
-        className="relative flex items-center justify-center w-[22px] h-[22px] flex-none mr-3.5"
+        className="relative flex items-center justify-center w-[20px] h-[20px] flex-none mr-3"
         onClick={handleComplete}
         animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
         transition={{ duration: 0.45, ease: 'easeInOut' }}
@@ -129,12 +130,12 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           animate={{ opacity: completingImportant ? 0 : 1 }}
           transition={{ duration: 0.45, ease: 'easeInOut' }}
           className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'}`}
-        >{task.text}</motion.span>
+        >{task.title}</motion.span>
         {hasInfo && (
           <motion.div
             animate={{ opacity: completingImportant ? 0 : 1 }}
             transition={{ duration: 0.45, ease: 'easeInOut' }}
-            className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mt-2 text-[#8a8a8a]"
+            className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]"
           >
             {showListTag && (
               <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
@@ -149,6 +150,11 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
             )}
             {showDeadline && (
               <span className="flex items-center text-[#d97706]"><IconFlag /></span>
+            )}
+            {showTimeSpent && (
+              <span className="flex items-center text-[#8a8a8a]">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+              </span>
             )}
             {showNotes && <span className="flex items-center"><IconNotes /></span>}
             {showSub && <span className="flex items-center"><IconSub /></span>}
@@ -189,7 +195,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
     </>
   );
 
-  const baseClass = `relative flex items-center py-3.5 px-2 w-full select-none group min-h-[50px] rounded-[16px] ${overlay ? '' : 'my-1'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
+  const baseClass = `relative flex items-center py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
 
   return (
     <motion.li

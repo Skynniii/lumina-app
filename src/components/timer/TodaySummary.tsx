@@ -1,21 +1,21 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatElapsed, todayKey } from '../../hooks/useTimeTracker';
-import type { Activity, TimeEntry } from '../../types';
+import { formatElapsed, todayKey, isoToDateKey } from '../../hooks/useTimeTracker';
+import type { Activity, TimeSession } from '../../types';
 
 interface Props {
-  entries: TimeEntry[];
+  entries: TimeSession[];
   activities: Activity[];
   liveElapsed: number;
   isRunning: boolean;
   liveActivityId?: string;
   liveDescription?: string;
-  onSelectEntry?: (entry: TimeEntry) => void;
+  onSelectEntry?: (entry: TimeSession) => void;
 }
 
 interface Session {
   id: string;
-  entry: TimeEntry | null;
+  entry: TimeSession | null;
   description: string;
   seconds: number;
   activityId: string;
@@ -35,15 +35,15 @@ interface ActivityGroup {
 
 export function TodaySummary({ entries, activities, liveElapsed, isRunning, liveActivityId, liveDescription, onSelectEntry }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const todayEntries = entries.filter((e) => e.date === todayKey());
+  const todayEntries = entries.filter((e) => isoToDateKey(e.startTime) === todayKey());
 
   const allSessions: Session[] = todayEntries.map((e) => ({
     id: e.id,
     entry: e,
     description: e.description.trim() || 'Sin descripción',
-    seconds: e.seconds,
+    seconds: e.duration,
     activityId: e.activityId,
-    sortTime: e.endedAt,
+    sortTime: new Date(e.endTime).getTime(),
   }));
 
   if (liveElapsed >= 1 && liveActivityId !== undefined) {
@@ -58,15 +58,18 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
     });
   }
 
+  // Agrupa por actividad real; si no existe la actividad, usa '__none__' para agruparlas juntas
   const groupMap = new Map<string, Session[]>();
   for (const s of allSessions) {
-    const arr = groupMap.get(s.activityId) ?? [];
+    const act = activities.find((a) => a.id === s.activityId);
+    const key = act ? act.id : '__none__';
+    const arr = groupMap.get(key) ?? [];
     arr.push(s);
-    groupMap.set(s.activityId, arr);
+    groupMap.set(key, arr);
   }
 
   const groups: ActivityGroup[] = Array.from(groupMap.entries()).map(([activityId, sessions]) => {
-    const activity = activities.find((a) => a.id === activityId);
+    const activity = activityId === '__none__' ? undefined : activities.find((a) => a.id === activityId);
     sessions.sort((a, b) => b.sortTime - a.sortTime);
     return {
       activityId,
@@ -81,7 +84,7 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
 
   groups.sort((a, b) => b.latestTime - a.latestTime);
 
-  const total = todayEntries.reduce((s, e) => s + e.seconds, 0) + (liveElapsed >= 1 ? liveElapsed : 0);
+  const total = todayEntries.reduce((s, e) => s + e.duration, 0) + (liveElapsed >= 1 ? liveElapsed : 0);
 
   return (
     <div className="flex flex-col gap-2">
@@ -138,7 +141,7 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
                             {s.description}
                           </p>
                           <p className="text-[11px] text-[#b0b0b0] m-0">
-                            {s.isLive ? 'En curso' : `${new Date(s.entry!.startedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })} – ${new Date(s.entry!.endedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })}`}
+                            {s.isLive ? 'En curso' : `${new Date(s.entry!.startTime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })} – ${new Date(s.entry!.endTime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })}`}
                           </p>
                         </div>
                         <span className="text-[12px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(s.seconds)}</span>

@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAfQoiYOHUQBDldx2DWAC_aF_Ctc2IgLhc',
@@ -16,3 +16,13 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Persistencia offline nativa de Firestore: los cambios se reflejan al instante
+// y se sincronizan con la nube al recuperar la señal.
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    console.warn('Firestore persistence: múltiples pestañas abiertas.');
+  } else if (err.code === 'unimplemented') {
+    console.warn('Firestore persistence: no soportado por el navegador.');
+  }
+});

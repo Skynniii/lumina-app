@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
 import { ActivityPicker } from '../timer/ActivityPicker';
-import { useUserStorage } from '../../hooks/useUserStorage';
+import { useActivities } from '../../hooks/useActivities';
 import type { RepeatConfig, TaskList, Activity } from '../../types';
 
 interface Props {
@@ -12,17 +12,18 @@ interface Props {
   availableLists?: TaskList[];
   listName?: string;
   onClose: () => void;
-  onCreate: (data: { text: string; notes?: string; dueDate?: string; dueTime?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string }, listId: string) => void;
+  onCreate: (data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string }, listId: string) => void;
 }
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-function fmtFecha(d?: string, t?: string, repeat?: RepeatConfig) {
+function fmtFecha(scheduledDate?: string, scheduledTime?: string, repeat?: RepeatConfig) {
+  const d = scheduledDate;
   if (!d) return null;
   const [, m, day] = d.split('-').map(Number);
   let s = `${day} ${MONTHS[m - 1]}`;
-  if (t) {
-    const [h, min] = t.split(':').map(Number);
+  if (scheduledTime) {
+    const [h, min] = scheduledTime.split(':').map(Number);
     const h12 = h % 12 || 12;
     s += ` · ${h12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
   }
@@ -31,17 +32,17 @@ function fmtFecha(d?: string, t?: string, repeat?: RepeatConfig) {
 }
 
 export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listName, onClose, onCreate }: Props) {
-  const [text, setText] = useState('');
+  const [title, setTitle] = useState('');
   const [notesHtml, setNotesHtml] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
   const [notesEditing, setNotesEditing] = useState(false);
-  const [dueDate, setDueDate] = useState<string | undefined>(undefined);
-  const [dueTime, setDueTime] = useState<string | undefined>(undefined);
+  const [scheduledDate, setScheduledDate] = useState<string | undefined>(undefined);
+  const [scheduledTime, setScheduledTime] = useState<string | undefined>(undefined);
   const [repeat, setRepeat] = useState<RepeatConfig | undefined>(undefined);
   const [important, setImportant] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [targetListId, setTargetListId] = useState(defaultListId);
-  const [activities, setActivities] = useUserStorage<Activity[]>('tracker-activities', []);
+  const { activities, addActivity } = useActivities();
   const [activityId, setActivityId] = useState<string | undefined>(undefined);
   const [showActivityPicker, setShowActivityPicker] = useState(false);
   const notesRef = useRef<HTMLDivElement>(null);
@@ -50,8 +51,8 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
 
   useEffect(() => {
     if (isOpen) {
-      setText(''); setNotesHtml(''); setNotesOpen(false); setNotesEditing(false);
-      setDueDate(undefined); setDueTime(undefined); setRepeat(undefined);
+      setTitle(''); setNotesHtml(''); setNotesOpen(false); setNotesEditing(false);
+      setScheduledDate(undefined); setScheduledTime(undefined); setRepeat(undefined);
       setImportant(false); setShowPicker(false);
       setTargetListId(defaultListId);
       setActivityId(undefined); setShowActivityPicker(false);
@@ -72,14 +73,14 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
   };
 
   const submit = () => {
-    const trimmed = text.trim();
+    const trimmed = title.trim();
     if (!trimmed) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
-    onCreate({ text: trimmed, notes: notesClean || undefined, dueDate, dueTime, isImportant: important, repeat, activityId }, targetListId);
+    onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, isImportant: important, repeat, activityId }, targetListId);
     onClose();
   };
 
-  const fechaLabel = fmtFecha(dueDate, dueTime, repeat);
+  const fechaLabel = fmtFecha(scheduledDate, scheduledTime, repeat);
   const hasNotes = !!notesHtml.replace(/<[^>]*>/g, '').trim();
 
   const iconBtn = (active: boolean, onClick: () => void, title: string, children: React.ReactNode) => (
@@ -132,8 +133,8 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
 
               <input
                 type="text"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && submit()}
                 placeholder="¿Qué tarea quieres añadir?"
                 autoFocus
@@ -142,7 +143,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
 
               {/* Fila de íconos: fecha/hora, importante, notas */}
               <div className="flex items-center gap-3 mb-2">
-                {iconBtn(!!dueDate || !!repeat, () => setShowPicker(true), 'Fecha y hora',
+                {iconBtn(!!scheduledDate || !!repeat, () => setShowPicker(true), 'Fecha y hora',
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                 )}
                 {iconBtn(important, () => setImportant((v) => !v), 'Importante',
@@ -192,17 +193,17 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
 
               <div className="flex gap-3 mt-2">
                 <button onClick={onClose} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#f0f0f0] text-[#666] hover:bg-[#e4e4e4] transition-colors">Cancelar</button>
-                <button onClick={submit} disabled={!text.trim()} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Crear tarea</button>
+                <button onClick={submit} disabled={!title.trim()} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Crear tarea</button>
               </div>
             </motion.div>
 
             {showPicker && (
               <CalendarModal
-                initialDate={dueDate}
-                initialTime={dueTime}
+                initialDate={scheduledDate}
+                initialTime={scheduledTime}
                 initialRepeat={repeat}
                 onClose={() => setShowPicker(false)}
-                onSave={(d, t, r) => { setDueDate(d); setDueTime(t); setRepeat(r); }}
+                onSave={(d, t, r) => { setScheduledDate(d); setScheduledTime(t); setRepeat(r); }}
               />
             )}
 
@@ -212,9 +213,8 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
               activities={activities}
               selectedId={activityId}
               onSelect={(id) => { setActivityId(id); setShowActivityPicker(false); }}
-              onCreate={(name, color) => {
-                const id = `act-${Date.now()}`;
-                setActivities((prev) => [...prev, { id, name: name.trim(), color }]);
+              onCreate={async (name, color) => {
+                const id = await addActivity({ name: name.trim(), color });
                 setActivityId(id);
                 setShowActivityPicker(false);
               }}

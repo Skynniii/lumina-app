@@ -1,31 +1,32 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { dayLabel, formatClock, formatElapsed } from '../../hooks/useTimeTracker';
-import type { Activity, TimeEntry } from '../../types';
+import { dayLabel, formatClock, formatElapsed, isoToDateKey } from '../../hooks/useTimeTracker';
+import type { Activity, TimeSession } from '../../types';
 
 interface Props {
-  entries: TimeEntry[];
+  entries: TimeSession[];
   activities: Activity[];
   onDelete: (id: string) => void;
-  onSelectEntry?: (entry: TimeEntry) => void;
+  onSelectEntry?: (entry: TimeSession) => void;
 }
 
 export function EntryList({ entries, activities, onDelete, onSelectEntry }: Props) {
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
   const groups = useMemo(() => {
-    const map = new Map<string, TimeEntry[]>();
+    const map = new Map<string, TimeSession[]>();
     entries.forEach((e) => {
-      const list = map.get(e.date) ?? [];
+      const dk = isoToDateKey(e.startTime);
+      const list = map.get(dk) ?? [];
       list.push(e);
-      map.set(e.date, list);
+      map.set(dk, list);
     });
     return Array.from(map.entries())
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([date, list]) => ({
         date,
-        entries: list.sort((a, b) => b.endedAt - a.endedAt),
-        total: list.reduce((s, e) => s + e.seconds, 0),
+        entries: list.sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime()),
+        total: list.reduce((s, e) => s + e.duration, 0),
       }));
   }, [entries]);
 
@@ -50,15 +51,14 @@ export function EntryList({ entries, activities, onDelete, onSelectEntry }: Prop
     );
   }
 
-  // Group entries by activity within each day (for collapsed view)
-  const activityGroupsForDay = (dayEntries: TimeEntry[]) => {
+  const activityGroupsForDay = (dayEntries: TimeSession[]) => {
     const map = new Map<string, { activity?: Activity; total: number; color: string }>();
     for (const e of dayEntries) {
       const activity = activities.find((a) => a.id === e.activityId);
       const key = e.activityId;
       const existing = map.get(key);
-      if (existing) existing.total += e.seconds;
-      else map.set(key, { activity, total: e.seconds, color: activity?.color ?? '#bbb' });
+      if (existing) existing.total += e.duration;
+      else map.set(key, { activity, total: e.duration, color: activity?.color ?? '#bbb' });
     }
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   };
@@ -78,7 +78,6 @@ export function EntryList({ entries, activities, onDelete, onSelectEntry }: Prop
               <span className="text-[13px] font-semibold text-[#999] tabular-nums">{formatElapsed(g.total)}</span>
             </button>
 
-            {/* Collapsed view: activity bars */}
             {!isExpanded && (
               <div className="px-5 pb-3.5 flex flex-col gap-2">
                 {actGroups.map((ag) => {
@@ -101,7 +100,6 @@ export function EntryList({ entries, activities, onDelete, onSelectEntry }: Prop
               </div>
             )}
 
-            {/* Expanded view: individual sessions */}
             <AnimatePresence initial={false}>
               {isExpanded && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }, opacity: { duration: 0.2, ease: 'easeInOut' } }} className="overflow-hidden">
@@ -112,9 +110,9 @@ export function EntryList({ entries, activities, onDelete, onSelectEntry }: Prop
                         <span className="w-3 h-3 rounded-full shrink-0" style={{ background: activity?.color ?? '#bbb' }} />
                         <div className="flex-1 min-w-0">
                           <p className="text-[15px] font-medium text-[#333] m-0 truncate">{e.description || 'Sin descripción'}</p>
-                          <p className="text-[12px] text-[#999] m-0 mt-0.5">{activity?.name ?? 'Sin actividad'} · {formatClock(e.startedAt)} – {formatClock(e.endedAt)}</p>
+                          <p className="text-[12px] text-[#999] m-0 mt-0.5">{activity?.name ?? 'Sin actividad'} · {formatClock(e.startTime)} – {formatClock(e.endTime)}</p>
                         </div>
-                        <span className="text-[15px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(e.seconds)}</span>
+                        <span className="text-[15px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(e.duration)}</span>
                       </button>
                     );
                   })}
