@@ -237,6 +237,14 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             onNotesChange={(v) => tracker.setDraft((d) => ({ ...d, notes: v }))}
             onDiscard={handleDiscard}
             onSaveSession={handleSaveSession}
+            onSaveManualSession={async (startMs, endMs) => {
+              await tracker.saveManualSession(startMs, endMs);
+              if (tracker.draft.taskId && tracker.draft.activityId) {
+                tasksColl.update(tracker.draft.taskId, { activityId: tracker.draft.activityId });
+              }
+              tracker.setDraft((d) => ({ ...d, taskId: undefined }));
+              setShowFocus(false);
+            }}
           />
         )}
       </AnimatePresence>

@@ -84,11 +84,12 @@ interface Group {
 }
 
 // Agrupa por la fecha de `key`, ordenadas asc; opcionalmente importantes primero en cada grupo.
-function groupByKey(tasks: Task[], key: 'dueDate' | 'deadline', impFirst: boolean): Group[] {
-  const sorted = [...tasks].sort(sortByDateKey(key));
+function groupByKey(tasks: Task[], key: 'scheduledDate' | 'dueDate' | 'deadline', impFirst: boolean): Group[] {
+  const actualKey = key === 'deadline' ? 'dueDate' : key;
+  const sorted = [...tasks].sort(sortByDateKey(actualKey));
   const groups: Group[] = [];
   for (const t of sorted) {
-    const dk = t[key]!;
+    const dk = t[actualKey]!;
     const label = dateLabel(dk);
     const last = groups[groups.length - 1];
     if (last && last.label === label) last.tasks.push(t);
@@ -275,7 +276,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const beyondNI = nonImportant.filter((t) => t.scheduledDate && dayDiff(t.scheduledDate) !== 0 && dayDiff(t.scheduledDate) !== 1);
     const overdueNI = beyondNI.filter((t) => dayDiff(t.scheduledDate!) < 0).sort(sortByDateKey('dueDate'));
     const upcomingNI = beyondNI.filter((t) => dayDiff(t.scheduledDate!) > 1);
-    const upcoming = groupByKey(upcomingNI, 'dueDate', false);
+    const upcoming = groupByKey(upcomingNI, 'scheduledDate', false);
     const undatedNI = nonImportant.filter((t) => !t.scheduledDate);
     const undatedByList = new Map<string, Task[]>();
     for (const t of undatedNI) {
@@ -364,7 +365,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     const beyond = pending.filter((t) => t.scheduledDate && dayDiff(t.scheduledDate) !== 0 && dayDiff(t.scheduledDate) !== 1);
     const overdueTasks = importantFirst(beyond.filter((t) => dayDiff(t.scheduledDate!) < 0).sort(sortByDateKey('dueDate')));
     const upcomingNI = beyond.filter((t) => dayDiff(t.scheduledDate!) > 1);
-    const upcoming = groupByKey(upcomingNI, 'dueDate', true);
+    const upcoming = groupByKey(upcomingNI, 'scheduledDate', true);
     // Sin fecha: tareas sin scheduledDate, excluyendo las de la lista vinculada (ya están en Hoy)
     const undated = pending.filter((t) => !t.scheduledDate && (!linkedList || t.listId !== linkedList.id));
     const undatedByList = new Map<string, Task[]>();
@@ -470,12 +471,12 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   };
 
   return (
-    <div className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista="principal">
-      <div className="bg-white rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-[#f0f0f3] flex flex-col relative">
+    <div className="w-full flex-none shrink-0 box-border px-2 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista="principal">
+      <div className="bg-white rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-[#f0f0f3] flex flex-col relative">
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
-          <div className="relative z-20 bg-white rounded-t-[16px] pt-4 px-3.5">
+          <div className="relative z-20 bg-white rounded-t-[10px] pt-4 px-3.5">
             <div className="flex justify-between items-center mb-4 flex-none">
               <SortMenu value={sortMode} onChange={(m) => onUpdateList('principal', { sortMode: m })} options={PRINCIPAL_SORTS} />
               <h3 className="flex-1 text-center leading-none m-0 p-0 text-[18px] text-[#2b2b2b] font-bold tracking-tight">Principal</h3>

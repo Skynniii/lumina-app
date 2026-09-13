@@ -101,7 +101,7 @@ export function ListaTareasCard({
   }, []);
 
   const onItemPointerDown = useCallback((e: React.PointerEvent, id: string) => {
-    if (lpTimer.current) clearTimeout(lpTimer.current);
+    if (!reorderMode) return;
     if (preDragCleanup.current) preDragCleanup.current();
     const li = e.currentTarget as HTMLElement;
     const r = li.getBoundingClientRect();
@@ -111,46 +111,13 @@ export function ListaTareasCard({
     }
 
     const onTouchMoveBlock = (ev: TouchEvent) => ev.preventDefault();
-
-    // --- Modo reordenar ya activo: drag inmediato desde el drag handle ---
-    if (reorderMode) {
-      didDrag.current = true;
-      setDragId(id);
-      setDragOrderBoth(baseIds.slice());
-      setOverlayY(drag.current.startTop - drag.current.ulTop);
-      window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
-      preDragCleanup.current = () => window.removeEventListener('touchmove', onTouchMoveBlock);
-      return;
-    }
-
-    // --- No estamos en modo reordenar: long-press para entrar ---
-    const startX = e.clientX;
-    const startY = e.clientY;
-
-    const onMoveCheck = (ev: PointerEvent) => {
-      if (Math.abs(ev.clientX - startX) > 8 || Math.abs(ev.clientY - startY) > 8) cleanup();
-    };
-
-    const cleanup = () => {
-      if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
-      window.removeEventListener('pointermove', onMoveCheck);
-      preDragCleanup.current = null;
-    };
-
-    preDragCleanup.current = cleanup;
-    window.addEventListener('pointermove', onMoveCheck);
-
-    lpTimer.current = window.setTimeout(() => {
-      window.removeEventListener('pointermove', onMoveCheck);
-      if (sortMode !== 'custom') onUpdateList(list.id, { sortMode: 'custom' });
-      setReorderMode(true);
-      didDrag.current = true;
-      setDragId(id);
-      setDragOrderBoth(baseIds.slice());
-      setOverlayY(drag.current.startTop - drag.current.ulTop);
-      window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
-    }, 450);
-  }, [reorderMode, sortMode, baseIds, setDragOrderBoth, onUpdateList, list.id]);
+    didDrag.current = true;
+    setDragId(id);
+    setDragOrderBoth(baseIds.slice());
+    setOverlayY(drag.current.startTop - drag.current.ulTop);
+    window.addEventListener('touchmove', onTouchMoveBlock, { passive: false });
+    preDragCleanup.current = () => window.removeEventListener('touchmove', onTouchMoveBlock);
+  }, [reorderMode, baseIds, setDragOrderBoth]);
 
   const onItemPointerEnd = useCallback(() => {
     if (preDragCleanup.current) preDragCleanup.current();
@@ -268,7 +235,7 @@ export function ListaTareasCard({
           );
         }
         items.push(
-          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />
+          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
         );
         return items;
       })
@@ -277,12 +244,12 @@ export function ListaTareasCard({
   const draggedTask = dragId ? taskByIdRef.current[dragId] : null;
 
   return (
-    <div ref={scrollRef} style={{ touchAction: reorderMode ? 'pan-y' : undefined }} className="w-full flex-none shrink-0 box-border px-4 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista={list.id}>
-      <div ref={cardRef} className="bg-white rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-[#f0f0f3] flex flex-col relative">
+    <div ref={scrollRef} style={{ touchAction: reorderMode ? 'pan-y' : undefined }} className="w-full flex-none shrink-0 box-border px-2 snap-start snap-always h-full overflow-y-auto no-scrollbar pb-[80px]" data-lista={list.id}>
+      <div ref={cardRef} className="bg-white rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-[#f0f0f3] flex flex-col relative">
         {/* Header sticky */}
         <div className="sticky top-0 z-20">
           <div className="absolute -top-1 -left-1 -right-1 h-[50px] bg-[#f7f6f9] z-10" />
-          <div className="relative z-20 bg-white rounded-t-[16px] pt-4 px-3.5">
+          <div className="relative z-20 bg-white rounded-t-[10px] pt-4 px-3.5">
             <div className="flex justify-between items-center mb-4 flex-none">
               {reorderMode ? (
                 <button
@@ -295,7 +262,7 @@ export function ListaTareasCard({
                   </svg>
                 </button>
               ) : (
-                <SortMenu value={sortMode} onChange={(m) => { onUpdateList(list.id, { sortMode: m }); setReorderMode(m === 'custom'); }} />
+                <SortMenu value={sortMode} onChange={(m) => { onUpdateList(list.id, { sortMode: m }); setReorderMode(false); }} />
               )}
               <h3 className="flex-1 text-center leading-none m-0 p-0 text-[18px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
               <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} />
@@ -346,7 +313,7 @@ export function ListaTareasCard({
                 {orderedIds.map((id) => {
                   const task = taskByIdRef.current[id];
                   if (!task) return null;
-                  return <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />;
+                  return <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />;
                 })}
               </AnimatePresence>
               {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}

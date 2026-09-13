@@ -173,6 +173,28 @@ export function useTimeTracker() {
     setRunning(null);
   }, [setRunning]);
 
+  /** Guarda una sesión con start/end personalizados (registro manual). */
+  const saveManualSession = useCallback(async (startMs: number, endMs: number): Promise<void> => {
+    if (!uid) return;
+    const duration = Math.max(0, Math.floor((endMs - startMs) / 1000));
+    if (duration < 1) return;
+    const sessionData: Omit<TimeSession, 'id'> = {
+      taskId: draft.taskId || undefined,
+      activityId: draft.activityId || '',
+      description: draft.description.trim(),
+      notes: draft.notes.trim() || undefined,
+      startTime: new Date(startMs).toISOString(),
+      endTime: new Date(endMs).toISOString(),
+      duration,
+      mode: 'stopwatch',
+      createdAt: new Date().toISOString(),
+    };
+    await sessionsColl.add(sessionData);
+    if (draft.taskId) {
+      await incrementTaskTime(uid, draft.taskId, duration);
+    }
+  }, [draft, uid, sessionsColl]);
+
   const deleteSession = useCallback((id: string) => {
     sessionsColl.remove(id);
   }, [sessionsColl]);
@@ -214,7 +236,7 @@ export function useTimeTracker() {
 
   return {
     activities, sessions, running, draft, elapsed, isTicking,
-    start, pause, resume, stop, saveSession, discard,
+    start, pause, resume, stop, saveSession, saveManualSession, discard,
     deleteSession, updateSession, addActivity, setStartTime,
     updateActivity, deleteActivity, setDraft,
   };

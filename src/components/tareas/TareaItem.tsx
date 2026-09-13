@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import type { Task, SortMode } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
-import { formatElapsed } from '../../hooks/useTimeTracker';
 import { Sparkles } from './Sparkles';
 
 interface Props {
@@ -153,9 +152,8 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
               <span className="flex items-center text-[#d97706]"><IconFlag /></span>
             )}
             {showTimeSpent && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#8a8a8a]">
+              <span className="flex items-center text-[#8a8a8a]">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                {formatElapsed(task.totalTimeSpent!)}
               </span>
             )}
             {showNotes && <span className="flex items-center"><IconNotes /></span>}
