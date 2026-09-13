@@ -67,7 +67,7 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
           ref={scrollRef}
           onScroll={handleScroll}
           onTouchStart={() => { clicking.current = false; }}
-          className="w-full h-full overflow-y-hidden overflow-x-auto py-5 box-border snap-x snap-mandatory no-scrollbar flex flex-row"
+          className="w-full h-full overflow-y-hidden overflow-x-auto pt-2.5 pb-5 box-border snap-x snap-mandatory no-scrollbar flex flex-row"
         >
           {lists.map((list: TaskList) =>
             list.id === 'principal' ? (
