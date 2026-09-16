@@ -10,10 +10,10 @@ interface Props {
   liveElapsed: number;
   isRunning: boolean;
   liveActivityId?: string;
+  previousSeconds: number;
 }
 
-export function TrackerSummary({ totalSeconds, sessionCount, avgSeconds, activityStats, liveElapsed, isRunning, liveActivityId }: Props) {
-  // Add live time to the matching activity for display
+export function TrackerSummary({ totalSeconds, sessionCount, avgSeconds, activityStats, liveElapsed, isRunning, liveActivityId, previousSeconds }: Props) {
   const displayStats = [...activityStats];
   if (liveElapsed > 0 && liveActivityId) {
     const idx = displayStats.findIndex((s) => s.activity.id === liveActivityId);
@@ -24,6 +24,14 @@ export function TrackerSummary({ totalSeconds, sessionCount, avgSeconds, activit
 
   const displayTotal = totalSeconds + liveElapsed;
 
+  // Comparison badge vs previous period
+  let diffPct: number | null = null;
+  let diffUp: boolean | null = null;
+  if (previousSeconds > 0) {
+    diffPct = Math.round(Math.abs(((displayTotal - previousSeconds) / previousSeconds) * 100));
+    diffUp = displayTotal >= previousSeconds;
+  }
+
   return (
     <div className="bg-white p-5 rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -31,6 +39,14 @@ export function TrackerSummary({ totalSeconds, sessionCount, avgSeconds, activit
         <div className="flex items-center gap-2">
           {isRunning && <span className="w-2 h-2 rounded-full bg-[#34c77b] animate-pulse" />}
           <span className="text-[36px] font-bold text-[#333] tabular-nums leading-none">{formatElapsed(displayTotal)}</span>
+          {diffPct != null && diffPct > 0 && (
+            <span
+              className="text-[12px] font-bold px-2 py-1 rounded-full tabular-nums"
+              style={{ background: diffUp ? 'rgba(52,199,123,0.1)' : 'rgba(255,107,129,0.1)', color: diffUp ? '#34c77b' : '#ff6b81' }}
+            >
+              {diffUp ? '↑' : '↓'} {diffPct}%
+            </span>
+          )}
         </div>
       </div>
 

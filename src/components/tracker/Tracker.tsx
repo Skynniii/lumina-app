@@ -1,11 +1,20 @@
 import { useState, useMemo } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
 import { useTimeTracker } from '../../hooks/useTimeTracker';
+import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { TopBar } from '../ui/TopBar';
 import { TrackerSummary } from './TrackerSummary';
 import { TrackerChart } from './TrackerChart';
 import { ActivityStatCard } from './ActivityStatCard';
 import { TrackerSessionList } from './TrackerSessionList';
-import { type Period, PERIOD_LABELS, filterSessionsByPeriod, getActivityStats, getDailyTotals } from './trackerUtils';
+import { TrackerTasks } from './TrackerTasks';
+import { ActivityDetailModal } from './ActivityDetailModal';
+import {
+  type Period, PERIOD_LABELS, filterSessionsByPeriod, getActivityStats, getDailyTotals,
+  getStreak, getPreviousPeriodSeconds, getBestDay, getCompletedTasks,
+} from './trackerUtils';
+import type { Task } from '../../types';
 
 interface Props {
   onMenuClick: () => void;
@@ -13,18 +22,29 @@ interface Props {
 }
 
 export function Tracker({ onMenuClick, onOpenAccount }: Props) {
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
   const tracker = useTimeTracker();
   const [period, setPeriod] = useState<Period>('today');
+  const [selectedActivityIdx, setSelectedActivityIdx] = useState<number | null>(null);
+
+  const tasksColl = useFirestoreCollection<Task>(uid, 'tasks');
+  const tasks = tasksColl.items;
 
   const { activities, sessions, running, elapsed, isTicking, draft } = tracker;
 
   const filteredSessions = useMemo(() => filterSessionsByPeriod(sessions, period), [sessions, period]);
-  const activityStats = useMemo(() => getActivityStats(filteredSessions, activities), [filteredSessions, activities]);
+  const activityStats = useMemo(() => getActivityStats(filteredSessions, activities, tasks), [filteredSessions, activities, tasks]);
   const dailyTotals = useMemo(() => getDailyTotals(sessions), [sessions]);
 
   const totalSeconds = filteredSessions.reduce((sum, s) => sum + s.duration, 0);
   const sessionCount = filteredSessions.length;
   const avgSeconds = sessionCount > 0 ? Math.round(totalSeconds / sessionCount) : 0;
+  const previousSeconds = useMemo(() => getPreviousPeriodSeconds(sessions, period), [sessions, period]);
+
+  const streak = useMemo(() => getStreak(sessions), [sessions]);
+  const bestDay = useMemo(() => getBestDay(sessions, period), [sessions, period]);
+  const completedTasks = useMemo(() => getCompletedTasks(tasks, period), [tasks, period]);
 
   const liveElapsed = running && isTicking ? elapsed : 0;
   const liveActivityId = running ? draft.activityId : undefined;
@@ -34,7 +54,8 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
     [filteredSessions],
   );
 
-  const hasData = totalSeconds > 0 || liveElapsed > 0;
+  const hasData = totalSeconds > 0 || liveElapsed > 0 || completedTasks.length > 0;
+  const selectedActivity = selectedActivityIdx != null ? activityStats[selectedActivityIdx] : null;
 
   return (
     <section className="absolute top-0 left-0 w-full h-full flex flex-col bg-[#f7f6f9]">
@@ -81,7 +102,33 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
               liveElapsed={liveElapsed}
               isRunning={isTicking}
               liveActivityId={liveActivityId}
+              previousSeconds={previousSeconds}
             />
+
+            {/* Stats row: racha, mejor día, tareas */}
+            <div className="grid grid-cols-3 gap-3">
+              {streak > 0 && (
+                <div className="bg-white p-3 rounded-2xl shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] flex flex-col gap-1 items-center text-center">
+                  <span className="text-[16px]">🔥</span>
+                  <p className="text-[15px] font-bold text-[#333] tabular-nums leading-none m-0">{streak}</p>
+                  <p className="text-[10px] font-medium text-[#999] m-0">{streak === 1 ? 'día' : 'días'}</p>
+                </div>
+              )}
+              {bestDay && (
+                <div className="bg-white p-3 rounded-2xl shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] flex flex-col gap-1 items-center text-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6" /><path d="M12 14v8" /><path d="M9 18l3 3 3-3" /></svg>
+                  <p className="text-[13px] font-bold text-[#333] leading-none m-0 capitalize">{bestDay.label}</p>
+                  <p className="text-[10px] font-medium text-[#999] m-0">Mejor día</p>
+                </div>
+              )}
+              {completedTasks.length > 0 && (
+                <div className="bg-white p-3 rounded-2xl shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] flex flex-col gap-1 items-center text-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34c77b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  <p className="text-[15px] font-bold text-[#333] tabular-nums leading-none m-0">{completedTasks.length}</p>
+                  <p className="text-[10px] font-medium text-[#999] m-0">Tareas ✓</p>
+                </div>
+              )}
+            </div>
 
             {period === 'week' && <TrackerChart dailyTotals={dailyTotals} />}
 
@@ -93,10 +140,21 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
                   <div className="flex-1 h-px bg-[#eceaf3]" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {activityStats.map((stat) => (
-                    <ActivityStatCard key={stat.activity.id} stat={stat} />
+                  {activityStats.map((stat, idx) => (
+                    <ActivityStatCard key={stat.activity.id} stat={stat} onClick={() => setSelectedActivityIdx(idx)} />
                   ))}
                 </div>
+              </>
+            )}
+
+            {completedTasks.length > 0 && (
+              <>
+                <div className="flex items-center gap-3 pt-1">
+                  <div className="flex-1 h-px bg-[#eceaf3]" />
+                  <span className="text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]">Tareas completadas</span>
+                  <div className="flex-1 h-px bg-[#eceaf3]" />
+                </div>
+                <TrackerTasks tasks={completedTasks} activities={activities} />
               </>
             )}
 
@@ -113,6 +171,19 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {selectedActivity && (
+          <ActivityDetailModal
+            key={selectedActivity.activity.id}
+            activity={selectedActivity.activity}
+            stat={selectedActivity}
+            sessions={filteredSessions}
+            tasks={tasks}
+            onBack={() => setSelectedActivityIdx(null)}
+          />
+        )}
+      </AnimatePresence>
     </section>
   );
 }
