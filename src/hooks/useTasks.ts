@@ -234,6 +234,17 @@ export function useTasks() {
     });
   }, [tasksColl, closeModal]);
 
+  const deleteSeparators = useCallback((listId: string) => {
+    setModal({
+      isOpen: true, type: 'confirm', title: '¿Eliminar todos los separadores de esta lista?',
+      onConfirm: () => {
+        tasks.filter((t) => t.listId === listId && t.isSeparator).forEach((t) => tasksColl.remove(t.id));
+        closeModal();
+      },
+      onCancel: closeModal,
+    });
+  }, [tasks, tasksColl, closeModal]);
+
   const deleteTask = useCallback((taskId: string) => {
     setModal({
       isOpen: true, type: 'confirm', title: '¿Estás seguro de eliminar esta tarea de forma permanente?',
@@ -255,7 +266,7 @@ export function useTasks() {
 
   return {
     lists, tasks, addList, deleteList, renameList, addTask, addTaskWithData,
-    toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteTask, deleteCompletedTasks,
+    toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteSeparators, deleteTask, deleteCompletedTasks,
     modalConfig: modal,
   };
 }

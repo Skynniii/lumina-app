@@ -17,6 +17,7 @@ interface Props {
   onUpdateList: (id: string, updates: Partial<TaskList>) => void;
   onReorderListTasks: (listId: string, orderedActive: Task[]) => void;
   onAddSeparator: (listId: string) => void;
+  onDeleteSeparators: (listId: string) => void;
   onExpandTask: (id: string) => void;
   isProtected?: boolean;
 }
@@ -52,7 +53,7 @@ function groupLabel(dateKey: string | undefined, isDeadline: boolean = false): s
 }
 
 export function ListaTareasCard({
-  list, tasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderListTasks, onAddSeparator, onExpandTask, isProtected,
+  list, tasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderListTasks, onAddSeparator, onDeleteSeparators, onExpandTask, isProtected,
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -91,11 +92,15 @@ export function ListaTareasCard({
 
   taskByIdRef.current = Object.fromEntries(active.map((t) => [t.id, t]));
 
-  // En modo personalizado, usa taskOrder de la lista si existe (más eficiente que
-  // reordenar el arreglo completo). Las tareas nuevas sin orden se añaden al final.
+  // En modo personalizado, usa taskOrder de la lista si existe. Las tareas nuevas
+  // sin orden se añaden al final, ordenadas por fecha de creación (no por ID de
+  // Firestore que es aleatorio). Sin taskOrder, todo se ordena por createdAt.
+  const byCreated = (a: Task, b: Task) => (a.createdAt || '').localeCompare(b.createdAt || '');
   const baseIds = sortMode === 'custom' && list.taskOrder
-    ? [...list.taskOrder.filter((id) => taskByIdRef.current[id]), ...active.filter((t) => !list.taskOrder!.includes(t.id)).map((t) => t.id)]
-    : activeSorted.map((t) => t.id);
+    ? [...list.taskOrder.filter((id) => taskByIdRef.current[id]), ...active.filter((t) => !list.taskOrder!.includes(t.id)).sort(byCreated).map((t) => t.id)]
+    : sortMode === 'custom'
+      ? [...active].sort(byCreated).map((t) => t.id)
+      : activeSorted.map((t) => t.id);
   const orderedIds = dragOrder ?? baseIds;
 
   const setDragOrderBoth = useCallback((v: string[] | null) => {
@@ -268,7 +273,7 @@ export function ListaTareasCard({
                 <SortMenu value={sortMode} onChange={(m) => { onUpdateList(list.id, { sortMode: m }); setReorderMode(m === 'custom'); }} />
               )}
               <h3 className="flex-1 text-center leading-none m-0 p-0 text-[18px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
-              <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} onAddSeparator={() => onAddSeparator(list.id)} />
+              <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} onAddSeparator={() => onAddSeparator(list.id)} onDeleteSeparators={() => onDeleteSeparators(list.id)} />
             </div>
             <hr className="border-t border-[#f0f0f5] m-0 mx-1 flex-none" />
           </div>

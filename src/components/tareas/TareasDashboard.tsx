@@ -16,7 +16,7 @@ interface Props {
 }
 
 export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Props) {
-  const { lists: rawLists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
+  const { lists: rawLists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteSeparators, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
   // Principal siempre aparece de primera
   const lists = useMemo(() => [...rawLists].sort((a, b) => {
     if (a.id === 'principal') return -1;
@@ -95,6 +95,7 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
                 onUpdateList={updateList}
                 onReorderListTasks={reorderListTasks}
                 onAddSeparator={addSeparator}
+                onDeleteSeparators={deleteSeparators}
                 onExpandTask={setExpandedTaskId}
               />
             )
