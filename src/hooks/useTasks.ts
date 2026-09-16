@@ -205,12 +205,34 @@ export function useTasks() {
   }, [tasksColl]);
 
   const updateList = useCallback((id: string, updates: Partial<TaskList>) => {
-    listsColl.update(id, updates);
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      cleaned[key] = value === undefined ? deleteField() : value;
+    }
+    listsColl.update(id, cleaned as Partial<TaskList>);
   }, [listsColl]);
 
   const reorderListTasks = useCallback((listId: string, orderedActive: Task[]) => {
     listsColl.update(listId, { taskOrder: orderedActive.map((t) => t.id) });
   }, [listsColl]);
+
+  const addSeparator = useCallback((listId: string) => {
+    setModal({
+      isOpen: true, type: 'prompt', title: 'Nuevo separador',
+      placeholder: 'Texto del separador...', defaultValue: '',
+      onConfirm: (title) => {
+        const trimmed = title.trim();
+        if (trimmed) {
+          tasksColl.add({
+            listId, title: trimmed, completed: false, isImportant: false,
+            isSeparator: true, createdAt: new Date().toISOString(),
+          });
+        }
+        closeModal();
+      },
+      onCancel: closeModal,
+    });
+  }, [tasksColl, closeModal]);
 
   const deleteTask = useCallback((taskId: string) => {
     setModal({
@@ -233,7 +255,7 @@ export function useTasks() {
 
   return {
     lists, tasks, addList, deleteList, renameList, addTask, addTaskWithData,
-    toggleTask, updateTask, updateList, reorderListTasks, deleteTask, deleteCompletedTasks,
+    toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteTask, deleteCompletedTasks,
     modalConfig: modal,
   };
 }

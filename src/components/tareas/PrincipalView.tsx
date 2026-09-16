@@ -106,6 +106,14 @@ function sortLikeList(tasks: Task[], list: TaskList): Task[] {
   if (mode === 'recent') arr.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
   else if (mode === 'date') arr.sort(sortByDateKey('scheduledDate'));
   else if (mode === 'deadline') arr.sort(sortByDateKey('dueDate'));
+  else if (mode === 'custom' && list.taskOrder) {
+    const orderMap = new Map(list.taskOrder.map((id, i) => [id, i]));
+    arr.sort((a, b) => {
+      const ai = orderMap.get(a.id) ?? Infinity;
+      const bi = orderMap.get(b.id) ?? Infinity;
+      return ai - bi;
+    });
+  }
   return arr;
 }
 
@@ -226,7 +234,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   }, [lists]);
 
   const pending = useMemo(() => {
-    const filtered = tasks.filter((t) => !t.completed);
+    const filtered = tasks.filter((t) => !t.completed && !t.isSeparator);
     if (settings.hideNoDateInPrincipal) {
       if (sortMode === 'deadline') return filtered.filter((t) => t.dueDate || t.isImportant);
       if (sortMode === 'date' && principalList.hoyListId) {

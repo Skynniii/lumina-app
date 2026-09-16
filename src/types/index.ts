@@ -37,6 +37,7 @@ export interface Task {
   completedAt?: string;
   subtasks?: SubTask[];
   repeat?: RepeatConfig;
+  isSeparator?: boolean;
 }
 
 export interface TaskList {
