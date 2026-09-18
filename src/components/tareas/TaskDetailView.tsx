@@ -31,6 +31,9 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const uid = user?.uid ?? null;
   const { activities, addActivity } = useActivities();
   const sessionsColl = useFirestoreCollection<TimeSession>(uid, 'timeSessions');
+  const linkedTask = task.linkedTaskId ? allTasks?.find((t) => t.id === task.linkedTaskId) : null;
+  const isLinked = !!linkedTask;
+  const displayNotes = linkedTask?.notes ?? task.notes;
   const [activityPickerOpen, setActivityPickerOpen] = useState(false);
   const [sparkle, setSparkle] = useState(false);
   const [showListMenu, setShowListMenu] = useState(false);
@@ -42,9 +45,6 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const [notesEditing, setNotesEditing] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
 
-  const linkedTask = task.linkedTaskId ? allTasks?.find((t) => t.id === task.linkedTaskId) : null;
-  const isLinked = !!linkedTask;
-  const displayNotes = linkedTask?.notes ?? task.notes;
   const taskActivity = activities.find((a) => a.id === (linkedTask?.activityId ?? task.activityId));
   const taskSessions = sessionsColl.items.filter((s) => s.taskId === task.id);
   const displaySessions = linkedTask ? sessionsColl.items.filter((s) => s.taskId === linkedTask.id) : taskSessions;
