@@ -7,7 +7,6 @@ interface Props {
   activeView: ViewType;
   onNavigate: (v: ViewType) => void;
   onOpenSettings: () => void;
-  onOpenActivities: () => void;
 }
 
 const SECTIONS: { id: ViewType; label: string; icon: React.ReactNode }[] = [
@@ -33,7 +32,7 @@ const SECTIONS: { id: ViewType; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-export function Sidebar({ isOpen, onClose, activeView, onNavigate, onOpenSettings, onOpenActivities }: Props) {
+export function Sidebar({ isOpen, onClose, activeView, onNavigate, onOpenSettings }: Props) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -87,13 +86,6 @@ export function Sidebar({ isOpen, onClose, activeView, onNavigate, onOpenSetting
               {/* Configuración */}
               <h3 className="text-xs font-bold text-[#999] uppercase tracking-wider mb-2 px-1">Configuración</h3>
               <div className="space-y-1 mb-6">
-                <button
-                  onClick={() => { onClose(); onOpenActivities(); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[#555] hover:bg-[#f8f9fa] transition-colors"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-                  <span className="text-[15px] font-medium">Actividades</span>
-                </button>
                 <button
                   onClick={onOpenSettings}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[#555] hover:bg-[#f8f9fa] transition-colors"

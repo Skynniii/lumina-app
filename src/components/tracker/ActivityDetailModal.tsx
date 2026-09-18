@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed, formatClock, isoToDateKey, dayLabel } from '../../hooks/useTimeTracker';
+import { ACTIVITY_COLORS } from '../../hooks/useTimeTracker';
 import {
   formatDuration, getActivityTasks, getTimeByTasks, type ActivityStats,
 } from './trackerUtils';
@@ -14,6 +15,8 @@ interface Props {
   sessions: TimeSession[];
   tasks: Task[];
   onBack: () => void;
+  onUpdateActivity: (id: string, updates: Partial<Activity>) => void;
+  onToggleTask: (taskId: string) => void;
 }
 
 type Tab = 'resumen' | 'tareas' | 'estadisticas' | 'registros';
@@ -25,8 +28,11 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'registros', label: 'Registros' },
 ];
 
-export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack }: Props) {
+export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack, onUpdateActivity, onToggleTask }: Props) {
   const [tab, setTab] = useState<Tab>('resumen');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(activity.name);
+  const [editColor, setEditColor] = useState(activity.color);
 
   const actSessions = useMemo(
     () => sessions.filter((s) => s.activityId === activity.id)
@@ -50,6 +56,28 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack }:
     return map;
   }, [actSessions]);
 
+  // Registros agrupados por día
+  const sessionsByDay = useMemo(() => {
+    const groups: { dateKey: string; sessions: TimeSession[] }[] = [];
+    for (const s of actSessions) {
+      const dk = isoToDateKey(s.startTime);
+      let group = groups.find((g) => g.dateKey === dk);
+      if (!group) {
+        group = { dateKey: dk, sessions: [] };
+        groups.push(group);
+      }
+      group.sessions.push(s);
+    }
+    return groups;
+  }, [actSessions]);
+
+  const handleSaveEdit = () => {
+    if (editName.trim()) {
+      onUpdateActivity(activity.id, { name: editName.trim(), color: editColor });
+    }
+    setIsEditing(false);
+  };
+
   return (
     <motion.div
       initial={{ x: '100%' }}
@@ -63,16 +91,51 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack }:
         <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90 border-none bg-transparent cursor-pointer">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
         </button>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: activity.color }} />
-          <h1 className="text-[20px] font-bold text-[#333] m-0 truncate">{activity.name}</h1>
-        </div>
-        <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90 border-none bg-transparent cursor-pointer shrink-0">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </button>
+        {isEditing ? (
+          <div className="flex-1 flex flex-col gap-3">
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              autoFocus
+              className="flex-1 bg-[#f7f6f9] rounded-xl px-3 py-2 text-[16px] font-bold text-[#333] outline-none border-none shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff]"
+            />
+            <div className="flex gap-2 flex-wrap">
+              {ACTIVITY_COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setEditColor(c)}
+                  className="w-7 h-7 rounded-full border-none cursor-pointer transition-transform"
+                  style={{
+                    background: c,
+                    transform: editColor === c ? 'scale(1.15)' : undefined,
+                    boxShadow: editColor === c ? `0 0 0 2.5px #fff, 0 0 0 4.5px ${c}` : undefined,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { setIsEditing(false); setEditName(activity.name); setEditColor(activity.color); }} className="px-4 py-2 rounded-xl text-[14px] font-semibold text-[#777] bg-[#f0f0f0] border-none cursor-pointer">Cancelar</button>
+              <button onClick={handleSaveEdit} className="px-4 py-2 rounded-xl text-[14px] font-semibold text-white bg-[#7f70ff] border-none cursor-pointer">Guardar</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: activity.color }} />
+              <h1 className="text-[20px] font-bold text-[#333] m-0 truncate">{activity.name}</h1>
+            </div>
+            <button
+              onClick={() => { setEditName(activity.name); setEditColor(activity.color); setIsEditing(true); }}
+              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90 border-none bg-transparent cursor-pointer shrink-0"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Tabs */}
@@ -112,15 +175,15 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack }:
                 {/* Stats: tiempo total, sesiones, promedio */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white p-3.5 rounded-2xl shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] flex flex-col gap-1">
-                    <p className="text-[10px] font-semibold text-[#999] uppercase tracking-wide m-0">Tiempo</p>
+                    <p className="text-[10px] font-semibold text-[#999] uppercase tracking-wide m-0">Tiempo total</p>
                     <p className="text-[18px] font-bold text-[#333] tabular-nums leading-none m-0">{formatDuration(stat.totalSeconds)}</p>
                   </div>
                   <div className="bg-white p-3.5 rounded-2xl shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] flex flex-col gap-1">
-                    <p className="text-[10px] font-semibold text-[#999] uppercase tracking-wide m-0">Sesiones</p>
+                    <p className="text-[10px] font-semibold text-[#999] uppercase tracking-wide m-0">Sesiones totales</p>
                     <p className="text-[18px] font-bold text-[#333] tabular-nums leading-none m-0">{stat.sessionCount}</p>
                   </div>
                   <div className="bg-white p-3.5 rounded-2xl shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] flex flex-col gap-1">
-                    <p className="text-[10px] font-semibold text-[#999] uppercase tracking-wide m-0">Promedio</p>
+                    <p className="text-[10px] font-semibold text-[#999] uppercase tracking-wide m-0">Promedio/sesión</p>
                     <p className="text-[18px] font-bold text-[#333] tabular-nums leading-none m-0">{formatDuration(stat.avgSeconds)}</p>
                   </div>
                 </div>
@@ -140,7 +203,10 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack }:
                             const taskTime = taskTimeMap.get(t.id) ?? 0;
                             return (
                               <div key={t.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-[#f2f2f2]' : ''}`}>
-                                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ border: `1.5px solid #d1d1d6` }} />
+                                <button
+                                  onClick={() => onToggleTask(t.id)}
+                                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-[1.5px] border-[#d1d1d6] bg-transparent cursor-pointer transition-colors hover:border-[#7f70ff]"
+                                />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[15px] font-medium text-[#333] truncate m-0">{t.title}</p>
                                   {taskTime > 0 && (
@@ -164,9 +230,13 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack }:
                             const taskTime = taskTimeMap.get(t.id) ?? 0;
                             return (
                               <div key={t.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-[#f2f2f2]' : ''}`}>
-                                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: activity.color }}>
+                                <button
+                                  onClick={() => onToggleTask(t.id)}
+                                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 cursor-pointer"
+                                  style={{ background: activity.color }}
+                                >
                                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
-                                </div>
+                                </button>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[15px] font-medium text-[#a0a0a0] line-through truncate m-0">{t.title}</p>
                                   {taskTime > 0 && (
@@ -230,17 +300,30 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack }:
             {tab === 'registros' && (
               <>
                 {actSessions.length > 0 ? (
-                  <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] overflow-hidden">
-                    {actSessions.map((s, i) => (
-                      <div key={s.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-[#f2f2f2]' : ''}`}>
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: activity.color }} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[15px] font-medium text-[#333] truncate m-0">{s.description || 'Sin descripción'}</p>
-                          <p className="text-[12px] text-[#999] m-0 mt-0.5">{dayLabel(isoToDateKey(s.startTime))} · {formatClock(s.startTime)} – {formatClock(s.endTime)}</p>
+                  <div className="flex flex-col gap-4">
+                    {sessionsByDay.map((group) => {
+                      const dayTotal = group.sessions.reduce((sum, s) => sum + s.duration, 0);
+                      return (
+                        <div key={group.dateKey} className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between px-1">
+                            <span className="text-[13px] font-bold text-[#555]">{dayLabel(group.dateKey)}</span>
+                            <span className="text-[12px] font-semibold text-[#999] tabular-nums">{formatDuration(dayTotal)}</span>
+                          </div>
+                          <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] overflow-hidden">
+                            {group.sessions.map((s, i) => (
+                              <div key={s.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-[#f2f2f2]' : ''}`}>
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: activity.color }} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[15px] font-medium text-[#333] truncate m-0">{s.description || 'Sin descripción'}</p>
+                                  <p className="text-[12px] text-[#999] m-0 mt-0.5">{formatClock(s.startTime)} – {formatClock(s.endTime)}</p>
+                                </div>
+                                <span className="text-[15px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(s.duration)}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <span className="text-[15px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(s.duration)}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-16 gap-2">

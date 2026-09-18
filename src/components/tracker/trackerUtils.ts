@@ -237,17 +237,16 @@ export function getConsistencyData(sessions: TimeSession[], activityId: string):
   today.setHours(0, 0, 0, 0);
   const todayStr = todayKey();
 
-  // Desde el 1 de enero del año actual hasta el 31 de diciembre
+  // Desde el 1 de enero del año actual hasta hoy (sin días futuros)
   const yearStart = new Date(today.getFullYear(), 0, 1);
-  const yearEnd = new Date(today.getFullYear(), 11, 31);
-  const totalDays = Math.floor((yearEnd.getTime() - yearStart.getTime()) / 86400000) + 1;
+  const totalDays = Math.floor((today.getTime() - yearStart.getTime()) / 86400000) + 1;
 
   const days: { date: string; total: number; isFuture: boolean }[] = [];
   for (let i = 0; i < totalDays; i++) {
     const d = new Date(yearStart);
     d.setDate(yearStart.getDate() + i);
     const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    days.push({ date: dateKey, total: dailyMap.get(dateKey) ?? 0, isFuture: dateKey > todayStr });
+    days.push({ date: dateKey, total: dailyMap.get(dateKey) ?? 0, isFuture: false });
   }
   return days;
 }
