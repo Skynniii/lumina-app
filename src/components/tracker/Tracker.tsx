@@ -10,7 +10,7 @@ import { ActivityStatCard } from './ActivityStatCard';
 import { ActivityDetailModal } from './ActivityDetailModal';
 import { NewActivityModal } from './NewActivityModal';
 import {
-  filterSessionsByPeriod, getActivityStats, type ActivityStats,
+  getActivityStats, getWeekRange, getWeekLabel, filterSessionsByDateRange, type ActivityStats,
 } from './trackerUtils';
 import type { Activity, Task } from '../../types';
 
@@ -27,6 +27,7 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
   const tracker = useTimeTracker();
   const [selectedActivityIdx, setSelectedActivityIdx] = useState<number | null>(null);
   const [showNewActivity, setShowNewActivity] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const tasksColl = useFirestoreCollection<Task>(uid, 'tasks');
   const tasks = tasksColl.items;
@@ -40,8 +41,10 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
     return () => window.removeEventListener('app-add', handler);
   }, []);
 
-  // Siempre mostrar la semana
-  const weekSessions = useMemo(() => filterSessionsByPeriod(sessions, 'week'), [sessions]);
+  // Semana seleccionable
+  const weekRange = useMemo(() => getWeekRange(weekOffset), [weekOffset]);
+  const weekLabel = useMemo(() => getWeekLabel(weekOffset), [weekOffset]);
+  const weekSessions = useMemo(() => filterSessionsByDateRange(sessions, weekRange.start, weekRange.end), [sessions, weekRange]);
   const activityStats = useMemo(() => getActivityStats(weekSessions, activities, tasks), [weekSessions, activities, tasks]);
 
   // Detectar sesiones sin actividad válida
@@ -105,8 +108,26 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
           </div>
         ) : (
           <div className="flex flex-col gap-5 mt-2">
+            {/* Selector de rango semanal */}
+            <div className="flex items-center justify-center gap-4 py-1">
+              <button
+                onClick={() => setWeekOffset((o) => o - 1)}
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 active:scale-90 border-none bg-transparent cursor-pointer transition-transform"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+              </button>
+              <span className="text-[14px] font-semibold text-[#333] tabular-nums min-w-[120px] text-center">{weekLabel}</span>
+              <button
+                onClick={() => setWeekOffset((o) => Math.min(0, o + 1))}
+                disabled={weekOffset >= 0}
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 active:scale-90 border-none bg-transparent cursor-pointer transition-transform disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+              </button>
+            </div>
+
             {/* Gráfico circular del tiempo semanal */}
-            <WeeklyCircularChart activityStats={allStats} totalSeconds={totalSeconds} />
+            <WeeklyCircularChart activityStats={allStats} totalSeconds={totalSeconds} subtitle={weekOffset === 0 ? 'esta semana' : weekOffset === -1 ? 'semana pasada' : weekLabel} />
 
             {/* Separador */}
             <div className="flex items-center gap-3">

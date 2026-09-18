@@ -4,9 +4,10 @@ import { formatDuration, type ActivityStats } from './trackerUtils';
 interface Props {
   activityStats: ActivityStats[];
   totalSeconds: number;
+  subtitle?: string;
 }
 
-export function WeeklyCircularChart({ activityStats, totalSeconds }: Props) {
+export function WeeklyCircularChart({ activityStats, totalSeconds, subtitle = 'esta semana' }: Props) {
   const size = 180;
   const stroke = 18;
   const radius = (size - stroke) / 2;
@@ -61,7 +62,7 @@ export function WeeklyCircularChart({ activityStats, totalSeconds }: Props) {
         {/* Centro */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-[26px] font-bold text-[#333] tabular-nums leading-none">{formatDuration(totalSeconds)}</span>
-          <span className="text-[11px] font-medium text-[#aaa] mt-1.5">esta semana</span>
+          <span className="text-[11px] font-medium text-[#aaa] mt-1.5">{subtitle}</span>
         </div>
       </div>
     </div>

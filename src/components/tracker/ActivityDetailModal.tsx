@@ -188,12 +188,12 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack, o
                     { label: 'Sesiones totales', value: `${stat.sessionCount}` },
                     { label: 'Promedio/sesión', value: formatDuration(stat.avgSeconds) },
                     { label: 'Días activos', value: `${allTimeStats.activeDays}` },
-                    { label: 'Racha', value: `${allTimeStats.streak} ${allTimeStats.streak === 1 ? 'día' : 'días'}` },
+                    { label: 'Racha actual', value: `${allTimeStats.streak} ${allTimeStats.streak === 1 ? 'día' : 'días'}` },
                     { label: 'Mejor racha', value: `${allTimeStats.bestStreak} ${allTimeStats.bestStreak === 1 ? 'día' : 'días'}` },
                   ].map((s, i) => (
                     <div key={i} className={`flex items-center justify-between px-5 py-3.5 ${i > 0 ? 'border-t border-[#f2f2f2]' : ''}`}>
-                      <p className="text-[14px] font-medium text-[#333] m-0">{s.label}</p>
-                      <span className="text-[16px] font-bold text-[#333] tabular-nums shrink-0">{s.value}</span>
+                      <p className="text-[15px] font-semibold text-[#333] m-0">{s.label}</p>
+                      <span className="text-[13px] font-normal text-[#999] tabular-nums shrink-0">{s.value}</span>
                     </div>
                   ))}
                 </div>

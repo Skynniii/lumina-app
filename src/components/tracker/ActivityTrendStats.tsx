@@ -42,7 +42,7 @@ export function ActivityTrendStats({ sessions, activity }: Props) {
       totals.push({
         date: d,
         total,
-        label: d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }),
+        label: String(d.getDate()),
       });
     }
     return totals;
@@ -75,7 +75,7 @@ export function ActivityTrendStats({ sessions, activity }: Props) {
 
   const yLabels = useMemo(() => {
     const steps = 4;
-    return Array.from({ length: steps + 1 }, (_, i) => formatAxisLabel(Math.round((niceMax * i) / steps)));
+    return Array.from({ length: steps + 1 }, (_, i) => formatAxisLabel(Math.round((niceMax * i) / steps))).reverse();
   }, [niceMax]);
 
   const stats = [
@@ -110,10 +110,10 @@ export function ActivityTrendStats({ sessions, activity }: Props) {
         {stats.map((s, i) => (
           <div key={i} className={`flex items-center justify-between px-5 py-3.5 ${i > 0 ? 'border-t border-[#f2f2f2]' : ''}`}>
             <div>
-              <p className="text-[14px] font-medium text-[#333] m-0">{s.label}</p>
+              <p className="text-[15px] font-semibold text-[#333] m-0">{s.label}</p>
               {s.sub && <p className="text-[11px] text-[#999] m-0 mt-0.5">{s.sub}</p>}
             </div>
-            <span className="text-[16px] font-bold text-[#333] tabular-nums shrink-0">{s.value}</span>
+            <span className="text-[13px] font-normal text-[#999] tabular-nums shrink-0">{s.value}</span>
           </div>
         ))}
       </div>
@@ -161,7 +161,7 @@ export function ActivityTrendStats({ sessions, activity }: Props) {
         <div className="flex pl-8 mt-1.5">
           {dailyTotals.map((dt, i) => (
             <div key={i} className="flex-1 text-center">
-              <span className="text-[8px] text-[#aaa]">{i % 2 === 0 ? dt.label : ''}</span>
+              <span className="text-[8px] text-[#aaa]">{dt.label}</span>
             </div>
           ))}
         </div>
