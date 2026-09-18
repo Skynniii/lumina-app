@@ -17,6 +17,7 @@ import { ActivityPicker } from '../timer/ActivityPicker';
 interface Props {
   task: Task;
   lists: TaskList[];
+  allTasks?: Task[];
   onBack: () => void;
   onToggle: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
@@ -24,7 +25,7 @@ interface Props {
   onNavigate?: (v: ViewType) => void;
 }
 
-export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDelete, onNavigate }: Props) {
+export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate }: Props) {
   const { settings } = useSettings();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
@@ -37,12 +38,16 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
-  const [notesExpanded, setNotesExpanded] = useState(() => !!task.notes?.replace(/<[^>]*>/g, '').trim());
+  const [notesExpanded, setNotesExpanded] = useState(() => !!displayNotes?.replace(/<[^>]*>/g, '').trim());
   const [notesEditing, setNotesEditing] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
 
-  const taskActivity = activities.find((a) => a.id === task.activityId);
+  const linkedTask = task.linkedTaskId ? allTasks?.find((t) => t.id === task.linkedTaskId) : null;
+  const isLinked = !!linkedTask;
+  const displayNotes = linkedTask?.notes ?? task.notes;
+  const taskActivity = activities.find((a) => a.id === (linkedTask?.activityId ?? task.activityId));
   const taskSessions = sessionsColl.items.filter((s) => s.taskId === task.id);
+  const displaySessions = linkedTask ? sessionsColl.items.filter((s) => s.taskId === linkedTask.id) : taskSessions;
 
   // Sincroniza cambios de título, actividad o notas hacia las sesiones vinculadas
   const syncToSessions = (updates: Partial<Task>) => {
@@ -65,8 +70,8 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
     onUpdate(id, updates);
     syncToSessions(updates);
   };
-  const totalTaskSeconds = taskSessions.reduce((sum, s) => sum + s.duration, 0);
-  const entriesByDate = taskSessions.reduce((acc, s) => {
+  const totalTaskSeconds = displaySessions.reduce((sum, s) => sum + s.duration, 0);
+  const entriesByDate = displaySessions.reduce((acc, s) => {
     const dk = isoToDateKey(s.startTime);
     acc[dk] = (acc[dk] || 0) + s.duration;
     return acc;
@@ -90,7 +95,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   const currentList = lists.find((l) => l.id === task.listId) || lists[0];
   const isCompleted = task.completed;
   const hasSubtasks = (task.subtasks?.length || 0) > 0;
-  const hasNotes = !!task.notes?.replace(/<[^>]*>/g, '').trim();
+  const hasNotes = !!displayNotes?.replace(/<[^>]*>/g, '').trim();
 
   // Auto-resize del título
   useEffect(() => {
@@ -108,7 +113,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
   // Inicializar contentEditable de notas al expandir
   useEffect(() => {
     if (notesExpanded && notesEditRef.current) {
-      notesEditRef.current.innerHTML = task.notes || '';
+      notesEditRef.current.innerHTML = displayNotes || '';
       const isUserToggle = !wasExpanded.current;
       wasExpanded.current = true;
       if (!isCompleted && isUserToggle) {
@@ -312,7 +317,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         />
 
         {/* Notas expandible */}
-        {(!isCompleted || hasNotes) && (
+        {((!isCompleted && !isLinked) || hasNotes) && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${hasNotes ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -328,10 +333,10 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                   <div
                     ref={notesEditRef}
-                    contentEditable={!isCompleted}
+                    contentEditable={!isCompleted && !isLinked}
                     suppressContentEditableWarning
                     onInput={handleNotesInput}
-                    onFocus={() => { if (!isCompleted) setNotesEditing(true); }}
+                    onFocus={() => { if (!isCompleted && !isLinked) setNotesEditing(true); }}
                     onBlur={() => setNotesEditing(false)}
                     className="w-full min-h-[100px] pb-4 pt-1 outline-none text-[15px] text-[#444] leading-relaxed [&_h1]:text-[18px] [&_h1]:font-bold [&_h1]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
                   />
@@ -442,7 +447,7 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         )}
 
         {/* Progreso - solo cuando hay tiempo añadido y no está completada */}
-        {taskSessions.length > 0 && !isCompleted && (
+        {displaySessions.length > 0 && !isCompleted && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setProgressExpanded(!progressExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className="text-[#a0a0a0]">
@@ -472,16 +477,28 @@ export function TaskDetailView({ task, lists, onBack, onToggle, onUpdate, onDele
         {/* Actividad */}
         {!isCompleted && (
           <div className="border-b border-[#f0f0f5]">
-            <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
-              {!taskActivity && (
-                <span className="text-[#a0a0a0]">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-                </span>
-              )}
-              {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
-              <span className={`flex-1 text-left text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Seleccionar actividad'}</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-            </button>
+            {isLinked ? (
+              <div className="flex items-center gap-3 py-3">
+                {!taskActivity && (
+                  <span className="text-[#a0a0a0]">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                  </span>
+                )}
+                {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
+                <span className={`flex-1 text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Sin actividad'}</span>
+              </div>
+            ) : (
+              <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+                {!taskActivity && (
+                  <span className="text-[#a0a0a0]">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                  </span>
+                )}
+                {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
+                <span className={`flex-1 text-left text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Seleccionar actividad'}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+            )}
           </div>
         )}
 
