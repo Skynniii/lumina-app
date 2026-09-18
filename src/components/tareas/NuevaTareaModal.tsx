@@ -144,7 +144,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && submit()}
-                  placeholder={activityId ? 'Sin título (solo actividad)' : '¿Qué tarea quieres añadir?'}
+                  placeholder={activityId ? (selectedActivity?.name ?? 'Actividad') : '¿Qué tarea quieres añadir?'}
                   autoFocus
                   className="w-full border border-[#e4e4ed] rounded-xl py-3 pl-3.5 pr-10 text-[15px] text-[#333] bg-[#fafafc] outline-none focus:border-[#7f70ff] focus:bg-white transition-colors"
                 />
