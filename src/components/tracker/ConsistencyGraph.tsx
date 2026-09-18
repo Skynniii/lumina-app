@@ -51,8 +51,8 @@ export function ConsistencyGraph({ sessions, activity }: Props) {
     return hexToRgba(activity.color, 0.3 + intensity * 0.7);
   }
 
-  const cellSize = 16;
-  const gap = 3;
+  const cellSize = 22;
+  const gap = 4;
 
   return (
     <div className="bg-white p-4 rounded-[20px] shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff]">

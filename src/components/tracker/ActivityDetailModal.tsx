@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed, formatClock, isoToDateKey, dayLabel } from '../../hooks/useTimeTracker';
 import { ACTIVITY_COLORS } from '../../hooks/useTimeTracker';
 import {
-  formatDuration, getActivityTasks, getTimeByTasks, type ActivityStats,
+  formatDuration, getActivityTasks, getTimeByTasks, getStreak, getBestStreak, type ActivityStats,
 } from './trackerUtils';
 import { ConsistencyGraph } from './ConsistencyGraph';
 import { ActivityTrendStats } from './ActivityTrendStats';
@@ -70,6 +70,15 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack, o
     }
     return groups;
   }, [actSessions]);
+
+  // Stats de siempre (all-time) para esta actividad
+  const allTimeStats = useMemo(() => {
+    const allActSessions = sessions.filter((s) => s.activityId === activity.id);
+    const activeDays = new Set(allActSessions.map((s) => isoToDateKey(s.startTime))).size;
+    const streak = getStreak(allActSessions);
+    const bestStreak = getBestStreak(allActSessions);
+    return { activeDays, streak, bestStreak };
+  }, [sessions, activity.id]);
 
   const handleSaveEdit = () => {
     if (editName.trim()) {
@@ -172,20 +181,21 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack, o
                 {/* Grafo de consistencia (primero) */}
                 <ConsistencyGraph sessions={sessions} activity={activity} />
 
-                {/* Stats: tiempo total, sesiones, promedio */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-white p-3.5 rounded-2xl shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] flex flex-col gap-1">
-                    <p className="text-[10px] font-semibold text-[#999] uppercase tracking-wide m-0">Tiempo total</p>
-                    <p className="text-[18px] font-bold text-[#333] tabular-nums leading-none m-0">{formatDuration(stat.totalSeconds)}</p>
-                  </div>
-                  <div className="bg-white p-3.5 rounded-2xl shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] flex flex-col gap-1">
-                    <p className="text-[10px] font-semibold text-[#999] uppercase tracking-wide m-0">Sesiones totales</p>
-                    <p className="text-[18px] font-bold text-[#333] tabular-nums leading-none m-0">{stat.sessionCount}</p>
-                  </div>
-                  <div className="bg-white p-3.5 rounded-2xl shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] flex flex-col gap-1">
-                    <p className="text-[10px] font-semibold text-[#999] uppercase tracking-wide m-0">Promedio/sesión</p>
-                    <p className="text-[18px] font-bold text-[#333] tabular-nums leading-none m-0">{formatDuration(stat.avgSeconds)}</p>
-                  </div>
+                {/* Stats en lista */}
+                <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] overflow-hidden">
+                  {[
+                    { label: 'Tiempo total', value: formatDuration(stat.totalSeconds) },
+                    { label: 'Sesiones totales', value: `${stat.sessionCount}` },
+                    { label: 'Promedio/sesión', value: formatDuration(stat.avgSeconds) },
+                    { label: 'Días activos', value: `${allTimeStats.activeDays}` },
+                    { label: 'Racha', value: `${allTimeStats.streak} ${allTimeStats.streak === 1 ? 'día' : 'días'}` },
+                    { label: 'Mejor racha', value: `${allTimeStats.bestStreak} ${allTimeStats.bestStreak === 1 ? 'día' : 'días'}` },
+                  ].map((s, i) => (
+                    <div key={i} className={`flex items-center justify-between px-5 py-3.5 ${i > 0 ? 'border-t border-[#f2f2f2]' : ''}`}>
+                      <p className="text-[14px] font-medium text-[#333] m-0">{s.label}</p>
+                      <span className="text-[16px] font-bold text-[#333] tabular-nums shrink-0">{s.value}</span>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
@@ -292,7 +302,6 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack, o
                   </>
                 )}
 
-                <ConsistencyGraph sessions={sessions} activity={activity} />
               </>
             )}
 

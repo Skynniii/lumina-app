@@ -135,7 +135,7 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
             key={selectedActivity.activity.id}
             activity={selectedActivity.activity}
             stat={selectedActivity}
-            sessions={weekSessions}
+            sessions={sessions}
             tasks={tasks}
             onBack={() => setSelectedActivityIdx(null)}
             onUpdateActivity={tracker.updateActivity}

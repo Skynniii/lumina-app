@@ -258,6 +258,27 @@ export function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/** Mejor racha histórica de días consecutivos con sesiones. */
+export function getBestStreak(sessions: TimeSession[]): number {
+  if (sessions.length === 0) return 0;
+  const dates = Array.from(new Set(sessions.map((s) => isoToDateKey(s.startTime)))).sort();
+  let bestStreak = 0;
+  let currentStreak = 0;
+  let prevTime = 0;
+  for (const dateStr of dates) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const time = new Date(y, m - 1, d).getTime();
+    if (prevTime > 0 && (time - prevTime) / 86400000 === 1) {
+      currentStreak++;
+    } else {
+      currentStreak = 1;
+    }
+    bestStreak = Math.max(bestStreak, currentStreak);
+    prevTime = time;
+  }
+  return bestStreak;
+}
+
 // ===== Rango quincenal (14 días desde lunes) =====
 
 export function getBiweeklyStart(offset = 0): Date {
