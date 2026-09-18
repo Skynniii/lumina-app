@@ -60,10 +60,10 @@ export function ManageListsModal({
     return ids;
   }, [lists]);
 
-  // Actividades disponibles para crear listas (no vinculadas todavía)
+  // Actividades disponibles para crear listas (no vinculadas y que tengan tareas)
   const availableActivities = useMemo(() => {
-    return activities.filter((a) => !linkedActivityIds.has(a.id));
-  }, [activities, linkedActivityIds]);
+    return activities.filter((a) => !linkedActivityIds.has(a.id) && tasks.some((t) => t.activityId === a.id && !t.isSeparator));
+  }, [activities, linkedActivityIds, tasks]);
 
   const setDragOrderBoth = useCallback((v: string[] | null) => {
     dragOrderRef.current = v;
@@ -175,31 +175,47 @@ export function ManageListsModal({
               return (
                 <li key={id} data-list-item className="bg-white rounded-[16px] my-1 overflow-hidden">
                   <div className="flex items-center gap-1 px-2 py-3">
-                    {/* Drag handle */}
-                    <div onPointerDown={(e) => handleDragDown(e, id)} className="p-2 text-[#c0c0c0] touch-none cursor-grab active:cursor-grabbing">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                        <line x1="4" y1="9" x2="20" y2="9" />
-                        <line x1="4" y1="15" x2="20" y2="15" />
-                      </svg>
-                    </div>
+                    {/* Drag handle (oculto para Principal) */}
+                    {!isProtected && (
+                      <div onPointerDown={(e) => handleDragDown(e, id)} className="p-2 text-[#c0c0c0] touch-none cursor-grab active:cursor-grabbing">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                          <line x1="4" y1="9" x2="20" y2="9" />
+                          <line x1="4" y1="15" x2="20" y2="15" />
+                        </svg>
+                      </div>
+                    )}
 
                     {/* Nombre + actividad */}
-                    <div className="flex-1 min-w-0">
-                      <button onClick={() => setExpandedListId(isExpanded ? null : id)} className="flex items-center gap-2 text-left bg-transparent border-none cursor-pointer p-0">
-                        <span className="text-[15px] font-semibold text-[#333] truncate">{list.name}</span>
-                        {listActivity && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: listActivity.color + '1A', color: listActivity.color }}>
-                            <span className="w-2 h-2 rounded-full" style={{ background: listActivity.color }} />
-                            {listActivity.name}
-                          </span>
-                        )}
-                      </button>
+                    <div className={`flex-1 min-w-0 ${isProtected ? 'pl-2' : ''}`}>
+                      {isProtected ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[15px] font-semibold text-[#333] truncate">{list.name}</span>
+                          {listActivity && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: listActivity.color + '1A', color: listActivity.color }}>
+                              <span className="w-2 h-2 rounded-full" style={{ background: listActivity.color }} />
+                              {listActivity.name}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <button onClick={() => setExpandedListId(isExpanded ? null : id)} className="flex items-center gap-2 text-left bg-transparent border-none cursor-pointer p-0">
+                          <span className="text-[15px] font-semibold text-[#333] truncate">{list.name}</span>
+                          {listActivity && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: listActivity.color + '1A', color: listActivity.color }}>
+                              <span className="w-2 h-2 rounded-full" style={{ background: listActivity.color }} />
+                              {listActivity.name}
+                            </span>
+                          )}
+                        </button>
+                      )}
                     </div>
 
-                    {/* Expandir */}
-                    <button onClick={() => setExpandedListId(isExpanded ? null : id)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 border-none bg-transparent cursor-pointer shrink-0">
-                      <svg className={isExpanded ? 'rotate-180 transition-transform duration-200' : 'transition-transform duration-200'} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-                    </button>
+                    {/* Expandir (oculto para Principal) */}
+                    {!isProtected && (
+                      <button onClick={() => setExpandedListId(isExpanded ? null : id)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 border-none bg-transparent cursor-pointer shrink-0">
+                        <svg className={isExpanded ? 'rotate-180 transition-transform duration-200' : 'transition-transform duration-200'} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                      </button>
+                    )}
                   </div>
 
                   {/* Panel expandible: asignar actividad + eliminar */}
@@ -249,17 +265,16 @@ export function ManageListsModal({
                 </li>
               );
             })}
-          </ul>
-
-          {/* Dragged overlay */}
-          {draggedList && (
-            <div style={{ position: 'absolute', top: overlayY, left: 0, right: 0, zIndex: 50, pointerEvents: 'none' }}>
-              <div className="bg-white rounded-[16px] mx-1 px-2 py-3 flex items-center gap-1 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0c0c0" strokeWidth="2.5" strokeLinecap="round"><line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" /></svg>
-                <span className="text-[15px] font-semibold text-[#333]">{draggedList.name}</span>
+            {/* Dragged overlay (dentro del ul para posicionar relativo a él) */}
+            {draggedList && (
+              <div style={{ position: 'absolute', top: overlayY, left: 0, right: 0, zIndex: 50, pointerEvents: 'none' }}>
+                <div className="bg-white rounded-[16px] mx-1 px-2 py-3 flex items-center gap-1 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0c0c0" strokeWidth="2.5" strokeLinecap="round"><line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" /></svg>
+                  <span className="text-[15px] font-semibold text-[#333]">{draggedList.name}</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </ul>
 
           {/* Crear nueva lista */}
           <button onClick={onCreateList} className="flex items-center justify-center gap-2 py-3 rounded-[16px] text-[14px] font-semibold text-[#7f70ff] bg-[rgba(127,112,255,0.06)] border border-dashed border-[#7f70ff] cursor-pointer hover:bg-[rgba(127,112,255,0.1)] transition-colors">

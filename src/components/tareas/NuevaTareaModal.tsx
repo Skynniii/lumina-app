@@ -250,7 +250,9 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               onSelect={(selected) => {
                 if (selected) {
                   setLinkedTaskId(selected.id);
-                  setTitle(`Avance en: ${selected.title}`);
+                  const taskList = (allLists ?? availableLists ?? []).find((l) => l.id === selected.listId);
+                  const prefix = taskList?.activityId ? 'Actividad' : 'Avance en';
+                  setTitle(`${prefix}: ${selected.title}`);
                 } else {
                   setLinkedTaskId(undefined);
                   setTitle('');
