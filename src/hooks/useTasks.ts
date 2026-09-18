@@ -200,13 +200,20 @@ export function useTasks() {
   }, [tasks, tasksColl]);
 
   const updateTask = useCallback((taskId: string, updates: Partial<Task>) => {
+    // Si se está cambiando la actividad, mover la tarea a la lista de esa actividad si existe
+    if (updates.activityId !== undefined && typeof updates.activityId === 'string') {
+      const activityList = lists.find((l) => l.activityId === updates.activityId);
+      if (activityList && activityList.id !== PRINCIPAL_ID) {
+        updates = { ...updates, listId: activityList.id };
+      }
+    }
     // Convierte undefined a deleteField() para que Firestore elimine el campo
     const cleaned: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(updates)) {
       cleaned[key] = value === undefined ? deleteField() : value;
     }
     tasksColl.update(taskId, cleaned as Partial<Task>);
-  }, [tasksColl]);
+  }, [tasksColl, lists]);
 
   const updateList = useCallback((id: string, updates: Partial<TaskList>) => {
     const cleaned: Record<string, unknown> = {};
