@@ -4,6 +4,16 @@ import type { Task, SortMode } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
 import { Sparkles } from './Sparkles';
+import { useUserStorage } from '../../hooks/useUserStorage';
+import type { RunningTimer, TrackerDraft } from '../../hooks/useTimeTracker';
+
+/** Devuelve el ID de la tarea con temporizador activamente corriendo, o null. */
+function useActiveTaskId(): string | null {
+  const [running] = useUserStorage<RunningTimer | null>('tracker-running', null);
+  const [draft] = useUserStorage<TrackerDraft>('tracker-draft', { activityId: '', description: '', notes: '' });
+  if (!running || running.startedAt === null) return null;
+  return draft.taskId ?? null;
+}
 
 interface Props {
   task: Task;
@@ -34,6 +44,8 @@ const IconCal = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="non
 
 export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, compact, hideListTag, hideDueDate, overdueDays, onDragPointerDown, onDragPointerEnd, activityColor, activityName }: Props) => {
   const { settings } = useSettings();
+  const activeTaskId = useActiveTaskId();
+  const isTimerActive = activeTaskId === task.id;
   const [optimistic, setOptimistic] = useState(false);
   const [sparkle, setSparkle] = useState(false);
   const [completingImportant, setCompletingImportant] = useState(false);
@@ -135,10 +147,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'} ${task.isActivityOnly ? 'font-medium' : ''}`}
         >
           {task.isActivityOnly && activityColor ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: activityColor }} />
-              <span style={{ color: isCompleted ? undefined : activityColor }}>{activityName || 'Actividad'}</span>
-            </span>
+            <span style={{ color: isCompleted ? undefined : activityColor }}>{activityName || 'Actividad'}</span>
           ) : task.title}
         </motion.span>
         {hasInfo && (
@@ -183,6 +192,21 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         )}
       </div>
 
+      {isTimerActive && (
+        <div className="flex-none ml-1 relative flex items-center justify-center w-5 h-5">
+          <motion.span
+            className="absolute w-4 h-4 rounded-full bg-[#34c77b]/30"
+            animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.span
+            className="w-2.5 h-2.5 rounded-full bg-[#34c77b]"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </div>
+      )}
+
       {reorderable ? (
         <div
           onPointerDown={!isCompleted && onDragPointerDown ? (e) => { e.stopPropagation(); onDragPointerDown?.(e, task.id); } : undefined}
@@ -226,7 +250,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onClick={() => onExpand(task.id)}
       className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: task.isActivityOnly && activityColor ? `3px solid ${activityColor}` : undefined, background: task.isActivityOnly && activityColor && !task.isImportant && !isCompleted ? `${activityColor}0D` : undefined }}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: activityColor ? `3px solid ${activityColor}` : '3px solid transparent' }}
     >
       {inner}
     </motion.li>
