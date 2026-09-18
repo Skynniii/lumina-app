@@ -299,21 +299,15 @@ export function ManageListsModal({
                 >
                   <div className="flex flex-col gap-2 pt-2">
                     {availableActivities.length > 0 ? (
-                      availableActivities.map((a) => {
-                        const taskCount = tasks.filter((t) => t.activityId === a.id && !t.isSeparator).length;
-                        return (
+                      availableActivities.map((a) => (
                           <button key={a.id} onClick={() => onCreateActivityList(a)} className="flex items-center justify-between p-3 rounded-[14px] bg-white border cursor-pointer hover:scale-[1.01] transition-transform" style={{ borderColor: a.color + '30' }}>
                             <div className="flex items-center gap-2.5">
                               <span className="w-3 h-3 rounded-full" style={{ background: a.color }} />
                               <span className="text-[14px] font-medium text-[#333]">{a.name}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[12px] text-[#aaa]">{taskCount} {taskCount === 1 ? 'tarea' : 'tareas'}</span>
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                            </div>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                           </button>
-                        );
-                      })
+                        ))
                     ) : (
                       <p className="text-[13px] text-[#aaa] py-3 text-center m-0">
                         {activities.length === 0 ? 'No hay actividades creadas aún.' : 'Todas las actividades ya tienen una lista vinculada.'}

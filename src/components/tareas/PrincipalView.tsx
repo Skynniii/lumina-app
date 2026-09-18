@@ -233,8 +233,22 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
     for (const a of activities) m[a.id] = { color: a.color, name: a.name };
     return m;
   }, [activities]);
-  const actColor = (t: Task) => t.activityId ? activityMap[t.activityId]?.color : undefined;
-  const actName = (t: Task) => t.activityId ? activityMap[t.activityId]?.name : undefined;
+  const actColor = (t: Task) => {
+    if (t.activityId) return activityMap[t.activityId]?.color;
+    if (t.linkedTaskId) {
+      const linked = tasks.find((tk) => tk.id === t.linkedTaskId);
+      if (linked?.activityId) return activityMap[linked.activityId]?.color;
+    }
+    return undefined;
+  };
+  const actName = (t: Task) => {
+    if (t.activityId) return activityMap[t.activityId]?.name;
+    if (t.linkedTaskId) {
+      const linked = tasks.find((tk) => tk.id === t.linkedTaskId);
+      if (linked?.activityId) return activityMap[linked.activityId]?.name;
+    }
+    return undefined;
+  };
 
   const listNameById = useMemo(() => {
     const m: Record<string, string> = {};

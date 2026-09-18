@@ -10,6 +10,7 @@ import { useActivities } from '../../hooks/useActivities';
 interface Props {
   list: TaskList;
   tasks: Task[];
+  allTasks?: Task[];
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onDeleteCompleted: (id: string) => void;
@@ -54,7 +55,7 @@ function groupLabel(dateKey: string | undefined, isDeadline: boolean = false): s
 }
 
 export function ListaTareasCard({
-  list, tasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderListTasks, onAddSeparator, onDeleteSeparators, onExpandTask, isProtected,
+  list, tasks, allTasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderListTasks, onAddSeparator, onDeleteSeparators, onExpandTask, isProtected,
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
   const { activities } = useActivities();
@@ -63,8 +64,22 @@ export function ListaTareasCard({
     for (const a of activities) m[a.id] = { color: a.color, name: a.name };
     return m;
   }, [activities]);
-  const actColor = (t: Task) => t.activityId ? activityMap[t.activityId]?.color : undefined;
-  const actName = (t: Task) => t.activityId ? activityMap[t.activityId]?.name : undefined;
+  const actColor = (t: Task) => {
+    if (t.activityId) return activityMap[t.activityId]?.color;
+    if (t.linkedTaskId) {
+      const linked = (allTasks ?? tasks).find((tk) => tk.id === t.linkedTaskId);
+      if (linked?.activityId) return activityMap[linked.activityId]?.color;
+    }
+    return undefined;
+  };
+  const actName = (t: Task) => {
+    if (t.activityId) return activityMap[t.activityId]?.name;
+    if (t.linkedTaskId) {
+      const linked = (allTasks ?? tasks).find((tk) => tk.id === t.linkedTaskId);
+      if (linked?.activityId) return activityMap[linked.activityId]?.name;
+    }
+    return undefined;
+  };
 
   // --- Modo reordenar + arrastre fluido ---
   const [dragId, setDragId] = useState<string | null>(null);

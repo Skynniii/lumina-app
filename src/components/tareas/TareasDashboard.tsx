@@ -88,6 +88,7 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
                 key={list.id}
                 list={list}
                 tasks={tasks.filter((t) => t.listId === list.id)}
+                allTasks={tasks}
                 isProtected={list.id === 'principal'}
                 onRename={renameList}
                 onDelete={deleteList}
