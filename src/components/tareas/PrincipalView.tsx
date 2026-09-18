@@ -4,6 +4,7 @@ import type { Task, TaskList, SortMode } from '../../types';
 import { TareaItem } from './TareaItem';
 import { SortMenu } from './SortMenu';
 import { useSettings } from '../../context/SettingsContext';
+import { useActivities } from '../../hooks/useActivities';
 
 interface Props {
   lists: TaskList[];
@@ -106,6 +107,14 @@ function sortLikeList(tasks: Task[], list: TaskList): Task[] {
   if (mode === 'recent') arr.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
   else if (mode === 'date') arr.sort(sortByDateKey('scheduledDate'));
   else if (mode === 'deadline') arr.sort(sortByDateKey('dueDate'));
+  else if (mode === 'custom' && list.taskOrder) {
+    const orderMap = new Map(list.taskOrder.map((id, i) => [id, i]));
+    arr.sort((a, b) => {
+      const ai = orderMap.get(a.id) ?? Infinity;
+      const bi = orderMap.get(b.id) ?? Infinity;
+      return ai - bi;
+    });
+  }
   return arr;
 }
 
@@ -217,7 +226,29 @@ function HoyLinkMenu({ lists, hoyListId, onLink }: { lists: TaskList[]; hoyListI
 
 export function PrincipalView({ lists, tasks, principalList, onUpdateList, onToggleTask, onUpdateTask, onExpandTask }: Props) {
   const { settings } = useSettings();
+  const { activities } = useActivities();
   const sortMode: SortMode = principalList.sortMode || 'custom';
+  const activityMap = useMemo(() => {
+    const m: Record<string, { color: string; name: string }> = {};
+    for (const a of activities) m[a.id] = { color: a.color, name: a.name };
+    return m;
+  }, [activities]);
+  const actColor = (t: Task) => {
+    if (t.activityId) return activityMap[t.activityId]?.color;
+    if (t.linkedTaskId) {
+      const linked = tasks.find((tk) => tk.id === t.linkedTaskId);
+      if (linked?.activityId) return activityMap[linked.activityId]?.color;
+    }
+    return undefined;
+  };
+  const actName = (t: Task) => {
+    if (t.activityId) return activityMap[t.activityId]?.name;
+    if (t.linkedTaskId) {
+      const linked = tasks.find((tk) => tk.id === t.linkedTaskId);
+      if (linked?.activityId) return activityMap[linked.activityId]?.name;
+    }
+    return undefined;
+  };
 
   const listNameById = useMemo(() => {
     const m: Record<string, string> = {};
@@ -226,7 +257,7 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   }, [lists]);
 
   const pending = useMemo(() => {
-    const filtered = tasks.filter((t) => !t.completed);
+    const filtered = tasks.filter((t) => !t.completed && !t.isSeparator);
     if (settings.hideNoDateInPrincipal) {
       if (sortMode === 'deadline') return filtered.filter((t) => t.dueDate || t.isImportant);
       if (sortMode === 'date' && principalList.hoyListId) {
@@ -240,24 +271,24 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
 
   // Importante: muestra lista + fecha (la fecha no está en cabecera aquí).
   const renderTask = (t: Task) => (
-    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(t)} activityName={actName(t)} />
   );
   // Secciones con fecha en cabecera (Hoy/Mañana/Próximamente): oculta la fecha de la tarea.
   const renderTaskNoDate = (t: Task) => (
-    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} hideDueDate onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} hideDueDate onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(t)} activityName={actName(t)} />
   );
   // Secciones "Sin fecha" agrupadas por lista: oculta el icono de lista (ya es la cabecera).
   const renderTaskNoList = (t: Task) => (
-    <TareaItem key={t.id} task={t} compact hideListTag onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+    <TareaItem key={t.id} task={t} compact hideListTag onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(t)} activityName={actName(t)} />
   );
   // Espejo de una lista (Hoy vinculado): sin tag de lista (ya están en una sola),
   // modo compacto para respetar la regla de iconos del Principal.
   const renderCompact = (t: Task) => (
-    <TareaItem key={t.id} task={t} compact onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+    <TareaItem key={t.id} task={t} compact onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(t)} activityName={actName(t)} />
   );
   // Tareas atrasadas: muestra "hace X días" en lugar de la fecha.
   const renderTaskOverdue = (t: Task) => (
-    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} hideDueDate overdueDays={Math.abs(dayDiff(t.scheduledDate!))} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+    <TareaItem key={t.id} task={t} listTag={listNameById[t.listId]} hideDueDate overdueDays={Math.abs(dayDiff(t.scheduledDate!))} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(t)} activityName={actName(t)} />
   );
 
   const setHoyLink = (id?: string) => onUpdateList('principal', { hoyListId: id });

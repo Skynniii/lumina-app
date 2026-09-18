@@ -2,12 +2,15 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Task, TaskList, SortMode } from '../../types';
 import { TareaItem } from './TareaItem';
+import { SeparatorItem } from './SeparatorItem';
 import { DesplegableMenu } from '../ui/DesplegableMenu';
 import { SortMenu } from './SortMenu';
+import { useActivities } from '../../hooks/useActivities';
 
 interface Props {
   list: TaskList;
   tasks: Task[];
+  allTasks?: Task[];
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onDeleteCompleted: (id: string) => void;
@@ -15,6 +18,8 @@ interface Props {
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
   onUpdateList: (id: string, updates: Partial<TaskList>) => void;
   onReorderListTasks: (listId: string, orderedActive: Task[]) => void;
+  onAddSeparator: (listId: string) => void;
+  onDeleteSeparators: (listId: string) => void;
   onExpandTask: (id: string) => void;
   isProtected?: boolean;
 }
@@ -50,9 +55,31 @@ function groupLabel(dateKey: string | undefined, isDeadline: boolean = false): s
 }
 
 export function ListaTareasCard({
-  list, tasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderListTasks, onExpandTask, isProtected,
+  list, tasks, allTasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderListTasks, onAddSeparator, onDeleteSeparators, onExpandTask, isProtected,
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
+  const { activities } = useActivities();
+  const activityMap = useMemo(() => {
+    const m: Record<string, { color: string; name: string }> = {};
+    for (const a of activities) m[a.id] = { color: a.color, name: a.name };
+    return m;
+  }, [activities]);
+  const actColor = (t: Task) => {
+    if (t.activityId) return activityMap[t.activityId]?.color;
+    if (t.linkedTaskId) {
+      const linked = (allTasks ?? tasks).find((tk) => tk.id === t.linkedTaskId);
+      if (linked?.activityId) return activityMap[linked.activityId]?.color;
+    }
+    return undefined;
+  };
+  const actName = (t: Task) => {
+    if (t.activityId) return activityMap[t.activityId]?.name;
+    if (t.linkedTaskId) {
+      const linked = (allTasks ?? tasks).find((tk) => tk.id === t.linkedTaskId);
+      if (linked?.activityId) return activityMap[linked.activityId]?.name;
+    }
+    return undefined;
+  };
 
   // --- Modo reordenar + arrastre fluido ---
   const [dragId, setDragId] = useState<string | null>(null);
@@ -72,15 +99,16 @@ export function ListaTareasCard({
 
   const sortMode: SortMode = list.sortMode || 'custom';
   const active = tasks.filter((t) => !t.completed);
+  const activeNonSep = active.filter((t) => !t.isSeparator);
   const completed = tasks.filter((t) => t.completed);
 
   const activeSorted = useMemo(() => {
-    const arr = [...active];
+    const arr = [...activeNonSep];
     if (sortMode === 'recent') arr.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
     else if (sortMode === 'date') arr.sort(sortByDateKey('scheduledDate'));
     else if (sortMode === 'deadline') arr.sort(sortByDateKey('dueDate'));
     return arr;
-  }, [active, sortMode]);
+  }, [activeNonSep, sortMode]);
 
   const showGroups = sortMode === 'date' || sortMode === 'deadline';
   const groupKey: 'scheduledDate' | 'dueDate' = sortMode === 'date' ? 'scheduledDate' : 'dueDate';
@@ -88,11 +116,15 @@ export function ListaTareasCard({
 
   taskByIdRef.current = Object.fromEntries(active.map((t) => [t.id, t]));
 
-  // En modo personalizado, usa taskOrder de la lista si existe (más eficiente que
-  // reordenar el arreglo completo). Las tareas nuevas sin orden se añaden al final.
+  // En modo personalizado, usa taskOrder de la lista si existe. Las tareas nuevas
+  // sin orden se añaden al final, ordenadas por fecha de creación (no por ID de
+  // Firestore que es aleatorio). Sin taskOrder, todo se ordena por createdAt.
+  const byCreated = (a: Task, b: Task) => (a.createdAt || '').localeCompare(b.createdAt || '');
   const baseIds = sortMode === 'custom' && list.taskOrder
-    ? [...list.taskOrder.filter((id) => taskByIdRef.current[id]), ...activeSorted.filter((t) => !list.taskOrder!.includes(t.id)).map((t) => t.id)]
-    : activeSorted.map((t) => t.id);
+    ? [...list.taskOrder.filter((id) => taskByIdRef.current[id]), ...active.filter((t) => !list.taskOrder!.includes(t.id)).sort(byCreated).map((t) => t.id)]
+    : sortMode === 'custom'
+      ? [...active].sort(byCreated).map((t) => t.id)
+      : activeSorted.map((t) => t.id);
   const orderedIds = dragOrder ?? baseIds;
 
   const setDragOrderBoth = useCallback((v: string[] | null) => {
@@ -235,7 +267,7 @@ export function ListaTareasCard({
           );
         }
         items.push(
-          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />
         );
         return items;
       })
@@ -265,7 +297,7 @@ export function ListaTareasCard({
                 <SortMenu value={sortMode} onChange={(m) => { onUpdateList(list.id, { sortMode: m }); setReorderMode(m === 'custom'); }} />
               )}
               <h3 className="flex-1 text-center leading-none m-0 p-0 text-[18px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
-              <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} />
+              <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} onAddSeparator={() => onAddSeparator(list.id)} onDeleteSeparators={() => onDeleteSeparators(list.id)} />
             </div>
             <hr className="border-t border-[#f0f0f5] m-0 mx-1 flex-none" />
           </div>
@@ -278,6 +310,15 @@ export function ListaTareasCard({
               {orderedIds.map((id) =>
                 id === dragId ? (
                   <div key={id} data-placeholder style={{ height: drag.current.height }} className="my-1 rounded-[16px]" />
+                ) : taskByIdRef.current[id]?.isSeparator ? (
+                  <SeparatorItem
+                    key={id}
+                    task={taskByIdRef.current[id]}
+                    reorderable
+                    dragId={dragId}
+                    onDragPointerDown={onItemPointerDown}
+                    onDragPointerEnd={onItemPointerEnd}
+                  />
                 ) : (
                   <TareaItem
                     key={id}
@@ -290,13 +331,19 @@ export function ListaTareasCard({
                     onToggle={onToggleTask}
                     onUpdate={onUpdateTask}
                     onExpand={onExpandGuarded}
+                    activityColor={actColor(taskByIdRef.current[id])}
+                    activityName={actName(taskByIdRef.current[id])}
                   />
                 )
               )}
-              {active.length === 0 && !dragId && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
+              {activeNonSep.length === 0 && !dragId && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
               {draggedTask && (
                 <div style={{ position: 'absolute', top: overlayY, left: 0, right: 0, zIndex: 50, pointerEvents: 'none' }}>
-                  <TareaItem task={draggedTask} sortMode={sortMode} reorderable dragId={dragId} overlay onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandGuarded} />
+                  {draggedTask.isSeparator ? (
+                    <SeparatorItem task={draggedTask} reorderable dragId={dragId} overlay onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />
+                  ) : (
+                    <TareaItem task={draggedTask} sortMode={sortMode} reorderable dragId={dragId} overlay onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandGuarded} activityColor={actColor(draggedTask)} activityName={actName(draggedTask)} />
+                  )}
                 </div>
               )}
             </ul>
@@ -305,7 +352,7 @@ export function ListaTareasCard({
               <AnimatePresence mode="popLayout">
                 {grouped}
               </AnimatePresence>
-              {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
+              {activeNonSep.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
             </ul>
           ) : (
             <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
@@ -313,10 +360,13 @@ export function ListaTareasCard({
                 {orderedIds.map((id) => {
                   const task = taskByIdRef.current[id];
                   if (!task) return null;
-                  return <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />;
+                  if (task.isSeparator) {
+                    return <SeparatorItem key={task.id} task={task} />;
+                  }
+                  return <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />;
                 })}
               </AnimatePresence>
-              {active.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
+              {activeNonSep.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
             </ul>
           )}
 
@@ -335,7 +385,7 @@ export function ListaTareasCard({
                 <ul className="list-none m-0 mt-3 px-1 flex flex-col relative">
                   <AnimatePresence mode="popLayout">
                     {completed.map((task) => (
-                      <TareaItem key={task.id} task={task} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+                      <TareaItem key={task.id} task={task} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />
                     ))}
                   </AnimatePresence>
                 </ul>

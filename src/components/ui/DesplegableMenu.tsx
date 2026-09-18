@@ -5,10 +5,12 @@ interface Props {
   onRename: () => void;
   onDelete: () => void;
   onDeleteCompleted: () => void;
+  onAddSeparator: () => void;
+  onDeleteSeparators: () => void;
   isProtected?: boolean;
 }
 
-export function DesplegableMenu({ onRename, onDelete, onDeleteCompleted, isProtected }: Props) {
+export function DesplegableMenu({ onRename, onDelete, onDeleteCompleted, onAddSeparator, onDeleteSeparators, isProtected }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -43,6 +45,12 @@ export function DesplegableMenu({ onRename, onDelete, onDeleteCompleted, isProte
                 Renombrar lista
               </button>
             )}
+            <button onClick={() => { setOpen(false); onAddSeparator(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#555] hover:bg-[#f8f9fa] transition-colors">
+              Añadir separador
+            </button>
+            <button onClick={() => { setOpen(false); onDeleteSeparators(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#555] hover:bg-[#f8f9fa] transition-colors">
+              Eliminar separadores
+            </button>
             <button onClick={() => { setOpen(false); onDeleteCompleted(); }} className="bg-transparent border-none px-3.5 py-2.5 text-left text-[13px] cursor-pointer text-[#555] hover:bg-[#f8f9fa] transition-colors">
               Eliminar tareas completadas
             </button>

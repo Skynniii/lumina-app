@@ -72,6 +72,8 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     if (taskId && activityId) {
       tasksColl.update(taskId, { activityId });
     }
+    // Limpia taskId del draft para que el indicador no quede en una tarea equivocada
+    tracker.setDraft((d) => ({ ...d, taskId: undefined }));
   };
 
   const { setOnComplete, start: cdStart } = countdown;

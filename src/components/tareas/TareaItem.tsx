@@ -4,6 +4,16 @@ import type { Task, SortMode } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
 import { Sparkles } from './Sparkles';
+import { useUserStorage } from '../../hooks/useUserStorage';
+import type { RunningTimer, TrackerDraft } from '../../hooks/useTimeTracker';
+
+/** Devuelve el ID de la tarea con temporizador activamente corriendo, o null. */
+function useActiveTaskId(): string | null {
+  const [running] = useUserStorage<RunningTimer | null>('tracker-running', null);
+  const [draft] = useUserStorage<TrackerDraft>('tracker-draft', { activityId: '', description: '', notes: '' });
+  if (!running || running.startedAt === null) return null;
+  return draft.taskId ?? null;
+}
 
 interface Props {
   task: Task;
@@ -21,6 +31,8 @@ interface Props {
   overdueDays?: number;
   onDragPointerDown?: (e: React.PointerEvent, id: string) => void;
   onDragPointerEnd?: () => void;
+  activityColor?: string;
+  activityName?: string;
 }
 
 const GOLD = '#eab308';
@@ -30,8 +42,10 @@ const IconSub = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="non
 const IconFlag = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>);
 const IconCal = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>);
 
-export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, compact, hideListTag, hideDueDate, overdueDays, onDragPointerDown, onDragPointerEnd }: Props) => {
+export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, compact, hideListTag, hideDueDate, overdueDays, onDragPointerDown, onDragPointerEnd, activityColor, activityName }: Props) => {
   const { settings } = useSettings();
+  const activeTaskId = useActiveTaskId();
+  const isTimerActive = activeTaskId === task.id;
   const [optimistic, setOptimistic] = useState(false);
   const [sparkle, setSparkle] = useState(false);
   const [completingImportant, setCompletingImportant] = useState(false);
@@ -57,7 +71,8 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const showSub = hasSub && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
   const showTimeSpent = (task.totalTimeSpent || 0) > 0;
-  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent;
+  const showLinked = !!task.linkedTaskId;
+  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent || showLinked;
 
   const dueLabel = () => {
     if (typeof task.scheduledDate !== 'string' || !task.scheduledDate) return '';
@@ -129,14 +144,23 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         <motion.span
           animate={{ opacity: completingImportant ? 0 : 1 }}
           transition={{ duration: 0.45, ease: 'easeInOut' }}
-          className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'}`}
-        >{task.title}</motion.span>
+          className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'} ${task.isActivityOnly ? 'font-medium' : ''}`}
+        >
+          {task.isActivityOnly && activityColor ? (
+            <span style={{ color: isCompleted ? undefined : activityColor }}>{activityName || 'Actividad'}</span>
+          ) : task.title}
+        </motion.span>
         {hasInfo && (
           <motion.div
             animate={{ opacity: completingImportant ? 0 : 1 }}
             transition={{ duration: 0.45, ease: 'easeInOut' }}
             className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]"
           >
+            {showLinked && (
+              <span className="inline-flex items-center text-[#7f70ff]" title="Tarea de avance vinculada">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+              </span>
+            )}
             {showListTag && (
               <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
             )}
@@ -167,6 +191,21 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           </div>
         )}
       </div>
+
+      {isTimerActive && (
+        <div className="flex-none ml-1 relative flex items-center justify-center w-5 h-5">
+          <motion.span
+            className="absolute w-4 h-4 rounded-full bg-[#34c77b]/30"
+            animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.span
+            className="w-2.5 h-2.5 rounded-full bg-[#34c77b]"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </div>
+      )}
 
       {reorderable ? (
         <div
@@ -211,7 +250,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onClick={() => onExpand(task.id)}
       className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto') }}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: activityColor ? `3px solid ${activityColor}` : '3px solid transparent' }}
     >
       {inner}
     </motion.li>

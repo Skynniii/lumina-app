@@ -37,6 +37,9 @@ export interface Task {
   completedAt?: string;
   subtasks?: SubTask[];
   repeat?: RepeatConfig;
+  isSeparator?: boolean;
+  linkedTaskId?: string;            // ID de la tarea original a la que esta tarea hace referencia (avance)
+  isActivityOnly?: boolean;         // ítem de actividad pura (sin título, muestra la actividad en la lista)
 }
 
 export interface TaskList {
@@ -47,6 +50,7 @@ export interface TaskList {
   sortMode?: SortMode;
   hoyListId?: string;
   taskOrder?: string[];             // orden personalizado de tareas (IDs)
+  activityId?: string;             // actividad vinculada: toda tarea de esta lista pertenece a esta actividad
 }
 
 export interface Activity {

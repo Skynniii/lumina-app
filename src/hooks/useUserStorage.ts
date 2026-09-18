@@ -119,6 +119,8 @@ class UserDataStore {
     this.data[key] = value;
     this.dirtyKeys.add(key);
     this._scheduleWrite();
+    // Notifica a los suscriptores locales inmediatamente (no solo en el snapshot remoto)
+    this.listeners.get(key)?.forEach((cb) => cb(value));
   }
 
   private _scheduleWrite() {

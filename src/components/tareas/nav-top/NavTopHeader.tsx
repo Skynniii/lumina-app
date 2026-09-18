@@ -9,13 +9,16 @@ interface Props {
   onAddList: () => void;
   onMenuClick: () => void;
   onOpenAccount: () => void;
+  onLongPressList?: (listId: string) => void;
 }
 
-export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onMenuClick, onOpenAccount }: Props) {
+export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onMenuClick, onOpenAccount, onLongPressList }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const metrics = useRef<{ left: number; width: number; top: number; height: number }[]>([]);
+  const lpTimer = useRef<number | null>(null);
+  const didLongPress = useRef(false);
 
   useEffect(() => {
     const visor = document.getElementById('visor-de-listas');
@@ -103,7 +106,25 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
               key={list.id}
               className="tab-lista relative px-4 py-2 rounded-[20px] text-sm font-medium whitespace-nowrap cursor-pointer select-none z-10 transition-colors duration-200"
               style={{ color: activeListId === list.id ? '#ffffff' : '#666666' }}
-              onClick={() => onSelectList(list.id)}
+              onClick={() => {
+                if (didLongPress.current) { didLongPress.current = false; return; }
+                onSelectList(list.id);
+              }}
+              onPointerDown={() => {
+                if (!onLongPressList) return;
+                didLongPress.current = false;
+                lpTimer.current = window.setTimeout(() => {
+                  didLongPress.current = true;
+                  onLongPressList(list.id);
+                  if (navigator.vibrate) navigator.vibrate(30);
+                }, 500);
+              }}
+              onPointerUp={() => {
+                if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+              }}
+              onPointerLeave={() => {
+                if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+              }}
             >
               {list.name}
             </button>
