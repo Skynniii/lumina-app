@@ -3,7 +3,7 @@ import { deleteField } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useFirestoreCollection, incrementTaskTime } from './useFirestoreCollection';
 import { useSettings } from '../context/SettingsContext';
-import type { Task, TaskList, RepeatConfig, SubTask } from '../types';
+import type { Task, TaskList, RepeatConfig, SubTask, Activity } from '../types';
 
 function calculateNextDate(currentDate: string | undefined, repeat: RepeatConfig): string | undefined {
   if (!currentDate) return undefined;
@@ -166,13 +166,16 @@ export function useTasks() {
   const addTaskWithData = useCallback((listId: string, data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string; linkedTaskId?: string; isActivityOnly?: boolean }) => {
     const trimmed = (data.title || '').trim();
     if (!trimmed && !data.isActivityOnly) return;
+    // Si la lista tiene una actividad vinculada y la tarea no especifica una, usar la de la lista
+    const listActivityId = lists.find((l) => l.id === listId)?.activityId;
+    const resolvedActivityId = data.activityId || listActivityId || undefined;
     tasksColl.add({
       listId, title: trimmed, completed: false, isImportant: !!data.isImportant, createdAt: new Date().toISOString(),
       notes: data.notes || undefined, scheduledDate: data.scheduledDate || undefined, scheduledTime: data.scheduledTime || undefined,
-      dueDate: data.dueDate || undefined, repeat: data.repeat, activityId: data.activityId || undefined,
+      dueDate: data.dueDate || undefined, repeat: data.repeat, activityId: resolvedActivityId,
       linkedTaskId: data.linkedTaskId || undefined, isActivityOnly: data.isActivityOnly || undefined,
     });
-  }, [tasksColl]);
+  }, [tasksColl, lists]);
 
   const toggleTask = useCallback((taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
@@ -265,9 +268,47 @@ export function useTasks() {
     });
   }, [tasks, tasksColl, closeModal]);
 
+  // Reordenar listas (actualiza posiciones en Firestore)
+  const reorderLists = useCallback((orderedIds: string[]) => {
+    orderedIds.forEach((id, i) => {
+      listsColl.update(id, { position: i });
+    });
+  }, [listsColl]);
+
+  // Vincular/desvincular una actividad a una lista y sincronizar tareas
+  const setListActivity = useCallback((listId: string, activityId: string | null) => {
+    if (activityId) {
+      listsColl.update(listId, { activityId });
+      tasks.filter((t) => t.listId === listId && !t.isSeparator).forEach((t) => {
+        tasksColl.update(t.id, { activityId });
+      });
+    } else {
+      listsColl.update(listId, { activityId: deleteField() });
+      tasks.filter((t) => t.listId === listId && !t.isSeparator).forEach((t) => {
+        tasksColl.update(t.id, { activityId: deleteField() });
+      });
+    }
+  }, [lists, tasks, listsColl, tasksColl]);
+
+  // Crear una lista para una actividad: reúne todas las tareas con esa actividad
+  const createActivityList = useCallback((activity: Activity) => {
+    const id = `act-${activity.id}`;
+    listsColl.set(id, {
+      name: activity.name,
+      position: lists.length,
+      activityId: activity.id,
+      createdAt: new Date().toISOString(),
+    });
+    // Mover todas las tareas con esa actividad a la nueva lista
+    tasks.filter((t) => t.activityId === activity.id && !t.isSeparator && t.listId !== id).forEach((t) => {
+      tasksColl.update(t.id, { listId: id });
+    });
+  }, [lists.length, tasks, listsColl, tasksColl]);
+
   return {
     lists, tasks, addList, deleteList, renameList, addTask, addTaskWithData,
     toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteSeparators, deleteTask, deleteCompletedTasks,
+    reorderLists, setListActivity, createActivityList,
     modalConfig: modal,
   };
 }

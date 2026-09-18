@@ -50,6 +50,7 @@ export interface TaskList {
   sortMode?: SortMode;
   hoyListId?: string;
   taskOrder?: string[];             // orden personalizado de tareas (IDs)
+  activityId?: string;             // actividad vinculada: toda tarea de esta lista pertenece a esta actividad
 }
 
 export interface Activity {

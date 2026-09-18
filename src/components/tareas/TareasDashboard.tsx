@@ -8,6 +8,7 @@ import { PrincipalView } from './PrincipalView';
 import { TaskDetailView } from './TaskDetailView';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
 import { NuevaTareaModal } from './NuevaTareaModal';
+import { ManageListsModal } from './ManageListsModal';
 
 interface Props {
   onMenuClick: () => void;
@@ -16,7 +17,7 @@ interface Props {
 }
 
 export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Props) {
-  const { lists: rawLists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteSeparators, deleteTask, deleteCompletedTasks, modalConfig } = useTasks();
+  const { lists: rawLists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteSeparators, deleteTask, deleteCompletedTasks, reorderLists, setListActivity, createActivityList, modalConfig } = useTasks();
   // Principal siempre aparece de primera
   const lists = useMemo(() => [...rawLists].sort((a, b) => {
     if (a.id === 'principal') return -1;
@@ -26,6 +27,7 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
   const [activeListId, setActiveListId] = useState(lists[0]?.id || '');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
+  const [showManageLists, setShowManageLists] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const clicking = useRef(false);
 
@@ -59,7 +61,7 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
 
   return (
     <section className="absolute top-0 left-0 w-full h-full flex flex-col p-0 bg-[#f7f6f9]">
-      <NavTopHeader lists={lists} activeListId={activeListId} onSelectList={scrollTo} onAddList={addList} onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
+      <NavTopHeader lists={lists} activeListId={activeListId} onSelectList={scrollTo} onAddList={addList} onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} onLongPressList={() => setShowManageLists(true)} />
 
       <div className="relative flex-1 overflow-hidden">
         <div
@@ -132,6 +134,20 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
       />
 
       <ModalNeuromorfico {...modalConfig} />
+
+      <AnimatePresence>
+        <ManageListsModal
+          isOpen={showManageLists}
+          lists={lists}
+          tasks={tasks}
+          onClose={() => setShowManageLists(false)}
+          onReorderLists={reorderLists}
+          onSetListActivity={setListActivity}
+          onCreateList={addList}
+          onDeleteList={deleteList}
+          onCreateActivityList={createActivityList}
+        />
+      </AnimatePresence>
     </section>
   );
 }
