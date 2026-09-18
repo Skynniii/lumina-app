@@ -188,3 +188,128 @@ export function getCompletedTasks(tasks: Task[], period: Period): Task[] {
 export function getActivityTasks(tasks: Task[], activityId: string): Task[] {
   return tasks.filter((t) => t.activityId === activityId && !t.isSeparator);
 }
+
+// ===== Navegación semanal =====
+
+export function getWeekStart(offset = 0): Date {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff + offset * 7);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+export function getWeekRange(offset = 0): { start: Date; end: Date } {
+  const start = getWeekStart(offset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+export function filterSessionsByDateRange(sessions: TimeSession[], start: Date, end: Date): TimeSession[] {
+  return sessions.filter((s) => {
+    const d = new Date(s.startTime);
+    return d >= start && d <= end;
+  });
+}
+
+export function getWeekLabel(offset = 0): string {
+  const { start, end } = getWeekRange(offset);
+  const startStr = start.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  const endStr = end.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  return `${startStr} - ${endStr}`;
+}
+
+// ===== Grafo de consistencia (último año, 52 semanas) =====
+
+export function getConsistencyData(sessions: TimeSession[], activityId: string): { date: string; total: number }[] {
+  const dailyMap = new Map<string, number>();
+  for (const s of sessions) {
+    if (s.activityId !== activityId) continue;
+    const dk = isoToDateKey(s.startTime);
+    dailyMap.set(dk, (dailyMap.get(dk) ?? 0) + s.duration);
+  }
+
+  const days: { date: string; total: number }[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(start.getDate() - 363);
+
+  for (let i = 0; i < 364; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    days.push({ date: dateKey, total: dailyMap.get(dateKey) ?? 0 });
+  }
+  return days;
+}
+
+export function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// ===== Rango quincenal (14 días desde lunes) =====
+
+export function getBiweeklyStart(offset = 0): Date {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff + offset * 14);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+export function getBiweeklyRange(offset = 0): { start: Date; end: Date } {
+  const start = getBiweeklyStart(offset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 13);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+export function getBiweeklyLabel(offset = 0): string {
+  const { start, end } = getBiweeklyRange(offset);
+  const startStr = start.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  const endStr = end.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  return `${startStr} - ${endStr}`;
+}
+
+// ===== Tiempo por tareas para una actividad =====
+
+export function getTimeByTasks(sessions: TimeSession[], tasks: Task[], activityId: string): { taskName: string; totalSeconds: number; lastSessionDate: string }[] {
+  const actSessions = sessions.filter((s) => s.activityId === activityId);
+  const taskMap = new Map<string, { totalSeconds: number; lastSessionDate: string }>();
+
+  for (const s of actSessions) {
+    const key = s.taskId ?? 'no-task';
+    const existing = taskMap.get(key);
+    if (existing) {
+      existing.totalSeconds += s.duration;
+      if (new Date(s.startTime) > new Date(existing.lastSessionDate)) {
+        existing.lastSessionDate = s.startTime;
+      }
+    } else {
+      taskMap.set(key, { totalSeconds: s.duration, lastSessionDate: s.startTime });
+    }
+  }
+
+  const result = Array.from(taskMap.entries()).map(([key, data]) => {
+    let taskName = 'Sin tareas';
+    if (key !== 'no-task') {
+      const task = tasks.find((t) => t.id === key);
+      taskName = task?.title || 'Sin tareas';
+    }
+    return { taskName, totalSeconds: data.totalSeconds, lastSessionDate: data.lastSessionDate };
+  });
+
+  result.sort((a, b) => new Date(b.lastSessionDate).getTime() - new Date(a.lastSessionDate).getTime());
+  return result;
+}

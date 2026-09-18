@@ -5,7 +5,7 @@ import { useTimeTracker } from '../../hooks/useTimeTracker';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { TopBar } from '../ui/TopBar';
 import { TrackerSummary } from './TrackerSummary';
-import { TrackerChart } from './TrackerChart';
+import { WeeklyCircularChart } from './WeeklyCircularChart';
 import { ActivityStatCard } from './ActivityStatCard';
 import { TrackerSessionList } from './TrackerSessionList';
 import { TrackerTasks } from './TrackerTasks';
@@ -130,7 +130,7 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
               )}
             </div>
 
-            {period === 'week' && <TrackerChart dailyTotals={dailyTotals} />}
+            {period === 'week' && <WeeklyCircularChart dailyTotals={dailyTotals} />}
 
             {activityStats.length > 0 && (
               <>
