@@ -6,7 +6,7 @@ interface Props {
 }
 
 export function ActivityStatCard({ stat, onClick }: Props) {
-  const { activity, totalSeconds, sessionCount, avgSeconds, percentage, taskCount, completedTaskCount } = stat;
+  const { activity, totalSeconds, percentage } = stat;
 
   return (
     <button
@@ -14,24 +14,16 @@ export function ActivityStatCard({ stat, onClick }: Props) {
       className="bg-white p-4 rounded-2xl shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] flex flex-col gap-2 border-none cursor-pointer text-left transition-transform active:scale-[0.97] w-full"
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-3 h-3 rounded-full shrink-0" style={{ background: activity.color }} />
-          <span className="text-[13px] font-semibold text-[#333] truncate">{activity.name}</span>
+        <span className="text-[14px] font-semibold text-[#333] truncate">{activity.name}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[15px] font-bold text-[#333] tabular-nums">{formatDuration(totalSeconds)}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
         </div>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M9 18l6-6-6-6" /></svg>
       </div>
-      <p className="text-[22px] font-bold text-[#333] tabular-nums leading-none">{formatDuration(totalSeconds)}</p>
-      <div className="flex justify-between text-[11px] text-[#999]">
-        <span>{sessionCount} {sessionCount === 1 ? 'sesión' : 'sesiones'}</span>
-        <span>Prom: {formatDuration(avgSeconds)}</span>
-      </div>
-      {taskCount > 0 && (
-        <div className="flex items-center gap-1.5 text-[11px] text-[#999]">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-          <span>{completedTaskCount}/{taskCount} tareas</span>
-        </div>
-      )}
-      <div className="h-1 rounded-full bg-[#f0f0f0] overflow-hidden mt-0.5">
+      <div className="h-2 rounded-full bg-[#f0f0f0] overflow-hidden">
         <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${percentage}%`, background: activity.color }} />
       </div>
     </button>
