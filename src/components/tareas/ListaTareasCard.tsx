@@ -5,6 +5,7 @@ import { TareaItem } from './TareaItem';
 import { SeparatorItem } from './SeparatorItem';
 import { DesplegableMenu } from '../ui/DesplegableMenu';
 import { SortMenu } from './SortMenu';
+import { useActivities } from '../../hooks/useActivities';
 
 interface Props {
   list: TaskList;
@@ -56,6 +57,14 @@ export function ListaTareasCard({
   list, tasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderListTasks, onAddSeparator, onDeleteSeparators, onExpandTask, isProtected,
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
+  const { activities } = useActivities();
+  const activityMap = useMemo(() => {
+    const m: Record<string, { color: string; name: string }> = {};
+    for (const a of activities) m[a.id] = { color: a.color, name: a.name };
+    return m;
+  }, [activities]);
+  const actColor = (t: Task) => t.activityId ? activityMap[t.activityId]?.color : undefined;
+  const actName = (t: Task) => t.activityId ? activityMap[t.activityId]?.name : undefined;
 
   // --- Modo reordenar + arrastre fluido ---
   const [dragId, setDragId] = useState<string | null>(null);
@@ -243,7 +252,7 @@ export function ListaTareasCard({
           );
         }
         items.push(
-          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />
         );
         return items;
       })
@@ -307,6 +316,8 @@ export function ListaTareasCard({
                     onToggle={onToggleTask}
                     onUpdate={onUpdateTask}
                     onExpand={onExpandGuarded}
+                    activityColor={actColor(taskByIdRef.current[id])}
+                    activityName={actName(taskByIdRef.current[id])}
                   />
                 )
               )}
@@ -316,7 +327,7 @@ export function ListaTareasCard({
                   {draggedTask.isSeparator ? (
                     <SeparatorItem task={draggedTask} reorderable dragId={dragId} overlay onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />
                   ) : (
-                    <TareaItem task={draggedTask} sortMode={sortMode} reorderable dragId={dragId} overlay onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandGuarded} />
+                    <TareaItem task={draggedTask} sortMode={sortMode} reorderable dragId={dragId} overlay onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandGuarded} activityColor={actColor(draggedTask)} activityName={actName(draggedTask)} />
                   )}
                 </div>
               )}
@@ -337,7 +348,7 @@ export function ListaTareasCard({
                   if (task.isSeparator) {
                     return <SeparatorItem key={task.id} task={task} />;
                   }
-                  return <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />;
+                  return <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />;
                 })}
               </AnimatePresence>
               {activeNonSep.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
@@ -359,7 +370,7 @@ export function ListaTareasCard({
                 <ul className="list-none m-0 mt-3 px-1 flex flex-col relative">
                   <AnimatePresence mode="popLayout">
                     {completed.map((task) => (
-                      <TareaItem key={task.id} task={task} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} />
+                      <TareaItem key={task.id} task={task} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />
                     ))}
                   </AnimatePresence>
                 </ul>

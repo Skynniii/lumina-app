@@ -39,6 +39,7 @@ export interface Task {
   repeat?: RepeatConfig;
   isSeparator?: boolean;
   linkedTaskId?: string;            // ID de la tarea original a la que esta tarea hace referencia (avance)
+  isActivityOnly?: boolean;         // ítem de actividad pura (sin título, muestra la actividad en la lista)
 }
 
 export interface TaskList {

@@ -15,7 +15,7 @@ interface Props {
   allTasks?: Task[];
   listName?: string;
   onClose: () => void;
-  onCreate: (data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string; linkedTaskId?: string }, listId: string) => void;
+  onCreate: (data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string; linkedTaskId?: string; isActivityOnly?: boolean }, listId: string) => void;
 }
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -80,9 +80,10 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
 
   const submit = () => {
     const trimmed = title.trim();
-    if (!trimmed) return;
+    if (!trimmed && !activityId) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
-    onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, isImportant: important, repeat, activityId, linkedTaskId }, targetListId);
+    const isActivityOnly = !trimmed && !!activityId;
+    onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, isImportant: important, repeat, activityId, linkedTaskId, isActivityOnly }, targetListId);
     onClose();
   };
 
@@ -137,15 +138,27 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 </div>
               )}
 
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && submit()}
-                placeholder="¿Qué tarea quieres añadir?"
-                autoFocus
-                className="w-full border border-[#e4e4ed] rounded-xl py-3 px-3.5 mb-3 text-[15px] text-[#333] bg-[#fafafc] outline-none focus:border-[#7f70ff] focus:bg-white transition-colors"
-              />
+              <div className="relative mb-3">
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && submit()}
+                  placeholder={activityId ? 'Sin título (solo actividad)' : '¿Qué tarea quieres añadir?'}
+                  autoFocus
+                  className="w-full border border-[#e4e4ed] rounded-xl py-3 pl-3.5 pr-10 text-[15px] text-[#333] bg-[#fafafc] outline-none focus:border-[#7f70ff] focus:bg-white transition-colors"
+                />
+                {!title.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => setShowActivityPicker(true)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full hover:bg-[#f0f0f5] transition-colors text-[#999]"
+                    title="Seleccionar actividad"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                  </button>
+                )}
+              </div>
 
               {/* Fila de íconos: fecha/hora, importante, notas */}
               <div className="flex items-center gap-3 mb-2">
@@ -202,7 +215,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
 
               <div className="flex gap-3 mt-2">
                 <button onClick={onClose} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#f0f0f0] text-[#666] hover:bg-[#e4e4e4] transition-colors">Cancelar</button>
-                <button onClick={submit} disabled={!title.trim()} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Crear tarea</button>
+                <button onClick={submit} disabled={!title.trim() && !activityId} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">{!title.trim() && activityId ? 'Crear actividad' : 'Crear tarea'}</button>
               </div>
             </motion.div>
 
