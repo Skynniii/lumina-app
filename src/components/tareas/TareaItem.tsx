@@ -57,7 +57,8 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const showSub = hasSub && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
   const showTimeSpent = (task.totalTimeSpent || 0) > 0;
-  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent;
+  const showLinked = !!task.linkedTaskId;
+  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent || showLinked;
 
   const dueLabel = () => {
     if (typeof task.scheduledDate !== 'string' || !task.scheduledDate) return '';
@@ -137,6 +138,11 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
             transition={{ duration: 0.45, ease: 'easeInOut' }}
             className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]"
           >
+            {showLinked && (
+              <span className="inline-flex items-center text-[#7f70ff]" title="Tarea de avance vinculada">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+              </span>
+            )}
             {showListTag && (
               <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
             )}

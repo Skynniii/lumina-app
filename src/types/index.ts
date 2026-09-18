@@ -38,6 +38,7 @@ export interface Task {
   subtasks?: SubTask[];
   repeat?: RepeatConfig;
   isSeparator?: boolean;
+  linkedTaskId?: string;            // ID de la tarea original a la que esta tarea hace referencia (avance)
 }
 
 export interface TaskList {

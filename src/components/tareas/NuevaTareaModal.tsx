@@ -3,16 +3,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
 import { ActivityPicker } from '../timer/ActivityPicker';
+import { TaskPicker } from './TaskPicker';
 import { useActivities } from '../../hooks/useActivities';
-import type { RepeatConfig, TaskList, Activity } from '../../types';
+import type { RepeatConfig, TaskList, Activity, Task } from '../../types';
 
 interface Props {
   isOpen: boolean;
   defaultListId: string;
   availableLists?: TaskList[];
+  allLists?: TaskList[];
+  allTasks?: Task[];
   listName?: string;
   onClose: () => void;
-  onCreate: (data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string }, listId: string) => void;
+  onCreate: (data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string; linkedTaskId?: string }, listId: string) => void;
 }
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -31,7 +34,7 @@ function fmtFecha(scheduledDate?: string, scheduledTime?: string, repeat?: Repea
   return s;
 }
 
-export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listName, onClose, onCreate }: Props) {
+export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allLists, allTasks, listName, onClose, onCreate }: Props) {
   const [title, setTitle] = useState('');
   const [notesHtml, setNotesHtml] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
@@ -45,6 +48,8 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
   const { activities, addActivity } = useActivities();
   const [activityId, setActivityId] = useState<string | undefined>(undefined);
   const [showActivityPicker, setShowActivityPicker] = useState(false);
+  const [linkedTaskId, setLinkedTaskId] = useState<string | undefined>(undefined);
+  const [showTaskPicker, setShowTaskPicker] = useState(false);
   const notesRef = useRef<HTMLDivElement>(null);
 
   const selectedActivity = activities.find((a) => a.id === activityId);
@@ -56,6 +61,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
       setImportant(false); setShowPicker(false);
       setTargetListId(defaultListId);
       setActivityId(undefined); setShowActivityPicker(false);
+      setLinkedTaskId(undefined); setShowTaskPicker(false);
     }
   }, [isOpen, defaultListId]);
 
@@ -76,7 +82,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
     const trimmed = title.trim();
     if (!trimmed) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
-    onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, isImportant: important, repeat, activityId }, targetListId);
+    onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, isImportant: important, repeat, activityId, linkedTaskId }, targetListId);
     onClose();
   };
 
@@ -161,6 +167,9 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
                 </button>
+                {iconBtn(!!linkedTaskId, () => setShowTaskPicker(true), 'Vincular a tarea',
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+                )}
                 {fechaLabel && <span className="text-[12px] text-[#6b5cdb] font-medium ml-1 truncate">{fechaLabel}</span>}
               </div>
 
@@ -217,6 +226,22 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, listNam
                 const id = await addActivity({ name: name.trim(), color });
                 setActivityId(id);
                 setShowActivityPicker(false);
+              }}
+            />
+
+            <TaskPicker
+              isOpen={showTaskPicker}
+              tasks={allTasks ?? []}
+              lists={allLists ?? availableLists ?? []}
+              onClose={() => setShowTaskPicker(false)}
+              onSelect={(selected) => {
+                if (selected) {
+                  setLinkedTaskId(selected.id);
+                  setTitle(`Avance en: ${selected.title}`);
+                } else {
+                  setLinkedTaskId(undefined);
+                  setTitle('');
+                }
               }}
             />
           </>

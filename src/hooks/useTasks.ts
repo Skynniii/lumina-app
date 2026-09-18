@@ -163,13 +163,14 @@ export function useTasks() {
     });
   }, [tasksColl, closeModal]);
 
-  const addTaskWithData = useCallback((listId: string, data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string }) => {
+  const addTaskWithData = useCallback((listId: string, data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string; linkedTaskId?: string }) => {
     const trimmed = (data.title || '').trim();
     if (!trimmed) return;
     tasksColl.add({
       listId, title: trimmed, completed: false, isImportant: !!data.isImportant, createdAt: new Date().toISOString(),
       notes: data.notes || undefined, scheduledDate: data.scheduledDate || undefined, scheduledTime: data.scheduledTime || undefined,
       dueDate: data.dueDate || undefined, repeat: data.repeat, activityId: data.activityId || undefined,
+      linkedTaskId: data.linkedTaskId || undefined,
     });
   }, [tasksColl]);
 

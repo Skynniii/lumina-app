@@ -123,6 +123,8 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
         isOpen={showNewTask}
         defaultListId={activeListId === 'principal' ? (lists.find((l) => l.id !== 'principal')?.id ?? 'general') : activeListId}
         availableLists={activeListId === 'principal' ? lists.filter((l) => l.id !== 'principal') : undefined}
+        allLists={lists}
+        allTasks={tasks}
         listName={lists.find((l) => l.id === activeListId)?.name}
         onClose={() => setShowNewTask(false)}
         onCreate={(data, listId) => addTaskWithData(listId, data)}
