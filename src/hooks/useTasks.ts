@@ -191,14 +191,9 @@ export function useTasks() {
     // Si la lista tiene una actividad vinculada y la tarea no especifica una, usar la de la lista
     const listActivityId = lists.find((l) => l.id === listId)?.activityId;
     const resolvedActivityId = data.activityId || listActivityId || undefined;
-    // Si la actividad tiene su propia lista, crear la tarea allí
-    let targetListId = listId;
-    if (resolvedActivityId) {
-      const activityList = lists.find((l) => l.activityId === resolvedActivityId && l.id !== 'principal');
-      if (activityList) targetListId = activityList.id;
-    }
+    // La tarea se queda en la lista que el usuario seleccionó
     tasksColl.add({
-      listId: targetListId, title: trimmed, completed: false, isImportant: !!data.isImportant, createdAt: new Date().toISOString(),
+      listId, title: trimmed, completed: false, isImportant: !!data.isImportant, createdAt: new Date().toISOString(),
       notes: data.notes || undefined, scheduledDate: data.scheduledDate || undefined, scheduledTime: data.scheduledTime || undefined,
       dueDate: data.dueDate || undefined, repeat: data.repeat, activityId: data.isActivityOnly ? undefined : resolvedActivityId,
       isActivityOnly: data.isActivityOnly || undefined,
@@ -228,13 +223,6 @@ export function useTasks() {
   }, [tasks, tasksColl]);
 
   const updateTask = useCallback((taskId: string, updates: Partial<Task>) => {
-    // Si se está cambiando la actividad, mover la tarea a la lista de esa actividad si existe
-    if (updates.activityId !== undefined && typeof updates.activityId === 'string') {
-      const activityList = lists.find((l) => l.activityId === updates.activityId);
-      if (activityList && activityList.id !== PRINCIPAL_ID) {
-        updates = { ...updates, listId: activityList.id };
-      }
-    }
     // Convierte undefined a deleteField() para que Firestore elimine el campo
     const cleaned: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(updates)) {
