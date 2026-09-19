@@ -27,6 +27,7 @@ export interface Task {
   completed: boolean;
   isImportant: boolean;
   createdAt: string;
+  updatedAt?: string;
   // Campos opcionales (se omiten en Firestore si no tienen datos):
   activityId?: string;
   notes?: string;
@@ -47,6 +48,7 @@ export interface TaskList {
   name: string;
   position: number;
   createdAt?: string;
+  updatedAt?: string;
   sortMode?: SortMode;
   hoyListId?: string;
   taskOrder?: string[];             // orden personalizado de tareas (IDs)
@@ -57,6 +59,7 @@ export interface Activity {
   id: string;
   name: string;
   color: string;
+  updatedAt?: string;
 }
 
 export interface CalendarEvent {
@@ -68,6 +71,7 @@ export interface CalendarEvent {
   color: string;
   location?: string;
   notes?: string;
+  updatedAt?: string;
 }
 
 export interface TimeSession {
@@ -81,4 +85,5 @@ export interface TimeSession {
   duration: number;                 // segundos
   mode: TimerMode;
   createdAt: string;                // ISO datetime
+  updatedAt?: string;
 }
