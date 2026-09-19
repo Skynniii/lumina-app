@@ -163,6 +163,7 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
             lists={lists}
             onBack={() => setSelectedActivityIdx(null)}
             onUpdateActivity={tracker.updateActivity}
+            onDeleteActivity={(id) => { tracker.deleteActivity(id); setSelectedActivityIdx(null); }}
             onToggleTask={handleToggleTask}
           />
         )}

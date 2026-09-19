@@ -17,6 +17,7 @@ interface Props {
   lists: TaskList[];
   onBack: () => void;
   onUpdateActivity: (id: string, updates: Partial<Activity>) => void;
+  onDeleteActivity: (id: string) => void;
   onToggleTask: (taskId: string) => void;
 }
 
@@ -29,11 +30,12 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'registros', label: 'Registros' },
 ];
 
-export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, onBack, onUpdateActivity, onToggleTask }: Props) {
+export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, onBack, onUpdateActivity, onDeleteActivity, onToggleTask }: Props) {
   const [tab, setTab] = useState<Tab>('resumen');
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(activity.name);
   const [editColor, setEditColor] = useState(activity.color);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const actSessions = useMemo(
     () => sessions.filter((s) => s.activityId === activity.id)
@@ -147,6 +149,13 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
               <button onClick={() => { setIsEditing(false); setEditName(activity.name); setEditColor(activity.color); }} className="px-4 py-2 rounded-xl text-[14px] font-semibold text-[#777] bg-[#f0f0f0] border-none cursor-pointer">Cancelar</button>
               <button onClick={handleSaveEdit} className="px-4 py-2 rounded-xl text-[14px] font-semibold text-white bg-[#7f70ff] border-none cursor-pointer">Guardar</button>
             </div>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="self-start mt-1 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#ff5252] bg-[#ff5252]/10 border-none cursor-pointer flex items-center gap-1.5"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+              Eliminar actividad
+            </button>
           </div>
         ) : (
           <>
@@ -365,6 +374,45 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
           </motion.div>
         </AnimatePresence>
       </div>
+      {/* Confirmación de eliminación */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <>
+            <motion.div
+              className="fixed inset-0 bg-black/40 z-[1600] backdrop-blur-sm"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowDeleteConfirm(false)}
+            />
+            <motion.div
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] max-w-[320px] z-[1601] bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.15)] p-5 flex flex-col items-center text-center"
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+            >
+              <div className="w-12 h-12 rounded-full bg-[#ff5252]/10 flex items-center justify-center mb-3">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff5252" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+              </div>
+              <h2 className="text-[17px] font-bold text-[#333] m-0 mb-1">¿Eliminar actividad?</h2>
+              <p className="text-[14px] text-[#999] m-0 mb-4 leading-relaxed">
+                Se eliminará <span className="font-semibold text-[#555]">{activity.name}</span> y sus sesiones seguirán registradas como "Sin actividad". Esta acción no se puede deshacer.
+              </p>
+              <div className="flex gap-2 w-full">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl text-[14px] font-semibold text-[#777] bg-[#f0f0f0] border-none cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => { onDeleteActivity(activity.id); }}
+                  className="flex-1 py-2.5 rounded-xl text-[14px] font-semibold text-white bg-[#ff5252] border-none cursor-pointer"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
