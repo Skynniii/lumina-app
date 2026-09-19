@@ -334,6 +334,17 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
           </div>
         )}
 
+        {/* Banner de actividad */}
+        {task.isActivityOnly && taskActivity && (
+          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-[#f3f0fb] text-[#7a65d1]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-none">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+            <span className="text-[13px] font-medium">Actividad</span>
+          </div>
+        )}
+
         {/* Texto de la tarea */}
         <textarea
           ref={titleRef}
@@ -346,8 +357,17 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
           className={`w-full bg-transparent outline-none resize-none border-none text-[20px] font-bold leading-snug mb-4 ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#2b2b2b]'} ${editingTitle ? 'cursor-text' : 'cursor-pointer'}`}
         />
 
+        {/* Nombre de la actividad (solo activity-only) */}
+        {task.isActivityOnly && taskActivity && (
+          <div className="mb-4">
+            <h2 className="text-[20px] font-bold leading-snug text-[#1f2124]">
+              {taskActivity.name}{task.title ? `: ${task.title}` : ''}
+            </h2>
+          </div>
+        )}
+
         {/* Notas expandible */}
-        {!isLinked && ((!isCompleted) || hasNotes) && (
+        {!isLinked && !task.isActivityOnly && ((!isCompleted) || hasNotes) && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${hasNotes ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
