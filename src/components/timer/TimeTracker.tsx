@@ -68,11 +68,13 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     const activityId = tracker.draft.activityId;
     await tracker.stop();
     if (settings.sounds) playCompleteSound();
-    // Sincroniza la actividad de la sesión de vuelta a la tarea
+    // Sincroniza la actividad de la sesión de vuelta a la tarea (excepto activity-only)
     if (taskId && activityId) {
-      tasksColl.update(taskId, { activityId });
+      const task = tasks.find((t) => t.id === taskId);
+      if (task && !task.isActivityOnly) {
+        tasksColl.update(taskId, { activityId });
+      }
     }
-    // Limpia taskId del draft para que el indicador no quede en una tarea equivocada
     tracker.setDraft((d) => ({ ...d, taskId: undefined }));
   };
 
@@ -119,9 +121,12 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
       }
       countdown.reset();
     }
-    // Sincroniza la actividad de la sesión de vuelta a la tarea
+    // Sincroniza la actividad de la sesión de vuelta a la tarea (excepto activity-only)
     if (actualTaskId && tracker.draft.activityId) {
-      tasksColl.update(actualTaskId, { activityId: tracker.draft.activityId });
+      const task = tasks.find((t) => t.id === actualTaskId);
+      if (task && !task.isActivityOnly) {
+        tasksColl.update(actualTaskId, { activityId: tracker.draft.activityId });
+      }
     }
     if (completeTask && actualTaskId) {
       tasksColl.update(actualTaskId, { completed: true, completedAt: new Date().toISOString() });
@@ -242,7 +247,10 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             onSaveManualSession={async (startMs, endMs) => {
               await tracker.saveManualSession(startMs, endMs);
               if (tracker.draft.taskId && tracker.draft.activityId) {
-                tasksColl.update(tracker.draft.taskId, { activityId: tracker.draft.activityId });
+                const task = tasks.find((t) => t.id === tracker.draft.taskId);
+                if (task && !task.isActivityOnly) {
+                  tasksColl.update(tracker.draft.taskId, { activityId: tracker.draft.activityId });
+                }
               }
               tracker.setDraft((d) => ({ ...d, taskId: undefined }));
               setShowFocus(false);

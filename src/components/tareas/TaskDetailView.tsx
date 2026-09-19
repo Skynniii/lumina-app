@@ -23,9 +23,10 @@ interface Props {
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
   onNavigate?: (v: ViewType) => void;
+  onOpenTask?: (id: string) => void;
 }
 
-export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate }: Props) {
+export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate, onOpenTask }: Props) {
   const { settings } = useSettings();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
@@ -45,7 +46,15 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const [notesEditing, setNotesEditing] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
 
-  const taskActivity = activities.find((a) => a.id === (linkedTask?.activityId ?? task.activityId));
+  const taskActivity = activities.find((a) => {
+    if (linkedTask?.activityId) return a.id === linkedTask.activityId;
+    if (task.activityId) return a.id === task.activityId;
+    if (task.isActivityOnly) {
+      const listActivityId = lists.find((l) => l.id === task.listId)?.activityId;
+      if (listActivityId) return a.id === listActivityId;
+    }
+    return false;
+  });
   const taskSessions = sessionsColl.items.filter((s) => s.taskId === task.id);
   const displaySessions = linkedTask ? sessionsColl.items.filter((s) => s.taskId === linkedTask.id) : taskSessions;
 
@@ -80,11 +89,15 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
 
   const handleStartTimer = () => {
     if (isLinked && linkedTask) {
-      // Para tareas de referencia, usar la tarea original: el tiempo se acumula en ella
-      // y se muestran sus notas y actividad. Se conserva el título de la referencia.
-      setPendingTimerTask({ ...linkedTask, title: task.title });
+      setPendingTimerTask(linkedTask);
     } else {
-      setPendingTimerTask(task);
+      // Para activity-only, resolver la actividad desde la lista
+      let taskForTimer = task;
+      if (task.isActivityOnly && !task.activityId) {
+        const listActivityId = lists.find((l) => l.id === task.listId)?.activityId;
+        if (listActivityId) taskForTimer = { ...task, activityId: listActivityId };
+      }
+      setPendingTimerTask(taskForTimer);
     }
     onBack();
     onNavigate?.('cronometro');
@@ -310,20 +323,43 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
 
       {/* Contenido scrolleable */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 py-4">
+        {/* Banner de referencia */}
+        {isLinked && (
+          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-[#f0edff] text-[#7f70ff]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-none">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+            <span className="text-[13px] font-medium">Referencia a tarea</span>
+          </div>
+        )}
+
         {/* Texto de la tarea */}
-        <textarea
-          ref={titleRef}
-          value={task.title}
-          onChange={(e) => handleSyncedUpdate(task.id, { title: e.target.value })}
-          readOnly={isCompleted || !editingTitle}
-          onClick={() => { if (!isCompleted) { setEditingTitle(true); setTimeout(() => titleRef.current?.focus(), 10); } }}
-          onBlur={() => setEditingTitle(false)}
-          rows={1}
-          className={`w-full bg-transparent outline-none resize-none border-none text-[20px] font-bold leading-snug mb-4 ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#2b2b2b]'} ${editingTitle ? 'cursor-text' : 'cursor-pointer'}`}
-        />
+        {task.isActivityOnly && taskActivity ? (
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />
+              <span className="text-[20px] font-bold leading-snug" style={{ color: taskActivity.color }}>{taskActivity.name}</span>
+            </div>
+            {task.title && task.title !== taskActivity.name && (
+              <h2 className="text-[20px] font-bold leading-snug text-[#1f2124]">{task.title}</h2>
+            )}
+          </div>
+        ) : (
+          <textarea
+            ref={titleRef}
+            value={task.title}
+            onChange={(e) => handleSyncedUpdate(task.id, { title: e.target.value })}
+            readOnly={isCompleted || isLinked || !editingTitle}
+            onClick={() => { if (!isCompleted && !isLinked) { setEditingTitle(true); setTimeout(() => titleRef.current?.focus(), 10); } }}
+            onBlur={() => setEditingTitle(false)}
+            rows={1}
+            className={`w-full bg-transparent outline-none resize-none border-none text-[20px] font-bold leading-snug mb-4 ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#2b2b2b]'} ${editingTitle ? 'cursor-text' : 'cursor-pointer'}`}
+          />
+        )}
 
         {/* Notas expandible */}
-        {((!isCompleted && !isLinked) || hasNotes) && (
+        {!isLinked && !task.isActivityOnly && ((!isCompleted) || hasNotes) && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${hasNotes ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -353,7 +389,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Subtareas */}
-        {(!isCompleted || hasSubtasks) && !task.isActivityOnly && (
+        {(!isCompleted || hasSubtasks) && !task.isActivityOnly && !isLinked && (
           <div className="border-b border-[#f0f0f5]">
             <div className="flex items-center gap-3 py-3">
               <span className={`transition-colors ${hasSubtasks ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -402,7 +438,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Fecha límite */}
-        {!isCompleted && !task.isActivityOnly && (
+        {!isCompleted && !task.isActivityOnly && !isLinked && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setShowDeadlinePicker(true)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${task.dueDate ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -422,7 +458,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Fecha y Hora */}
-        {!isCompleted && !task.isActivityOnly && (
+        {!isCompleted && !task.isActivityOnly && !isLinked && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setShowCalendar(true)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${task.scheduledDate ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -453,7 +489,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Progreso - solo cuando hay tiempo añadido y no está completada */}
-        {displaySessions.length > 0 && !isCompleted && !task.isActivityOnly && (
+        {displaySessions.length > 0 && !isCompleted && !task.isActivityOnly && !isLinked && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setProgressExpanded(!progressExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className="text-[#a0a0a0]">
@@ -481,7 +517,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Actividad */}
-        {!isCompleted && (
+        {!isCompleted && !isLinked && !task.isActivityOnly && (
           <div className="border-b border-[#f0f0f5]">
             <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
               {!taskActivity && (
@@ -504,6 +540,17 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
             </span>
             <span className="flex-1 text-left text-[15px] text-[#555]">Añadir a Timer</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+        )}
+
+        {/* Ir a la tarea original (solo referencias) */}
+        {isLinked && (
+          <button onClick={() => linkedTask && onOpenTask?.(linkedTask.id)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+            <span className="text-[#7f70ff]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+            </span>
+            <span className="flex-1 text-left text-[15px] text-[#7f70ff] font-medium">Ir a la tarea original</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
           </button>
         )}
 

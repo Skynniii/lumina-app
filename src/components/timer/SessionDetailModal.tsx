@@ -81,6 +81,11 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
     setShowActivityPicker(false);
   };
 
+  const handleRemoveActivity = () => {
+    onUpdate(entry.id, { activityId: '' });
+    if (entry.taskId) onSyncToTask(entry.taskId, { activityId: '' });
+  };
+
   const handleNotesChange = (value: string) => {
     onUpdate(entry.id, { notes: value || undefined });
     if (entry.taskId) onSyncToTask(entry.taskId, { notes: value });
@@ -213,15 +218,22 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
 
         {/* Actividad */}
         <div className="border-b border-[#f0f0f5]">
-          <button onClick={() => setShowActivityPicker(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
-            {activity ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: activity.color }} /> : (
-              <span className="text-[#a0a0a0]">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-              </span>
+          <div className="flex items-center gap-3 py-3">
+            <button onClick={() => setShowActivityPicker(true)} className="flex items-center gap-3 flex-1 min-w-0 bg-transparent border-none cursor-pointer">
+              {activity ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: activity.color }} /> : (
+                <span className="text-[#a0a0a0]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                </span>
+              )}
+              <span className={`flex-1 text-left text-[15px] truncate ${activity ? 'text-[#333]' : 'text-[#555]'}`}>{activity?.name ?? 'Seleccionar actividad'}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+            {activity && (
+              <button onClick={handleRemoveActivity} className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#fff5f5] transition-colors border-none bg-transparent cursor-pointer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
             )}
-            <span className={`flex-1 text-left text-[15px] ${activity ? 'text-[#333]' : 'text-[#555]'}`}>{activity?.name ?? 'Seleccionar actividad'}</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-          </button>
+          </div>
         </div>
 
         <div className="border-b border-[#f0f0f5]">

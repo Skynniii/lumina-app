@@ -7,6 +7,7 @@ interface Props {
   activities: Activity[];
   tasks: Task[];
   lists: TaskList[];
+  targetListId?: string;
   selectedActivityId?: string;
   selectedTaskId?: string;
   onClose: () => void;
@@ -15,21 +16,18 @@ interface Props {
 }
 
 export function SourcePickerModal({
-  isOpen, activities, tasks, lists,
+  isOpen, activities, tasks, lists, targetListId,
   selectedActivityId, selectedTaskId,
   onClose, onSelectActivity, onSelectTask,
 }: Props) {
   const [tab, setTab] = useState<'actividades' | 'vincular'>('actividades');
 
-  // Solo mostrar actividades que tienen al menos una tarea vinculada (igual que el Tracker)
-  const visibleActivities = useMemo(
-    () => activities.filter((act) => tasks.some((t) => t.activityId === act.id)),
-    [activities, tasks],
-  );
+  // Mostrar todas las actividades del usuario (misma lista que en los demás modales)
+  const visibleActivities = activities;
 
   // Tareas agrupadas por lista, en el orden de la lista
   const groupedTasks = useMemo(() => {
-    const eligible = tasks.filter((t) => !t.completed && !t.isSeparator && !t.isActivityOnly);
+    const eligible = tasks.filter((t) => !t.completed && !t.isSeparator && !t.isActivityOnly && !t.linkedTaskId && t.listId !== targetListId);
     return lists
       .map((l) => {
         let items = eligible.filter((t) => t.listId === l.id);
@@ -47,7 +45,7 @@ export function SourcePickerModal({
         return { list: l, items };
       })
       .filter((g) => g.items.length > 0);
-  }, [tasks, lists]);
+  }, [tasks, lists, targetListId]);
 
   return (
     <AnimatePresence>
@@ -105,7 +103,7 @@ export function SourcePickerModal({
                   {visibleActivities.map((act) => (
                     <button
                       key={act.id}
-                      onClick={() => { onSelectActivity(act.id); onSelectTask(null); onClose(); }}
+                      onClick={() => { onSelectActivity(act.id); onClose(); }}
                       className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#f4f4f6] transition-colors flex items-center gap-3"
                     >
                       <span className="w-4 h-4 rounded-full shrink-0" style={{ background: act.color }} />
@@ -129,7 +127,7 @@ export function SourcePickerModal({
                       {items.map((task) => (
                         <button
                           key={task.id}
-                          onClick={() => { onSelectTask(task); onSelectActivity(undefined); onClose(); }}
+                          onClick={() => { onSelectTask(task); onClose(); }}
                           className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#f4f4f6] transition-colors flex items-center gap-2"
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-none">

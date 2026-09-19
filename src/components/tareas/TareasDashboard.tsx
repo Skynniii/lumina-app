@@ -119,6 +119,7 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
             onUpdate={updateTask}
             onDelete={deleteTask}
             onNavigate={onNavigate}
+            onOpenTask={setExpandedTaskId}
           />
         )}
       </AnimatePresence>
