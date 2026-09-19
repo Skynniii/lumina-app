@@ -7,13 +7,14 @@ import {
 } from './trackerUtils';
 import { ConsistencyGraph } from './ConsistencyGraph';
 import { ActivityTrendStats } from './ActivityTrendStats';
-import type { Activity, TimeSession, Task } from '../../types';
+import type { Activity, TimeSession, Task, TaskList } from '../../types';
 
 interface Props {
   activity: Activity;
   stat: ActivityStats;
   sessions: TimeSession[];
   tasks: Task[];
+  lists: TaskList[];
   onBack: () => void;
   onUpdateActivity: (id: string, updates: Partial<Activity>) => void;
   onToggleTask: (taskId: string) => void;
@@ -28,7 +29,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'registros', label: 'Registros' },
 ];
 
-export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack, onUpdateActivity, onToggleTask }: Props) {
+export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, onBack, onUpdateActivity, onToggleTask }: Props) {
   const [tab, setTab] = useState<Tab>('resumen');
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(activity.name);
@@ -40,7 +41,26 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack, o
     [sessions, activity.id],
   );
 
-  const actTasks = getActivityTasks(tasks, activity.id);
+  const actTasksRaw = getActivityTasks(tasks, activity.id);
+
+  // Ordenar tareas: si la actividad tiene lista vinculada, usar el orden de la lista;
+  // si no, las más recientes van abajo (ascendente por createdAt)
+  const activityList = lists.find((l) => l.activityId === activity.id);
+  const sortTasks = (tasksToSort: Task[]) => {
+    if (activityList?.taskOrder) {
+      const order = activityList.taskOrder;
+      return [...tasksToSort].sort((a, b) => {
+        const aIdx = order.indexOf(a.id);
+        const bIdx = order.indexOf(b.id);
+        if (aIdx === -1 && bIdx === -1) return 0;
+        if (aIdx === -1) return 1;
+        if (bIdx === -1) return -1;
+        return aIdx - bIdx;
+      });
+    }
+    return [...tasksToSort].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  };
+  const actTasks = sortTasks(actTasksRaw);
   const completedTasks = actTasks.filter((t) => t.completed);
   const pendingTasks = actTasks.filter((t) => !t.completed);
   const timeByTasks = getTimeByTasks(sessions, tasks, activity.id);
@@ -185,7 +205,7 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, onBack, o
                 <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] overflow-hidden">
                   {[
                     { label: 'Tiempo total', value: formatDuration(stat.totalSeconds) },
-                    { label: 'Sesiones totales', value: `${stat.sessionCount}` },
+                    { label: 'Sesiones totales', value: `${actSessions.length}` },
                     { label: 'Promedio/sesión', value: formatDuration(stat.avgSeconds) },
                     { label: 'Días activos', value: `${allTimeStats.activeDays}` },
                     { label: 'Racha actual', value: `${allTimeStats.streak} ${allTimeStats.streak === 1 ? 'día' : 'días'}` },

@@ -65,10 +65,11 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   // el resto de iconos (notas, subtareas, fecha límite) aparecen en su lista propia.
   const inPrincipal = !!listTag || !!compact;
   const showListTag = !!listTag && !hideListTag;
-  const showDeadline = typeof task.dueDate === 'string' && !!task.dueDate && sortMode !== 'deadline' && !inPrincipal;
-  const showDue = typeof task.scheduledDate === 'string' && !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
-  const showNotes = hasNotes && !inPrincipal;
-  const showSub = hasSub && !inPrincipal;
+  const isActivityOnly = !!task.isActivityOnly;
+  const showDeadline = !isActivityOnly && typeof task.dueDate === 'string' && !!task.dueDate && sortMode !== 'deadline' && !inPrincipal;
+  const showDue = !isActivityOnly && typeof task.scheduledDate === 'string' && !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
+  const showNotes = !isActivityOnly && hasNotes && !inPrincipal;
+  const showSub = !isActivityOnly && hasSub && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
   const showTimeSpent = (task.totalTimeSpent || 0) > 0;
   const showLinked = !!task.linkedTaskId;

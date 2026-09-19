@@ -79,7 +79,13 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const sortedDates = Object.keys(entriesByDate).sort().reverse();
 
   const handleStartTimer = () => {
-    setPendingTimerTask(task);
+    if (isLinked && linkedTask) {
+      // Para tareas de referencia, usar la tarea original: el tiempo se acumula en ella
+      // y se muestran sus notas y actividad. Se conserva el título de la referencia.
+      setPendingTimerTask({ ...linkedTask, title: task.title });
+    } else {
+      setPendingTimerTask(task);
+    }
     onBack();
     onNavigate?.('cronometro');
   };
@@ -347,7 +353,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Subtareas */}
-        {(!isCompleted || hasSubtasks) && (
+        {(!isCompleted || hasSubtasks) && !task.isActivityOnly && (
           <div className="border-b border-[#f0f0f5]">
             <div className="flex items-center gap-3 py-3">
               <span className={`transition-colors ${hasSubtasks ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -396,7 +402,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Fecha límite */}
-        {!isCompleted && (
+        {!isCompleted && !task.isActivityOnly && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setShowDeadlinePicker(true)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${task.dueDate ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -416,7 +422,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Fecha y Hora */}
-        {!isCompleted && (
+        {!isCompleted && !task.isActivityOnly && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setShowCalendar(true)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${task.scheduledDate ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -447,7 +453,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Progreso - solo cuando hay tiempo añadido y no está completada */}
-        {displaySessions.length > 0 && !isCompleted && (
+        {displaySessions.length > 0 && !isCompleted && !task.isActivityOnly && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setProgressExpanded(!progressExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className="text-[#a0a0a0]">
@@ -477,28 +483,16 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         {/* Actividad */}
         {!isCompleted && (
           <div className="border-b border-[#f0f0f5]">
-            {isLinked ? (
-              <div className="flex items-center gap-3 py-3">
-                {!taskActivity && (
-                  <span className="text-[#a0a0a0]">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-                  </span>
-                )}
-                {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
-                <span className={`flex-1 text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Sin actividad'}</span>
-              </div>
-            ) : (
-              <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
-                {!taskActivity && (
-                  <span className="text-[#a0a0a0]">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-                  </span>
-                )}
-                {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
-                <span className={`flex-1 text-left text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Seleccionar actividad'}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-              </button>
-            )}
+            <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+              {!taskActivity && (
+                <span className="text-[#a0a0a0]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                </span>
+              )}
+              {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
+              <span className={`flex-1 text-left text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Seleccionar actividad'}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            </button>
           </div>
         )}
 
