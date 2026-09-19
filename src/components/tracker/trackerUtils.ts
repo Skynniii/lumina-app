@@ -62,7 +62,6 @@ export function getActivityStats(sessions: TimeSession[], activities: Activity[]
         completedTaskCount: actTasks.filter((t) => t.completed).length,
       };
     })
-    .filter((stat) => stat.sessionCount > 0 || stat.taskCount > 0)
     .sort((a, b) => b.totalSeconds - a.totalSeconds);
 }
 

@@ -23,9 +23,10 @@ interface Props {
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
   onNavigate?: (v: ViewType) => void;
+  onOpenTask?: (id: string) => void;
 }
 
-export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate }: Props) {
+export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate, onOpenTask }: Props) {
   const { settings } = useSettings();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
@@ -80,9 +81,9 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
 
   const handleStartTimer = () => {
     if (isLinked && linkedTask) {
-      // Para tareas de referencia, usar la tarea original: el tiempo se acumula en ella
-      // y se muestran sus notas y actividad. Se conserva el título de la referencia.
-      setPendingTimerTask({ ...linkedTask, title: task.title });
+      // Para referencias, usar la tarea original completa: el tiempo se acumula en ella
+      // y el timer muestra toda su información (título, notas, actividad).
+      setPendingTimerTask(linkedTask);
     } else {
       setPendingTimerTask(task);
     }
@@ -334,7 +335,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         />
 
         {/* Notas expandible */}
-        {((!isCompleted && !isLinked) || hasNotes) && (
+        {!isLinked && ((!isCompleted) || hasNotes) && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${hasNotes ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -464,7 +465,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Progreso - solo cuando hay tiempo añadido y no está completada */}
-        {displaySessions.length > 0 && !isCompleted && !task.isActivityOnly && (
+        {displaySessions.length > 0 && !isCompleted && !task.isActivityOnly && !isLinked && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setProgressExpanded(!progressExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className="text-[#a0a0a0]">
@@ -492,29 +493,18 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Actividad */}
-        {!isCompleted && (
+        {!isCompleted && !isLinked && (
           <div className="border-b border-[#f0f0f5]">
-            {isLinked ? (
-              <div className="flex items-center gap-3 py-3">
-                {taskActivity ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} /> : (
-                  <span className="text-[#a0a0a0]">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-                  </span>
-                )}
-                <span className={`flex-1 text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Sin actividad'}</span>
-              </div>
-            ) : (
-              <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
-                {!taskActivity && (
-                  <span className="text-[#a0a0a0]">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-                  </span>
-                )}
-                {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
-                <span className={`flex-1 text-left text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Seleccionar actividad'}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-              </button>
-            )}
+            <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+              {!taskActivity && (
+                <span className="text-[#a0a0a0]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                </span>
+              )}
+              {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
+              <span className={`flex-1 text-left text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Seleccionar actividad'}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            </button>
           </div>
         )}
 
@@ -526,6 +516,17 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
             </span>
             <span className="flex-1 text-left text-[15px] text-[#555]">Añadir a Timer</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+        )}
+
+        {/* Ir a la tarea original (solo referencias) */}
+        {isLinked && (
+          <button onClick={() => linkedTask && onOpenTask?.(linkedTask.id)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+            <span className="text-[#7f70ff]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+            </span>
+            <span className="flex-1 text-left text-[15px] text-[#7f70ff] font-medium">Ir a la tarea original</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
           </button>
         )}
 

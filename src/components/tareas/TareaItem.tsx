@@ -153,6 +153,14 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: activityColor ?? '#7f70ff' }} />
               {activityName || 'Actividad'}
             </span>
+          ) : isLinked ? (
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              {task.title}
+            </span>
           ) : task.title}
         </motion.span>
         {hasInfo && (
@@ -239,7 +247,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
     </>
   );
 
-  const baseClass = `relative flex items-center py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
+  const baseClass = `relative flex items-center py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : isLinked ? 'bg-[#f5f3ff]' : ''}`;
 
   return (
     <motion.li
