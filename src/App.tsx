@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
 import type { ViewType } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
+import { DeviceCapabilityProvider, useDeviceCapability } from './context/DeviceCapabilityContext';
 import { migrateToSubcollections } from './hooks/useFirestoreCollection';
 import { initSyncEngine, stopSyncEngine } from './hooks/syncEngine';
 import { NavegacionBar } from './components/navegacion/NavegacionBar';
@@ -97,11 +98,24 @@ function AppContent() {
   );
 }
 
+function MotionWrapper({ children }: { children: React.ReactNode }) {
+  const cap = useDeviceCapability();
+  return (
+    <MotionConfig reducedMotion={cap.level === 'low' ? 'user' : 'never'}>
+      {children}
+    </MotionConfig>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <SettingsProvider>
-        <AppContent />
+        <DeviceCapabilityProvider>
+          <MotionWrapper>
+            <AppContent />
+          </MotionWrapper>
+        </DeviceCapabilityProvider>
       </SettingsProvider>
     </AuthProvider>
   );

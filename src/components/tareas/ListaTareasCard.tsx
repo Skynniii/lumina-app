@@ -5,6 +5,7 @@ import { TareaItem } from './TareaItem';
 import { SeparatorItem } from './SeparatorItem';
 import { DesplegableMenu } from '../ui/DesplegableMenu';
 import { SortMenu } from './SortMenu';
+import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 import { useActivities } from '../../hooks/useActivities';
 
 interface Props {
@@ -59,6 +60,7 @@ export function ListaTareasCard({
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
   const { activities } = useActivities();
+  const cap = useDeviceCapability();
   const activityMap = useMemo(() => {
     const m: Record<string, { color: string; name: string }> = {};
     for (const a of activities) m[a.id] = { color: a.color, name: a.name };
@@ -261,7 +263,7 @@ export function ListaTareasCard({
           items.push(
             <motion.li
               key={`hdr-${key ?? 'none'}`}
-              layout
+              layout={cap.enableLayout}
               className={`list-none pt-3 first:pt-0 pb-1 text-[12px] font-bold uppercase tracking-wider ${overdue ? 'text-[#e53935]' : 'text-[#a0a0a0]'}`}
             >
               {groupLabel(key, groupKey === 'deadline')}{overdue ? ' · Atrasado' : ''}

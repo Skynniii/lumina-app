@@ -18,6 +18,34 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Performance: GPU acceleration for animated elements */
+.gpu-layer {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* Performance: contain layout/paint for list items to avoid reflow cascades */
+.task-item-perf {
+  contain: layout style paint;
+}
+
+/* Performance: skip rendering off-screen scroll content */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
+}
+
+/* Performance: instant tap feedback without JS */
+button:active, [role="button"]:active {
+  transition: transform 0.1s ease-out;
+  transform: scale(0.97);
+}
+
+/* Performance: reduce transition durations for snappy micro-interactions */
+.snap-transition {
+  transition-duration: 150ms;
+}
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
