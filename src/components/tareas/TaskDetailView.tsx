@@ -339,7 +339,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
           <div className="mb-5">
             <div className="flex items-center gap-2 mb-1.5">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />
-              <span className="text-[13px] font-medium" style={{ color: taskActivity.color }}>{taskActivity.name}</span>
+              <span className="text-[20px] font-bold leading-snug" style={{ color: taskActivity.color }}>{taskActivity.name}</span>
             </div>
             {task.title && task.title !== taskActivity.name && (
               <h2 className="text-[20px] font-bold leading-snug text-[#1f2124]">{task.title}</h2>

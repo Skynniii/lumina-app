@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
 import { SourcePickerModal } from './SourcePickerModal';
+import { ActivityPicker } from '../timer/ActivityPicker';
 import { useActivities } from '../../hooks/useActivities';
 import type { RepeatConfig, TaskList, Activity, Task } from '../../types';
 
@@ -45,10 +46,11 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const [important, setImportant] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [targetListId, setTargetListId] = useState(defaultListId);
-  const { activities } = useActivities();
+  const { activities, addActivity } = useActivities();
   const [activityId, setActivityId] = useState<string | undefined>(undefined);
   const [linkedTaskId, setLinkedTaskId] = useState<string | undefined>(undefined);
   const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const [activityPickerOpen, setActivityPickerOpen] = useState(false);
   const notesRef = useRef<HTMLDivElement>(null);
 
   const selectedActivity = activities.find((a) => a.id === activityId);
@@ -71,6 +73,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
       setTargetListId(defaultListId);
       setActivityId(undefined);
       setLinkedTaskId(undefined); setShowSourcePicker(false);
+      setActivityPickerOpen(false);
     }
   }, [isOpen, defaultListId]);
 
@@ -190,7 +193,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 )}
                 <button
                   type="button"
-                  onClick={() => setShowSourcePicker(true)}
+                  onClick={() => setActivityPickerOpen(true)}
                   title="Actividad"
                   className={`w-11 h-11 flex-none flex items-center justify-center rounded-full border transition-colors ${activityId ? 'border-[#7f70ff]/30 bg-[#f0edff]' : 'border-[#e8e8ed] bg-[#fcfcfd] text-[#999]'}`}
                   style={activityId ? { color: selectedActivity?.color ?? '#7f70ff' } : undefined}
@@ -243,6 +246,26 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 onSave={(d, t, r) => { setScheduledDate(d); setScheduledTime(t); setRepeat(r); }}
               />
             )}
+
+            <ActivityPicker
+              isOpen={activityPickerOpen}
+              onClose={() => setActivityPickerOpen(false)}
+              activities={activities}
+              selectedId={activityId ?? ''}
+              onSelect={(id) => {
+                setActivityId(id);
+                setLinkedTaskId(undefined);
+                if (id) setTitle('');
+                setActivityPickerOpen(false);
+              }}
+              onCreate={async (name, color) => {
+                const id = await addActivity({ name: name.trim(), color });
+                setActivityId(id);
+                setLinkedTaskId(undefined);
+                setTitle('');
+                setActivityPickerOpen(false);
+              }}
+            />
 
             <SourcePickerModal
               isOpen={showSourcePicker}

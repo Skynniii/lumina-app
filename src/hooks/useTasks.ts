@@ -195,7 +195,7 @@ export function useTasks() {
     tasksColl.add({
       listId, title: trimmed, completed: false, isImportant: !!data.isImportant, createdAt: new Date().toISOString(),
       notes: data.notes || undefined, scheduledDate: data.scheduledDate || undefined, scheduledTime: data.scheduledTime || undefined,
-      dueDate: data.dueDate || undefined, repeat: data.repeat, activityId: data.isActivityOnly ? undefined : resolvedActivityId,
+      dueDate: data.dueDate || undefined, repeat: data.repeat, activityId: resolvedActivityId,
       isActivityOnly: data.isActivityOnly || undefined,
     });
   }, [tasksColl, lists]);
