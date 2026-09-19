@@ -102,7 +102,7 @@ export function SourcePickerModal({
                   {visibleActivities.map((act) => (
                     <button
                       key={act.id}
-                      onClick={() => { onSelectActivity(act.id); onSelectTask(null); onClose(); }}
+                      onClick={() => { onSelectActivity(act.id); onClose(); }}
                       className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#f4f4f6] transition-colors flex items-center gap-3"
                     >
                       <span className="w-4 h-4 rounded-full shrink-0" style={{ background: act.color }} />
@@ -126,7 +126,7 @@ export function SourcePickerModal({
                       {items.map((task) => (
                         <button
                           key={task.id}
-                          onClick={() => { onSelectTask(task); onSelectActivity(undefined); onClose(); }}
+                          onClick={() => { onSelectTask(task); onClose(); }}
                           className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#f4f4f6] transition-colors flex items-center gap-2"
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-none">

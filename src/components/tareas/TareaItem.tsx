@@ -247,7 +247,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
     </>
   );
 
-  const baseClass = `relative flex items-center py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : isLinked ? 'bg-[#f5f3ff]' : ''}`;
+  const baseClass = `relative flex items-center py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
 
   return (
     <motion.li
