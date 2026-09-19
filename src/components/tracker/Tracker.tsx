@@ -12,7 +12,7 @@ import { NewActivityModal } from './NewActivityModal';
 import {
   getActivityStats, getWeekRange, getWeekLabel, filterSessionsByDateRange, type ActivityStats,
 } from './trackerUtils';
-import type { Activity, Task } from '../../types';
+import type { Activity, Task, TaskList } from '../../types';
 
 interface Props {
   onMenuClick: () => void;
@@ -30,7 +30,9 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
 
   const tasksColl = useFirestoreCollection<Task>(uid, 'tasks');
+  const listsColl = useFirestoreCollection<TaskList>(uid, 'taskLists');
   const tasks = tasksColl.items;
+  const lists = listsColl.items;
 
   const { activities, sessions } = tracker;
 
@@ -158,8 +160,10 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
             stat={selectedActivity}
             sessions={sessions}
             tasks={tasks}
+            lists={lists}
             onBack={() => setSelectedActivityIdx(null)}
             onUpdateActivity={tracker.updateActivity}
+            onDeleteActivity={(id) => { tracker.deleteActivity(id); setSelectedActivityIdx(null); }}
             onToggleTask={handleToggleTask}
           />
         )}

@@ -237,14 +237,19 @@ export function getConsistencyData(sessions: TimeSession[], activityId: string):
   today.setHours(0, 0, 0, 0);
   const todayStr = todayKey();
 
-  // Desde el 1 de enero del año actual hasta hoy (sin días futuros)
+  // Desde el lunes de la semana del 1 de enero hasta hoy (sin días futuros)
+  // Así cada columna del grafo empieza en Lunes y termina en Domingo
   const yearStart = new Date(today.getFullYear(), 0, 1);
-  const totalDays = Math.floor((today.getTime() - yearStart.getTime()) / 86400000) + 1;
+  const jan1Day = yearStart.getDay(); // 0=domingo, 1=lunes, ...
+  const mondayOffset = jan1Day === 0 ? -6 : 1 - jan1Day;
+  const firstMonday = new Date(yearStart);
+  firstMonday.setDate(yearStart.getDate() + mondayOffset);
+  const totalDays = Math.floor((today.getTime() - firstMonday.getTime()) / 86400000) + 1;
 
   const days: { date: string; total: number; isFuture: boolean }[] = [];
   for (let i = 0; i < totalDays; i++) {
-    const d = new Date(yearStart);
-    d.setDate(yearStart.getDate() + i);
+    const d = new Date(firstMonday);
+    d.setDate(firstMonday.getDate() + i);
     const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     days.push({ date: dateKey, total: dailyMap.get(dateKey) ?? 0, isFuture: false });
   }

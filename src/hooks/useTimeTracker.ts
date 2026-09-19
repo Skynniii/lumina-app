@@ -3,6 +3,7 @@ import { deleteField } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useFirestoreCollection, incrementTaskTime } from './useFirestoreCollection';
 import { useUserStorage } from './useUserStorage';
+import { getMeta, subscribeLocal } from './localDB';
 import type { Activity, TimeSession, TimerMode } from '../types';
 
 /** Estado del contador en curso. startedAt === null significa pausado. */
@@ -73,13 +74,26 @@ export function useTimeTracker() {
   });
   const [now, setNow] = useState(Date.now());
 
-  // Semilla de actividades para usuarios nuevos
+  // Esperar al primer sync antes de sembrar actividades (evita duplicados con datos de Firestore)
+  const [syncReady, setSyncReady] = useState(false);
   useEffect(() => {
-    if (!uid || activitiesColl.loading) return;
+    if (!uid) return;
+    let mounted = true;
+    const check = () => getMeta<boolean>('initialSyncDone').then((done) => {
+      if (mounted && done) setSyncReady(true);
+    });
+    check();
+    const unsub = subscribeLocal('_syncReady', check);
+    return () => { mounted = false; unsub(); };
+  }, [uid]);
+
+  // Semilla de actividades para usuarios nuevos (tras el primer sync)
+  useEffect(() => {
+    if (!uid || !syncReady || activitiesColl.loading) return;
     if (activitiesColl.items.length === 0) {
       DEFAULT_ACTIVITIES.forEach((a) => activitiesColl.set(a.id, { name: a.name, color: a.color }));
     }
-  }, [uid, activitiesColl]);
+  }, [uid, syncReady, activitiesColl]);
 
   useEffect(() => {
     setActivities(activitiesColl.items);

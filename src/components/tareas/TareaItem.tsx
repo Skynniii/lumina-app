@@ -65,10 +65,11 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   // el resto de iconos (notas, subtareas, fecha límite) aparecen en su lista propia.
   const inPrincipal = !!listTag || !!compact;
   const showListTag = !!listTag && !hideListTag;
-  const showDeadline = typeof task.dueDate === 'string' && !!task.dueDate && sortMode !== 'deadline' && !inPrincipal;
-  const showDue = typeof task.scheduledDate === 'string' && !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
-  const showNotes = hasNotes && !inPrincipal;
-  const showSub = hasSub && !inPrincipal;
+  const isActivityOnly = !!task.isActivityOnly;
+  const showDeadline = !isActivityOnly && typeof task.dueDate === 'string' && !!task.dueDate && sortMode !== 'deadline' && !inPrincipal;
+  const showDue = !isActivityOnly && typeof task.scheduledDate === 'string' && !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
+  const showNotes = !isActivityOnly && hasNotes && !inPrincipal;
+  const showSub = !isActivityOnly && hasSub && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
   const showTimeSpent = (task.totalTimeSpent || 0) > 0;
   const showLinked = !!task.linkedTaskId;
@@ -144,10 +145,13 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         <motion.span
           animate={{ opacity: completingImportant ? 0 : 1 }}
           transition={{ duration: 0.45, ease: 'easeInOut' }}
-          className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'} ${task.isActivityOnly ? 'font-medium' : ''}`}
+          className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'} ${task.isActivityOnly ? 'font-semibold' : ''}`}
         >
-          {task.isActivityOnly && activityColor ? (
-            <span style={{ color: isCompleted ? undefined : activityColor }}>{activityName || 'Actividad'}</span>
+          {task.isActivityOnly ? (
+            <span style={{ color: isCompleted ? undefined : (activityColor ?? '#7f70ff') }} className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: activityColor ?? '#7f70ff' }} />
+              {activityName || 'Actividad'}
+            </span>
           ) : task.title}
         </motion.span>
         {hasInfo && (
@@ -250,7 +254,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onClick={() => onExpand(task.id)}
       className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: activityColor ? `3px solid ${activityColor}` : '3px solid transparent' }}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: activityColor ? `3px solid ${activityColor}` : '3px solid transparent', backgroundColor: task.isActivityOnly && activityColor && !isCompleted ? `${activityColor}12` : undefined }}
     >
       {inner}
     </motion.li>
