@@ -3,6 +3,7 @@ import { deleteField } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useFirestoreCollection, incrementTaskTime } from './useFirestoreCollection';
 import { useSettings } from '../context/SettingsContext';
+import { getMeta, subscribeLocal } from './localDB';
 import type { Task, TaskList, RepeatConfig, SubTask, Activity } from '../types';
 
 function calculateNextDate(currentDate: string | undefined, repeat: RepeatConfig): string | undefined {
@@ -54,16 +55,29 @@ export function useTasks() {
   const listsColl = useFirestoreCollection<TaskList>(uid, 'taskLists');
   const tasksColl = useFirestoreCollection<Task>(uid, 'tasks');
 
-  // Semilla para usuarios nuevos (sin datos en Firestore)
+  // Esperar a que el primer sync con Firestore termine antes de sembrar datos
+  const [syncReady, setSyncReady] = useState(false);
   useEffect(() => {
-    if (!uid || listsColl.loading || tasksColl.loading) return;
+    if (!uid) return;
+    let mounted = true;
+    const check = () => getMeta<boolean>('initialSyncDone').then((done) => {
+      if (mounted && done) setSyncReady(true);
+    });
+    check();
+    const unsub = subscribeLocal('_syncReady', check);
+    return () => { mounted = false; unsub(); };
+  }, [uid]);
+
+  // Semilla para usuarios nuevos (sin datos en Firestore ni en local tras el sync)
+  useEffect(() => {
+    if (!uid || !syncReady || listsColl.loading || tasksColl.loading) return;
     if (listsColl.items.length === 0 && tasksColl.items.length === 0) {
       SEED_LISTS.forEach((l) => listsColl.set(l.id, { name: l.name, position: l.position }));
       SEED_TASKS.forEach((t) => tasksColl.set(t.id, {
         listId: t.listId, title: t.title, completed: t.completed, isImportant: t.isImportant, createdAt: t.createdAt, subtasks: t.subtasks,
       }));
     }
-  }, [uid, listsColl, tasksColl]);
+  }, [uid, syncReady, listsColl, tasksColl]);
 
   // Limpieza de campos de fecha corruptos (objetos enviados por error a Firestore)
   const cleanedTasksRef = useRef<Set<string>>(new Set());

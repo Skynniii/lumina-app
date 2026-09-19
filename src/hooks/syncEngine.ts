@@ -115,6 +115,7 @@ export async function syncAll(uid: string): Promise<void> {
 
     // 3. Actualizar ultimaSincronizacion
     await setMeta('lastSync', new Date().toISOString());
+    await setMeta('initialSyncDone', true);
 
     // 4. Notificar a los hooks para que relean de la DB local
     if (anyChanged) {
@@ -122,6 +123,8 @@ export async function syncAll(uid: string): Promise<void> {
         notifyLocal(coll);
       }
     }
+    // Notificar que el primer sync terminó (para que el seed pueda evaluar)
+    notifyLocal('_syncReady');
   } catch (err) {
     console.error('Sync error:', err);
   } finally {

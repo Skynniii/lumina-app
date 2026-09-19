@@ -7,7 +7,7 @@
  */
 
 const DB_NAME = 'lumina-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export interface OutboxEntry {
   id: string;
@@ -37,16 +37,32 @@ function openDB(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result;
-      if (!db.objectStoreNames.contains('data')) {
+      const oldVersion = event.oldVersion;
+
+      if (oldVersion < 1) {
+        if (!db.objectStoreNames.contains('data')) {
+          const store = db.createObjectStore('data', { keyPath: 'key' });
+          store.createIndex('by_collection', '_collection');
+        }
+        if (!db.objectStoreNames.contains('outbox')) {
+          db.createObjectStore('outbox', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('meta')) {
+          db.createObjectStore('meta');
+        }
+      }
+
+      // v1 → v2: limpiar datos locales corruptos (seed que sobreescribió datos reales)
+      // para que el sync engine haga una carga completa desde Firestore.
+      if (oldVersion === 1) {
+        if (db.objectStoreNames.contains('data')) db.deleteObjectStore('data');
+        if (db.objectStoreNames.contains('outbox')) db.deleteObjectStore('outbox');
+        if (db.objectStoreNames.contains('meta')) db.deleteObjectStore('meta');
         const store = db.createObjectStore('data', { keyPath: 'key' });
         store.createIndex('by_collection', '_collection');
-      }
-      if (!db.objectStoreNames.contains('outbox')) {
         db.createObjectStore('outbox', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('meta')) {
         db.createObjectStore('meta');
       }
     };
