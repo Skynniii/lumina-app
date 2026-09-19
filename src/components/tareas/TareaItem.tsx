@@ -73,8 +73,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const showSub = !isActivityOnly && !isLinked && hasSub && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
   const showTimeSpent = (task.totalTimeSpent || 0) > 0;
-  const showLinked = !!task.linkedTaskId;
-  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent || showLinked;
+  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent;
 
   const dueLabel = () => {
     if (typeof task.scheduledDate !== 'string' || !task.scheduledDate) return '';
@@ -153,14 +152,6 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: activityColor ?? '#7f70ff' }} />
               {activityName || 'Actividad'}
             </span>
-          ) : isLinked ? (
-            <span className="inline-flex items-center gap-1.5">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-              </svg>
-              {task.title}
-            </span>
           ) : task.title}
         </motion.span>
         {hasInfo && (
@@ -169,11 +160,6 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
             transition={{ duration: 0.45, ease: 'easeInOut' }}
             className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]"
           >
-            {showLinked && (
-              <span className="inline-flex items-center text-[#7f70ff]" title="Tarea de avance vinculada">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
-              </span>
-            )}
             {showListTag && (
               <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
             )}
@@ -220,6 +206,15 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         </div>
       )}
 
+      {isLinked && !reorderable && (
+        <span className="flex-none ml-2 self-center text-[#7f70ff]" title="Tarea vinculada">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+        </span>
+      )}
+
       {reorderable ? (
         <div
           onPointerDown={!isCompleted && onDragPointerDown ? (e) => { e.stopPropagation(); onDragPointerDown?.(e, task.id); } : undefined}
@@ -263,7 +258,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onClick={() => onExpand(task.id)}
       className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: activityColor ? `3px solid ${activityColor}` : '3px solid transparent', backgroundColor: task.isActivityOnly && activityColor && !isCompleted ? `${activityColor}12` : undefined }}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: activityColor && !isLinked ? `3px solid ${activityColor}` : '3px solid transparent', backgroundColor: task.isActivityOnly && activityColor && !isCompleted ? `${activityColor}12` : undefined }}
     >
       {inner}
     </motion.li>

@@ -249,6 +249,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               activities={activities}
               tasks={allTasks ?? []}
               lists={allLists ?? availableLists ?? []}
+              targetListId={targetListId}
               selectedActivityId={activityId}
               selectedTaskId={linkedTaskId}
               onClose={() => setShowSourcePicker(false)}

@@ -7,6 +7,7 @@ interface Props {
   activities: Activity[];
   tasks: Task[];
   lists: TaskList[];
+  targetListId?: string;
   selectedActivityId?: string;
   selectedTaskId?: string;
   onClose: () => void;
@@ -15,7 +16,7 @@ interface Props {
 }
 
 export function SourcePickerModal({
-  isOpen, activities, tasks, lists,
+  isOpen, activities, tasks, lists, targetListId,
   selectedActivityId, selectedTaskId,
   onClose, onSelectActivity, onSelectTask,
 }: Props) {
@@ -26,7 +27,7 @@ export function SourcePickerModal({
 
   // Tareas agrupadas por lista, en el orden de la lista
   const groupedTasks = useMemo(() => {
-    const eligible = tasks.filter((t) => !t.completed && !t.isSeparator && !t.isActivityOnly && !t.linkedTaskId);
+    const eligible = tasks.filter((t) => !t.completed && !t.isSeparator && !t.isActivityOnly && !t.linkedTaskId && t.listId !== targetListId);
     return lists
       .map((l) => {
         let items = eligible.filter((t) => t.listId === l.id);
@@ -44,7 +45,7 @@ export function SourcePickerModal({
         return { list: l, items };
       })
       .filter((g) => g.items.length > 0);
-  }, [tasks, lists]);
+  }, [tasks, lists, targetListId]);
 
   return (
     <AnimatePresence>
