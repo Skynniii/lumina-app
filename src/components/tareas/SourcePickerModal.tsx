@@ -21,11 +21,8 @@ export function SourcePickerModal({
 }: Props) {
   const [tab, setTab] = useState<'actividades' | 'vincular'>('actividades');
 
-  // Solo mostrar actividades que tienen al menos una tarea vinculada (igual que el Tracker)
-  const visibleActivities = useMemo(
-    () => activities.filter((act) => tasks.some((t) => t.activityId === act.id)),
-    [activities, tasks],
-  );
+  // Mostrar todas las actividades del usuario (misma lista que en los demás modales)
+  const visibleActivities = activities;
 
   // Tareas agrupadas por lista, en el orden de la lista
   const groupedTasks = useMemo(() => {
