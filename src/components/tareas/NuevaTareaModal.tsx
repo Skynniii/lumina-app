@@ -40,6 +40,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const [notesEditing, setNotesEditing] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<string | undefined>(undefined);
   const [scheduledTime, setScheduledTime] = useState<string | undefined>(undefined);
+  const [dueDate, setDueDate] = useState<string | undefined>(undefined);
   const [repeat, setRepeat] = useState<RepeatConfig | undefined>(undefined);
   const [important, setImportant] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -55,7 +56,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   useEffect(() => {
     if (isOpen) {
       setTitle(''); setNotesHtml(''); setNotesOpen(false); setNotesEditing(false);
-      setScheduledDate(undefined); setScheduledTime(undefined); setRepeat(undefined);
+      setScheduledDate(undefined); setScheduledTime(undefined); setDueDate(undefined); setRepeat(undefined);
       setImportant(false); setShowPicker(false);
       setTargetListId(defaultListId);
       setActivityId(undefined);
@@ -81,7 +82,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
     if (!trimmed && !activityId) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
     const isActivityOnly = !trimmed && !!activityId;
-    onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, isImportant: important, repeat, activityId, linkedTaskId, isActivityOnly }, targetListId);
+    onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, dueDate, isImportant: important, repeat, activityId, linkedTaskId, isActivityOnly }, targetListId);
     onClose();
   };
 
@@ -146,6 +147,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                   autoFocus
                   className="w-full border border-[#e4e4ed] rounded-xl py-3 pl-3.5 pr-10 text-[15px] text-[#333] bg-[#fafafc] outline-none focus:border-[#7f70ff] focus:bg-white transition-colors"
                 />
+                {!title.trim() && (
                 <button
                   type="button"
                   onClick={() => setShowSourcePicker(true)}
@@ -154,6 +156,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7" /><polyline points="9 7 17 7 17 15" /></svg>
                 </button>
+                )}
               </div>
 
               {/* Fila de íconos: fecha/hora, importante, notas */}
@@ -238,17 +241,27 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               onSelectTask={(selected) => {
                 if (selected) {
                   setLinkedTaskId(selected.id);
-                  setActivityId(undefined);
-                  const taskList = (allLists ?? availableLists ?? []).find((l) => l.id === selected.listId);
-                  if (taskList?.activityId) {
-                    const activity = activities.find((a) => a.id === taskList.activityId);
-                    setTitle(`${activity?.name ?? 'Actividad'}: ${selected.title}`);
-                  } else {
-                    setTitle(`Avance en: ${selected.title}`);
+                  // Heredar toda la información de la tarea original
+                  setActivityId(selected.activityId);
+                  setTitle(selected.title);
+                  if (selected.notes) {
+                    setNotesHtml(selected.notes);
+                    setNotesOpen(true);
                   }
+                  setScheduledDate(selected.scheduledDate);
+                  setScheduledTime(selected.scheduledTime);
+                  setDueDate(selected.dueDate);
+                  setRepeat(selected.repeat);
                 } else {
                   setLinkedTaskId(undefined);
                   setTitle('');
+                  setActivityId(undefined);
+                  setNotesHtml('');
+                  setNotesOpen(false);
+                  setScheduledDate(undefined);
+                  setScheduledTime(undefined);
+                  setDueDate(undefined);
+                  setRepeat(undefined);
                 }
               }}
             />

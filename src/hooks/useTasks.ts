@@ -183,8 +183,14 @@ export function useTasks() {
     // Si la lista tiene una actividad vinculada y la tarea no especifica una, usar la de la lista
     const listActivityId = lists.find((l) => l.id === listId)?.activityId;
     const resolvedActivityId = data.activityId || listActivityId || undefined;
+    // Si la actividad tiene su propia lista y no es una referencia, crear la tarea allí
+    let targetListId = listId;
+    if (resolvedActivityId && !data.linkedTaskId) {
+      const activityList = lists.find((l) => l.activityId === resolvedActivityId && l.id !== 'principal');
+      if (activityList) targetListId = activityList.id;
+    }
     tasksColl.add({
-      listId, title: trimmed, completed: false, isImportant: !!data.isImportant, createdAt: new Date().toISOString(),
+      listId: targetListId, title: trimmed, completed: false, isImportant: !!data.isImportant, createdAt: new Date().toISOString(),
       notes: data.notes || undefined, scheduledDate: data.scheduledDate || undefined, scheduledTime: data.scheduledTime || undefined,
       dueDate: data.dueDate || undefined, repeat: data.repeat, activityId: resolvedActivityId,
       linkedTaskId: data.linkedTaskId || undefined, isActivityOnly: data.isActivityOnly || undefined,
