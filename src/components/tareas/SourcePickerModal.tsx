@@ -21,6 +21,12 @@ export function SourcePickerModal({
 }: Props) {
   const [tab, setTab] = useState<'actividades' | 'vincular'>('actividades');
 
+  // Solo mostrar actividades que tienen al menos una tarea vinculada (igual que el Tracker)
+  const visibleActivities = useMemo(
+    () => activities.filter((act) => tasks.some((t) => t.activityId === act.id)),
+    [activities, tasks],
+  );
+
   // Tareas agrupadas por lista, en el orden de la lista
   const groupedTasks = useMemo(() => {
     const eligible = tasks.filter((t) => !t.completed && !t.isSeparator && !t.isActivityOnly);
@@ -96,7 +102,7 @@ export function SourcePickerModal({
             <div className="overflow-y-auto no-scrollbar flex-1">
               {tab === 'actividades' && (
                 <div className="flex flex-col gap-1">
-                  {activities.map((act) => (
+                  {visibleActivities.map((act) => (
                     <button
                       key={act.id}
                       onClick={() => { onSelectActivity(act.id); onSelectTask(null); onClose(); }}
@@ -109,7 +115,7 @@ export function SourcePickerModal({
                       )}
                     </button>
                   ))}
-                  {activities.length === 0 && (
+                  {visibleActivities.length === 0 && (
                     <p className="text-center text-[#a0a0a0] text-sm py-8">No hay actividades creadas.</p>
                   )}
                 </div>
