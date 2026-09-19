@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { Task, TaskList, SortMode } from '../../types';
 import { TareaItem } from './TareaItem';
 import { SeparatorItem } from './SeparatorItem';
+import { VirtualizedList } from './VirtualizedList';
 import { DesplegableMenu } from '../ui/DesplegableMenu';
 import { SortMenu } from './SortMenu';
 import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
@@ -130,6 +131,8 @@ export function ListaTareasCard({
       ? [...active].sort(byCreated).map((t) => t.id)
       : activeSorted.map((t) => t.id);
   const orderedIds = dragOrder ?? baseIds;
+  // Virtualize long lists in default (non-reorder, non-grouped) mode for performance.
+  const shouldVirtualize = !reorderable && !showGroups && orderedIds.length > 30;
 
   const setDragOrderBoth = useCallback((v: string[] | null) => {
     dragOrderRef.current = v;
@@ -358,6 +361,21 @@ export function ListaTareasCard({
               </AnimatePresence>
               {activeNonSep.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
             </ul>
+          ) : shouldVirtualize ? (
+            <>
+              <VirtualizedList
+                scrollRef={scrollRef}
+                items={orderedIds}
+                getItemKey={(id) => id}
+                renderItem={(id) => {
+                  const task = taskByIdRef.current[id];
+                  if (!task) return null;
+                  if (task.isSeparator) return <SeparatorItem task={task} />;
+                  return <TareaItem task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />;
+                }}
+              />
+              {activeNonSep.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
+            </>
           ) : (
             <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
               <AnimatePresence mode="popLayout">
