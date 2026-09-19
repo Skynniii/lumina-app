@@ -58,31 +58,27 @@ function TimerRing({ progressDeg, color, children }: { progressDeg: number; colo
 
 function PlayButton({ onClick }: { onClick: () => void }) {
   return (
-    <motion.button
+    <button
       onClick={onClick}
-      whileTap={{ scale: 0.88 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
       aria-label="Iniciar"
-      className="w-[64px] h-[64px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)]"
+      className="w-[64px] h-[64px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)] active:scale-[0.88] transition-transform"
     >
       <svg width="26" height="26" viewBox="0 0 24 24" fill="white" className="ml-1">
         <path d="M8 5v14l11-7z" />
       </svg>
-    </motion.button>
+    </button>
   );
 }
 
 function CtrlButton({ onClick, label, children }: { onClick: () => void; label: string; children: ReactNode }) {
   return (
-    <motion.button
+    <button
       onClick={onClick}
-      whileTap={{ scale: 0.88 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
       aria-label={label}
-      className="w-[60px] h-[60px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_6px_#e6e6e6,inset_-2px_-2px_6px_#ffffff] transition-shadow"
+      className="w-[60px] h-[60px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_6px_#e6e6e6,inset_-2px_-2px_6px_#ffffff] transition-shadow active:scale-[0.88] transition-transform"
     >
       {children}
-    </motion.button>
+    </button>
   );
 }
 

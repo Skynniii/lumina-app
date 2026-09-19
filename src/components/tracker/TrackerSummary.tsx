@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed } from '../../hooks/useTimeTracker';
 import { formatDuration, type ActivityStats } from './trackerUtils';
+import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 
 interface Props {
   totalSeconds: number;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function TrackerSummary({ totalSeconds, sessionCount, avgSeconds, activityStats, liveElapsed, isRunning, liveActivityId, previousSeconds }: Props) {
+  const cap = useDeviceCapability();
   const displayStats = [...activityStats];
   if (liveElapsed > 0 && liveActivityId) {
     const idx = displayStats.findIndex((s) => s.activity.id === liveActivityId);
@@ -63,7 +65,7 @@ export function TrackerSummary({ totalSeconds, sessionCount, avgSeconds, activit
               const pct = displayTotal > 0 ? Math.min(100, (s.totalSeconds / displayTotal) * 100) : 0;
               const hasLive = isRunning && s.activity.id === liveActivityId;
               return (
-                <motion.div key={s.activity.id} layout className="flex flex-col gap-1.5">
+                <motion.div key={s.activity.id} layout={cap.enableLayout} className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.activity.color }} />

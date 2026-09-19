@@ -11,6 +11,7 @@ import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { useSettings } from '../../context/SettingsContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
+import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 import type { Task, TaskList } from '../../types';
 
 interface Props extends ActiveTimerCardProps {
@@ -33,6 +34,7 @@ const MODE_LABELS: Record<TimerMode, string> = {
 export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard, onSaveSession, onSaveManualSession, ...props }: Props) {
   const { mode, onModeChange, countdown, pomodoroPhase, pomodoroCycle, onPomodoroSkip } = props;
   const { settings, update } = useSettings();
+  const cap = useDeviceCapability();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [taskPickerOpen, setTaskPickerOpen] = useState(false);
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
@@ -219,12 +221,14 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
         {/* Anillo */}
         <div className="flex flex-col items-center py-4">
           <div className="relative flex items-center justify-center">
+            {cap.enableParticles && (
             <motion.div className="absolute w-[260px] h-[260px] rounded-full bg-[#7f70ff]/5 blur-[50px]" animate={{ opacity: [0.3, 0.5, 0.3], scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }} />
-            <motion.div animate={isActive ? { scale: [1, 1.01, 1] } : {}} transition={isActive ? { repeat: Infinity, duration: 3, ease: 'easeInOut' } : {}}>
+          )}
+            <motion.div animate={isActive && cap.enableParticles ? { scale: [1, 1.01, 1] } : {}} transition={isActive && cap.enableParticles ? { repeat: Infinity, duration: 3, ease: 'easeInOut' } : {}}>
               <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" isStatic={mode === 'rastreador'}>
                 <div className="flex flex-col items-center gap-1">
-                  {isActive && <motion.span className="w-2 h-2 rounded-full bg-[#34c77b] mb-1" animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }} />}
-                  <motion.span key={timeDisplay} className="text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none" animate={isActive ? { scale: [1, 1.02, 1] } : {}} transition={isActive ? { repeat: Infinity, duration: 2, ease: 'easeInOut' } : {}}>{timeDisplay}</motion.span>
+                  {isActive && <motion.span className="w-2 h-2 rounded-full bg-[#34c77b] mb-1" animate={cap.enableParticles ? { opacity: [1, 0.3, 1] } : {}} transition={cap.enableParticles ? { repeat: Infinity, duration: 2, ease: 'easeInOut' } : {}} />}
+                  <motion.span key={timeDisplay} className="text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none" animate={isActive && cap.enableParticles ? { scale: [1, 1.02, 1] } : {}} transition={isActive && cap.enableParticles ? { repeat: Infinity, duration: 2, ease: 'easeInOut' } : {}}>{timeDisplay}</motion.span>
                   <span className="text-[11px] text-[#999] uppercase tracking-wide mt-0.5">{statusLabel}</span>
                 </div>
               </FocusRing>
@@ -352,16 +356,16 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       {/* === Botones flotantes inferiores === */}
       <div className="flex items-center justify-center gap-10 pb-8 pt-2 shrink-0">
         {manualMode ? (
-          <motion.button onClick={() => setManualMode(false)} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow">
+          <button onClick={() => setManualMode(false)} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-          </motion.button>
+          </button>
         ) : hasStarted ? (
-          <motion.button onClick={handleXClick} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow">
+          <button onClick={handleXClick} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-          </motion.button>
+          </button>
         ) : <div className="w-[52px]" />}
 
-        <motion.button onClick={manualMode ? handleSaveManual : handleCenterButton} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)]">
+        <button onClick={manualMode ? handleSaveManual : handleCenterButton} className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)] active:scale-[0.88] transition-transform">
           {manualMode ? (
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           ) : !hasStarted || (!isRunning && hasStarted) ? (
@@ -369,7 +373,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           ) : (
             <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><rect x="6" y="5" width="4" height="14" rx="1.5" /><rect x="14" y="5" width="4" height="14" rx="1.5" /></svg>
           )}
-        </motion.button>
+        </button>
 
         {manualMode ? (
           <div className="w-[56px]" />
@@ -378,14 +382,14 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
             <svg className="absolute inset-0 -rotate-90 pointer-events-none" width={checkSize} height={checkSize}>
               <circle cx={checkSize / 2} cy={checkSize / 2} r={checkRadius} fill="none" stroke="#34c77b" strokeWidth="3" strokeDasharray={checkCircumference} strokeDashoffset={checkCircumference * (1 - holdProgress)} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.05s linear' }} />
             </svg>
-            <motion.button onPointerDown={handleCheckPointerDown} onPointerUp={handleCheckPointerEnd} onPointerLeave={handleCheckPointerEnd} whileTap={{ scale: 0.92 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="absolute inset-[3px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow touch-none">
+            <button onPointerDown={handleCheckPointerDown} onPointerUp={handleCheckPointerEnd} onPointerLeave={handleCheckPointerEnd} className="absolute inset-[3px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow touch-none active:scale-[0.92] transition-transform">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34c77b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            </motion.button>
+            </button>
           </div>
         ) : (
-          <motion.button onClick={() => setManualMode(true)} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[56px] h-[56px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow">
+          <button onClick={() => setManualMode(true)} className="w-[56px] h-[56px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4" /><path d="M16 2v4" /><rect x="4" y="4" width="16" height="18" rx="2" /><path d="M12 11v5" /><path d="M9.5 13.5h5" /></svg>
-          </motion.button>
+          </button>
         )}
       </div>
 

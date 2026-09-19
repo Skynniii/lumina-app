@@ -55,8 +55,7 @@ export function DayAgenda({ date, events, onSelectEvent }: Props) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
               onClick={() => onSelectEvent(e)}
-              whileTap={{ scale: 0.98 }}
-              className="flex items-stretch w-full p-0 border-none bg-transparent cursor-pointer text-left py-1.5"
+              className="flex items-stretch w-full p-0 border-none bg-transparent cursor-pointer text-left py-1.5 active:scale-[0.98] transition-transform"
             >
               {/* Columna de horas */}
               <div className="w-[52px] flex flex-col items-end justify-center shrink-0 pr-1">

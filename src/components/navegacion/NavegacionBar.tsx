@@ -71,17 +71,15 @@ export function NavegacionBar({ activeView, onViewChange, onAdd }: Props) {
       {leftTabs.map(renderTab)}
 
       {/* Botón + incrustado, sobresale del borde superior */}
-      <motion.button
+      <button
         onClick={onAdd}
-        whileTap={{ scale: 0.88 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-        className="relative -mt-[32px] w-[56px] h-[56px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_4px_14px_rgba(127,112,255,0.4)] shrink-0"
+        className="relative -mt-[32px] w-[56px] h-[56px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_4px_14px_rgba(127,112,255,0.4)] shrink-0 active:scale-[0.88] transition-transform"
       >
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-      </motion.button>
+      </button>
 
       {rightTabs.map(renderTab)}
     </nav>

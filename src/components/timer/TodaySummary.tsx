@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed, todayKey, isoToDateKey } from '../../hooks/useTimeTracker';
 import type { Activity, TimeSession } from '../../types';
+import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 
 interface Props {
   entries: TimeSession[];
@@ -35,6 +36,7 @@ interface ActivityGroup {
 
 export function TodaySummary({ entries, activities, liveElapsed, isRunning, liveActivityId, liveDescription, onSelectEntry }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const cap = useDeviceCapability();
   const todayEntries = entries.filter((e) => isoToDateKey(e.startTime) === todayKey());
 
   const allSessions: Session[] = todayEntries.map((e) => ({
@@ -103,7 +105,7 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
                 {groups.map((g) => {
                 const pct = total > 0 ? Math.min(100, (g.totalSeconds / total) * 100) : 0;
                 return (
-                  <motion.div key={g.activityId} layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.35, ease: 'easeInOut' }} className="flex flex-col gap-1.5 overflow-hidden">
+                  <motion.div key={g.activityId} layout={cap.enableLayout} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.35 * cap.durationScale, ease: 'easeInOut' }} className="flex flex-col gap-1.5 overflow-hidden">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.color }} />
