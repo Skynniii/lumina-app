@@ -10,8 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/core": "^5.0.0",
-    "@codetrix-studio/capacitor-google-auth": "^3.3.6",
     "firebase": "^12.19.0",
     "framer-motion": "^12.42.2",
     "react": "^19.2.7",
