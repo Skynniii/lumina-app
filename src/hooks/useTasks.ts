@@ -180,12 +180,20 @@ export function useTasks() {
   const addTaskWithData = useCallback((listId: string, data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string; linkedTaskId?: string; isActivityOnly?: boolean }) => {
     const trimmed = (data.title || '').trim();
     if (!trimmed && !data.isActivityOnly) return;
+    // Referencia: crear solo un puntero ligero, sin copiar datos ni mover de lista
+    if (data.linkedTaskId) {
+      tasksColl.add({
+        listId, title: trimmed, completed: false, isImportant: false, createdAt: new Date().toISOString(),
+        linkedTaskId: data.linkedTaskId,
+      });
+      return;
+    }
     // Si la lista tiene una actividad vinculada y la tarea no especifica una, usar la de la lista
     const listActivityId = lists.find((l) => l.id === listId)?.activityId;
     const resolvedActivityId = data.activityId || listActivityId || undefined;
-    // Si la actividad tiene su propia lista y no es una referencia, crear la tarea allí
+    // Si la actividad tiene su propia lista, crear la tarea allí
     let targetListId = listId;
-    if (resolvedActivityId && !data.linkedTaskId) {
+    if (resolvedActivityId) {
       const activityList = lists.find((l) => l.activityId === resolvedActivityId && l.id !== 'principal');
       if (activityList) targetListId = activityList.id;
     }
@@ -193,7 +201,7 @@ export function useTasks() {
       listId: targetListId, title: trimmed, completed: false, isImportant: !!data.isImportant, createdAt: new Date().toISOString(),
       notes: data.notes || undefined, scheduledDate: data.scheduledDate || undefined, scheduledTime: data.scheduledTime || undefined,
       dueDate: data.dueDate || undefined, repeat: data.repeat, activityId: resolvedActivityId,
-      linkedTaskId: data.linkedTaskId || undefined, isActivityOnly: data.isActivityOnly || undefined,
+      isActivityOnly: data.isActivityOnly || undefined,
     });
   }, [tasksColl, lists]);
 

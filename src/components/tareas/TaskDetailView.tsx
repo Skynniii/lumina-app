@@ -310,13 +310,24 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
 
       {/* Contenido scrolleable */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 py-4">
+        {/* Banner de referencia */}
+        {isLinked && (
+          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-[#f0edff] text-[#7f70ff]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-none">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+            <span className="text-[13px] font-medium">Referencia a tarea</span>
+          </div>
+        )}
+
         {/* Texto de la tarea */}
         <textarea
           ref={titleRef}
           value={task.title}
           onChange={(e) => handleSyncedUpdate(task.id, { title: e.target.value })}
-          readOnly={isCompleted || !editingTitle}
-          onClick={() => { if (!isCompleted) { setEditingTitle(true); setTimeout(() => titleRef.current?.focus(), 10); } }}
+          readOnly={isCompleted || isLinked || !editingTitle}
+          onClick={() => { if (!isCompleted && !isLinked) { setEditingTitle(true); setTimeout(() => titleRef.current?.focus(), 10); } }}
           onBlur={() => setEditingTitle(false)}
           rows={1}
           className={`w-full bg-transparent outline-none resize-none border-none text-[20px] font-bold leading-snug mb-4 ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#2b2b2b]'} ${editingTitle ? 'cursor-text' : 'cursor-pointer'}`}
@@ -353,7 +364,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Subtareas */}
-        {(!isCompleted || hasSubtasks) && !task.isActivityOnly && (
+        {(!isCompleted || hasSubtasks) && !task.isActivityOnly && !isLinked && (
           <div className="border-b border-[#f0f0f5]">
             <div className="flex items-center gap-3 py-3">
               <span className={`transition-colors ${hasSubtasks ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -402,7 +413,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Fecha límite */}
-        {!isCompleted && !task.isActivityOnly && (
+        {!isCompleted && !task.isActivityOnly && !isLinked && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setShowDeadlinePicker(true)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${task.dueDate ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -422,7 +433,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Fecha y Hora */}
-        {!isCompleted && !task.isActivityOnly && (
+        {!isCompleted && !task.isActivityOnly && !isLinked && (
           <div className="border-b border-[#f0f0f5]">
             <div onClick={() => setShowCalendar(true)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${task.scheduledDate ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
@@ -483,16 +494,27 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         {/* Actividad */}
         {!isCompleted && (
           <div className="border-b border-[#f0f0f5]">
-            <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
-              {!taskActivity && (
-                <span className="text-[#a0a0a0]">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-                </span>
-              )}
-              {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
-              <span className={`flex-1 text-left text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Seleccionar actividad'}</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-            </button>
+            {isLinked ? (
+              <div className="flex items-center gap-3 py-3">
+                {taskActivity ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} /> : (
+                  <span className="text-[#a0a0a0]">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                  </span>
+                )}
+                <span className={`flex-1 text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Sin actividad'}</span>
+              </div>
+            ) : (
+              <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+                {!taskActivity && (
+                  <span className="text-[#a0a0a0]">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                  </span>
+                )}
+                {taskActivity && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: taskActivity.color }} />}
+                <span className={`flex-1 text-left text-[15px] ${taskActivity ? 'text-[#333]' : 'text-[#555]'}`}>{taskActivity?.name ?? 'Seleccionar actividad'}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+            )}
           </div>
         )}
 

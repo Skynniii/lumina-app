@@ -26,7 +26,7 @@ export function SourcePickerModal({
 
   // Tareas agrupadas por lista, en el orden de la lista
   const groupedTasks = useMemo(() => {
-    const eligible = tasks.filter((t) => !t.completed && !t.isSeparator && !t.isActivityOnly);
+    const eligible = tasks.filter((t) => !t.completed && !t.isSeparator && !t.isActivityOnly && !t.linkedTaskId);
     return lists
       .map((l) => {
         let items = eligible.filter((t) => t.listId === l.id);

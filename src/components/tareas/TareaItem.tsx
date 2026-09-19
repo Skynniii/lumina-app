@@ -66,10 +66,11 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const inPrincipal = !!listTag || !!compact;
   const showListTag = !!listTag && !hideListTag;
   const isActivityOnly = !!task.isActivityOnly;
-  const showDeadline = !isActivityOnly && typeof task.dueDate === 'string' && !!task.dueDate && sortMode !== 'deadline' && !inPrincipal;
-  const showDue = !isActivityOnly && typeof task.scheduledDate === 'string' && !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
-  const showNotes = !isActivityOnly && hasNotes && !inPrincipal;
-  const showSub = !isActivityOnly && hasSub && !inPrincipal;
+  const isLinked = !!task.linkedTaskId;
+  const showDeadline = !isActivityOnly && !isLinked && typeof task.dueDate === 'string' && !!task.dueDate && sortMode !== 'deadline' && !inPrincipal;
+  const showDue = !isActivityOnly && !isLinked && typeof task.scheduledDate === 'string' && !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
+  const showNotes = !isActivityOnly && !isLinked && hasNotes && !inPrincipal;
+  const showSub = !isActivityOnly && !isLinked && hasSub && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
   const showTimeSpent = (task.totalTimeSpent || 0) > 0;
   const showLinked = !!task.linkedTaskId;

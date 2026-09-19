@@ -52,6 +52,16 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const notesRef = useRef<HTMLDivElement>(null);
 
   const selectedActivity = activities.find((a) => a.id === activityId);
+  const isLinked = !!linkedTaskId;
+
+  const generateRefTitle = (task: Task): string => {
+    const taskList = allLists?.find((l) => l.id === task.listId);
+    if (taskList?.activityId) {
+      const activity = activities.find((a) => a.id === taskList.activityId);
+      return `${activity?.name ?? 'Actividad'}: ${task.title}`;
+    }
+    return `Avance en: ${task.title}`;
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -79,10 +89,16 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
 
   const submit = () => {
     const trimmed = title.trim();
+    if (isLinked) {
+      if (!trimmed) return;
+      onCreate({ title: trimmed, linkedTaskId }, targetListId);
+      onClose();
+      return;
+    }
     if (!trimmed && !activityId) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
     const isActivityOnly = !trimmed && !!activityId;
-    onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, dueDate, isImportant: important, repeat, activityId, linkedTaskId, isActivityOnly }, targetListId);
+    onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, dueDate, isImportant: important, repeat, activityId, isActivityOnly }, targetListId);
     onClose();
   };
 
@@ -141,13 +157,14 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 <input
                   type="text"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => { if (!isLinked) setTitle(e.target.value); }}
                   onKeyDown={(e) => e.key === 'Enter' && submit()}
                   placeholder={activityId ? (selectedActivity?.name ?? 'Actividad') : '¿Qué tarea quieres añadir?'}
-                  autoFocus
-                  className="w-full border border-[#e4e4ed] rounded-xl py-3 pl-3.5 pr-10 text-[15px] text-[#333] bg-[#fafafc] outline-none focus:border-[#7f70ff] focus:bg-white transition-colors"
+                  readOnly={isLinked}
+                  autoFocus={!isLinked}
+                  className={`w-full border rounded-xl py-3 pl-3.5 pr-10 text-[15px] outline-none transition-colors ${isLinked ? 'border-[#7f70ff]/30 bg-[#f0edff] text-[#7f70ff] font-medium cursor-default' : 'border-[#e4e4ed] text-[#333] bg-[#fafafc] focus:border-[#7f70ff] focus:bg-white'}`}
                 />
-                {!title.trim() && (
+                {(!title.trim() || isLinked) && (
                 <button
                   type="button"
                   onClick={() => setShowSourcePicker(true)}
@@ -159,7 +176,8 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 )}
               </div>
 
-              {/* Fila de íconos: fecha/hora, importante, notas */}
+              {/* Fila de íconos: fecha/hora, importante, notas (oculta cuando es referencia) */}
+              {!isLinked && (
               <div className="flex items-center gap-3 mb-2">
                 {iconBtn(!!scheduledDate || !!repeat, () => setShowPicker(true), 'Fecha y hora',
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
@@ -181,6 +199,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 </button>
                 {fechaLabel && <span className="text-[12px] text-[#6b5cdb] font-medium ml-1 truncate">{fechaLabel}</span>}
               </div>
+              )}
 
               {/* Editor de notas desplegable */}
               <AnimatePresence>
@@ -211,7 +230,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
 
               <div className="flex gap-3 mt-2">
                 <button onClick={onClose} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#f0f0f0] text-[#666] hover:bg-[#e4e4e4] transition-colors">Cancelar</button>
-                <button onClick={submit} disabled={!title.trim() && !activityId} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">{!title.trim() && activityId ? 'Crear actividad' : 'Crear tarea'}</button>
+                <button onClick={submit} disabled={!title.trim() && !activityId && !isLinked} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">{isLinked ? 'Crear referencia' : !title.trim() && activityId ? 'Crear actividad' : 'Crear tarea'}</button>
               </div>
             </motion.div>
 
@@ -241,17 +260,14 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               onSelectTask={(selected) => {
                 if (selected) {
                   setLinkedTaskId(selected.id);
-                  // Heredar toda la información de la tarea original
-                  setActivityId(selected.activityId);
-                  setTitle(selected.title);
-                  if (selected.notes) {
-                    setNotesHtml(selected.notes);
-                    setNotesOpen(true);
-                  }
-                  setScheduledDate(selected.scheduledDate);
-                  setScheduledTime(selected.scheduledTime);
-                  setDueDate(selected.dueDate);
-                  setRepeat(selected.repeat);
+                  setActivityId(undefined);
+                  setTitle(generateRefTitle(selected));
+                  setNotesHtml('');
+                  setNotesOpen(false);
+                  setScheduledDate(undefined);
+                  setScheduledTime(undefined);
+                  setDueDate(undefined);
+                  setRepeat(undefined);
                 } else {
                   setLinkedTaskId(undefined);
                   setTitle('');
