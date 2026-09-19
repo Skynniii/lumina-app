@@ -200,7 +200,7 @@ export function useTasks() {
     tasksColl.add({
       listId: targetListId, title: trimmed, completed: false, isImportant: !!data.isImportant, createdAt: new Date().toISOString(),
       notes: data.notes || undefined, scheduledDate: data.scheduledDate || undefined, scheduledTime: data.scheduledTime || undefined,
-      dueDate: data.dueDate || undefined, repeat: data.repeat, activityId: resolvedActivityId,
+      dueDate: data.dueDate || undefined, repeat: data.repeat, activityId: data.isActivityOnly ? undefined : resolvedActivityId,
       isActivityOnly: data.isActivityOnly || undefined,
     });
   }, [tasksColl, lists]);
@@ -314,12 +314,12 @@ export function useTasks() {
   const setListActivity = useCallback((listId: string, activityId: string | null) => {
     if (activityId) {
       listsColl.update(listId, { activityId });
-      tasks.filter((t) => t.listId === listId && !t.isSeparator).forEach((t) => {
+      tasks.filter((t) => t.listId === listId && !t.isSeparator && !t.isActivityOnly).forEach((t) => {
         tasksColl.update(t.id, { activityId });
       });
     } else {
       listsColl.update(listId, { activityId: deleteField() });
-      tasks.filter((t) => t.listId === listId && !t.isSeparator).forEach((t) => {
+      tasks.filter((t) => t.listId === listId && !t.isSeparator && !t.isActivityOnly).forEach((t) => {
         tasksColl.update(t.id, { activityId: deleteField() });
       });
     }

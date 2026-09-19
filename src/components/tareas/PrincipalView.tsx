@@ -235,6 +235,10 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   }, [activities]);
   const actColor = (t: Task) => {
     if (t.activityId) return activityMap[t.activityId]?.color;
+    if (t.isActivityOnly) {
+      const taskList = lists.find((l) => l.id === t.listId);
+      if (taskList?.activityId) return activityMap[taskList.activityId]?.color;
+    }
     if (t.linkedTaskId) {
       const linked = tasks.find((tk) => tk.id === t.linkedTaskId);
       if (linked?.activityId) return activityMap[linked.activityId]?.color;
@@ -243,6 +247,10 @@ export function PrincipalView({ lists, tasks, principalList, onUpdateList, onTog
   };
   const actName = (t: Task) => {
     if (t.activityId) return activityMap[t.activityId]?.name;
+    if (t.isActivityOnly) {
+      const taskList = lists.find((l) => l.id === t.listId);
+      if (taskList?.activityId) return activityMap[taskList.activityId]?.name;
+    }
     if (t.linkedTaskId) {
       const linked = tasks.find((tk) => tk.id === t.linkedTaskId);
       if (linked?.activityId) return activityMap[linked.activityId]?.name;

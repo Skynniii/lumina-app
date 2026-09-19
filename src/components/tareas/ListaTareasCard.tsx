@@ -66,6 +66,7 @@ export function ListaTareasCard({
   }, [activities]);
   const actColor = (t: Task) => {
     if (t.activityId) return activityMap[t.activityId]?.color;
+    if (t.isActivityOnly && list.activityId) return activityMap[list.activityId]?.color;
     if (t.linkedTaskId) {
       const linked = (allTasks ?? tasks).find((tk) => tk.id === t.linkedTaskId);
       if (linked?.activityId) return activityMap[linked.activityId]?.color;
@@ -74,6 +75,7 @@ export function ListaTareasCard({
   };
   const actName = (t: Task) => {
     if (t.activityId) return activityMap[t.activityId]?.name;
+    if (t.isActivityOnly && list.activityId) return activityMap[list.activityId]?.name;
     if (t.linkedTaskId) {
       const linked = (allTasks ?? tasks).find((tk) => tk.id === t.linkedTaskId);
       if (linked?.activityId) return activityMap[linked.activityId]?.name;

@@ -46,7 +46,15 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const [notesEditing, setNotesEditing] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
 
-  const taskActivity = activities.find((a) => a.id === (linkedTask?.activityId ?? task.activityId));
+  const taskActivity = activities.find((a) => {
+    if (linkedTask?.activityId) return a.id === linkedTask.activityId;
+    if (task.activityId) return a.id === task.activityId;
+    if (task.isActivityOnly) {
+      const listActivityId = lists.find((l) => l.id === task.listId)?.activityId;
+      if (listActivityId) return a.id === listActivityId;
+    }
+    return false;
+  });
   const taskSessions = sessionsColl.items.filter((s) => s.taskId === task.id);
   const displaySessions = linkedTask ? sessionsColl.items.filter((s) => s.taskId === linkedTask.id) : taskSessions;
 
@@ -81,11 +89,15 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
 
   const handleStartTimer = () => {
     if (isLinked && linkedTask) {
-      // Para referencias, usar la tarea original completa: el tiempo se acumula en ella
-      // y el timer muestra toda su información (título, notas, actividad).
       setPendingTimerTask(linkedTask);
     } else {
-      setPendingTimerTask(task);
+      // Para activity-only, resolver la actividad desde la lista
+      let taskForTimer = task;
+      if (task.isActivityOnly && !task.activityId) {
+        const listActivityId = lists.find((l) => l.id === task.listId)?.activityId;
+        if (listActivityId) taskForTimer = { ...task, activityId: listActivityId };
+      }
+      setPendingTimerTask(taskForTimer);
     }
     onBack();
     onNavigate?.('cronometro');
@@ -493,7 +505,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
 
         {/* Actividad */}
-        {!isCompleted && !isLinked && (
+        {!isCompleted && !isLinked && !task.isActivityOnly && (
           <div className="border-b border-[#f0f0f5]">
             <button onClick={() => setActivityPickerOpen(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
               {!taskActivity && (
