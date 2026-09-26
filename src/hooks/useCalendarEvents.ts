@@ -30,30 +30,31 @@ export function useCalendarEvents() {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
   const coll = useFirestoreCollection<CalendarEvent>(uid, 'calendarEvents');
+  const { items: events, loading, set: collSet, update: collUpdate, remove: collRemove } = coll;
 
   // Semilla para usuarios nuevos
   useEffect(() => {
-    if (!uid || coll.loading) return;
-    if (coll.items.length === 0) {
-      seed().forEach((e) => coll.set(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location }));
+    if (!uid || loading) return;
+    if (events.length === 0) {
+      seed().forEach((e) => collSet(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location }));
     }
-  }, [uid, coll]);
+  }, [uid, loading, events, collSet]);
 
   const addEvent = useCallback((e: Omit<CalendarEvent, 'id'>): string => {
     const id = `ev-${Date.now()}`;
-    coll.set(id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes });
+    collSet(id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes });
     return id;
-  }, [coll]);
+  }, [collSet]);
 
   const updateEvent = useCallback((e: CalendarEvent) => {
-    coll.update(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes });
-  }, [coll]);
+    collUpdate(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes });
+  }, [collUpdate]);
 
   const deleteEvent = useCallback((id: string) => {
-    coll.remove(id);
-  }, [coll]);
+    collRemove(id);
+  }, [collRemove]);
 
-  return { events: coll.items, addEvent, updateEvent, deleteEvent };
+  return { events, addEvent, updateEvent, deleteEvent };
 }
 
 /** Semanas del mes: array de fechas YYYY-MM-DD (null = celda vacía). */

@@ -54,6 +54,8 @@ export function useTasks() {
 
   const listsColl = useFirestoreCollection<TaskList>(uid, 'taskLists');
   const tasksColl = useFirestoreCollection<Task>(uid, 'tasks');
+  const { items: lists, loading: listsLoading, set: listSet } = listsColl;
+  const { items: tasks, loading: tasksLoading, set: taskSet, update: taskUpdate } = tasksColl;
 
   // Esperar a que el primer sync con Firestore termine antes de sembrar datos
   const [syncReady, setSyncReady] = useState(false);
@@ -70,20 +72,20 @@ export function useTasks() {
 
   // Semilla para usuarios nuevos (sin datos en Firestore ni en local tras el sync)
   useEffect(() => {
-    if (!uid || !syncReady || listsColl.loading || tasksColl.loading) return;
-    if (listsColl.items.length === 0 && tasksColl.items.length === 0) {
-      SEED_LISTS.forEach((l) => listsColl.set(l.id, { name: l.name, position: l.position }));
-      SEED_TASKS.forEach((t) => tasksColl.set(t.id, {
+    if (!uid || !syncReady || listsLoading || tasksLoading) return;
+    if (lists.length === 0 && tasks.length === 0) {
+      SEED_LISTS.forEach((l) => listSet(l.id, { name: l.name, position: l.position }));
+      SEED_TASKS.forEach((t) => taskSet(t.id, {
         listId: t.listId, title: t.title, completed: t.completed, isImportant: t.isImportant, createdAt: t.createdAt, subtasks: t.subtasks,
       }));
     }
-  }, [uid, syncReady, listsColl, tasksColl]);
+  }, [uid, syncReady, listsLoading, tasksLoading, lists, tasks, listSet, taskSet]);
 
   // Limpieza de campos de fecha corruptos (objetos enviados por error a Firestore)
   const cleanedTasksRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!uid || tasksColl.loading) return;
-    for (const task of tasksColl.items) {
+    if (!uid || tasksLoading) return;
+    for (const task of tasks) {
       if (cleanedTasksRef.current.has(task.id)) continue;
       const updates: Record<string, unknown> = {};
       if (task.scheduledDate != null && typeof task.scheduledDate !== 'string') {
@@ -97,13 +99,11 @@ export function useTasks() {
       }
       if (Object.keys(updates).length > 0) {
         cleanedTasksRef.current.add(task.id);
-        tasksColl.update(task.id, updates as Partial<Task>);
+        taskUpdate(task.id, updates as Partial<Task>);
       }
     }
-  }, [uid, tasksColl, tasksColl.loading]);
+  }, [uid, tasks, tasksLoading, taskUpdate]);
 
-  const lists = listsColl.items;
-  const tasks = tasksColl.items;
   const [modal, setModal] = useState<ModalConfig>(CLOSED);
   const closeModal = useCallback(() => setModal((p) => ({ ...p, isOpen: false })), []);
 

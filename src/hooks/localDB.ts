@@ -18,7 +18,11 @@ export interface OutboxEntry {
 }
 
 // ─── Event emitter para reactividad de los hooks ───
+// Debounce: múltiples notifyLocal dentro del mismo tick se agrupan en una
+// sola notificación, evitando re-lecturas redundantes de IndexedDB durante
+// operaciones masivas (seeds, bulk updates, etc.).
 const listeners = new Map<string, Set<() => void>>();
+let pendingNotify: Set<string> | null = null;
 
 export function subscribeLocal(collection: string, cb: () => void): () => void {
   if (!listeners.has(collection)) listeners.set(collection, new Set());
@@ -27,7 +31,17 @@ export function subscribeLocal(collection: string, cb: () => void): () => void {
 }
 
 export function notifyLocal(collection: string): void {
-  listeners.get(collection)?.forEach((cb) => cb());
+  if (!pendingNotify) {
+    pendingNotify = new Set();
+    queueMicrotask(() => {
+      const batch = pendingNotify!;
+      pendingNotify = null;
+      for (const coll of batch) {
+        listeners.get(coll)?.forEach((cb) => cb());
+      }
+    });
+  }
+  pendingNotify.add(collection);
 }
 
 // ─── IndexedDB ───

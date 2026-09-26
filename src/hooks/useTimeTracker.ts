@@ -66,8 +66,8 @@ export function useTimeTracker() {
   const activitiesColl = useFirestoreCollection<Activity>(uid, 'activities');
   const sessionsColl = useFirestoreCollection<TimeSession>(uid, 'timeSessions');
 
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [sessions, setSessions] = useState<TimeSession[]>([]);
+  const activities = activitiesColl.items;
+  const sessions = sessionsColl.items;
   const [running, setRunning] = useUserStorage<RunningTimer | null>('tracker-running', null);
   const [draft, setDraft] = useUserStorage<TrackerDraft>('tracker-draft', {
     activityId: '', description: '', notes: '',
@@ -94,14 +94,6 @@ export function useTimeTracker() {
       DEFAULT_ACTIVITIES.forEach((a) => activitiesColl.set(a.id, { name: a.name, color: a.color }));
     }
   }, [uid, syncReady, activitiesColl]);
-
-  useEffect(() => {
-    setActivities(activitiesColl.items);
-  }, [activitiesColl.items]);
-
-  useEffect(() => {
-    setSessions(sessionsColl.items);
-  }, [sessionsColl.items]);
 
   const isTicking = running !== null && running.startedAt !== null;
 

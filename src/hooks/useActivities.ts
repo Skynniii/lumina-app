@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useFirestoreCollection } from './useFirestoreCollection';
 import type { Activity } from '../types';
@@ -11,11 +12,11 @@ export function useActivities() {
   const uid = user?.uid ?? null;
   const coll = useFirestoreCollection<Activity>(uid, 'activities');
 
-  return {
+  return useMemo(() => ({
     activities: coll.items,
     loading: coll.loading,
     addActivity: coll.add,
     updateActivity: coll.update,
     deleteActivity: coll.remove,
-  };
+  }), [coll.items, coll.loading, coll.add, coll.update, coll.remove]);
 }

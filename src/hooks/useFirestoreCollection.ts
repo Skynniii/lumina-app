@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   doc, deleteField, writeBatch, getDoc,
 } from 'firebase/firestore';
@@ -133,7 +133,7 @@ export function useFirestoreCollection<T extends { id: string }>(
     notifyLocal(subcollection);
   }, [subcollection]);
 
-  return { items, loading, add, set, update, remove };
+  return useMemo(() => ({ items, loading, add, set, update, remove }), [items, loading, add, set, update, remove]);
 }
 
 // ─── Función auxiliar: incrementar tiempo de tarea (offline-first) ───
