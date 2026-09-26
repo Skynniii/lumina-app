@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import type { ViewType } from '../../types';
+import { hapticLight, hapticMedium } from '../../utils/haptic';
 
 interface Props {
   activeView: ViewType;
@@ -49,7 +50,7 @@ export function NavegacionBar({ activeView, onViewChange, onAdd }: Props) {
     return (
       <button
         key={id}
-        onClick={() => onViewChange(id)}
+        onClick={() => { hapticLight(); onViewChange(id); }}
         className="relative flex items-center justify-center w-14 h-14 rounded-2xl transition-colors duration-200"
       >
         {active && (
@@ -72,7 +73,7 @@ export function NavegacionBar({ activeView, onViewChange, onAdd }: Props) {
 
       {/* Botón + incrustado, sobresale del borde superior */}
       <button
-        onClick={onAdd}
+        onClick={() => { hapticMedium(); onAdd(); }}
         className="relative -mt-[32px] w-[56px] h-[56px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_4px_14px_rgba(127,112,255,0.4)] shrink-0 active:scale-[0.88] transition-transform"
       >
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">

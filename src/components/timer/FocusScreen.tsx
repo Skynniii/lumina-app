@@ -11,6 +11,7 @@ import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { useSettings } from '../../context/SettingsContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
+import { hapticMedium, hapticHeavy } from '../../utils/haptic';
 
 import type { Task, TaskList } from '../../types';
 
@@ -79,6 +80,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const statusLabel = !hasStarted ? 'Listo' : (isRunning ? 'En curso' : 'Pausado');
 
   const handleCenterButton = () => {
+    hapticMedium();
     if (mode === 'rastreador') {
       if (!hasStarted) props.onStart();
       else if (isTicking) props.onPause();
@@ -133,6 +135,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       if (p >= 0.12) isHoldingRef.current = true;
       if (p >= 1) {
         if (holdIntervalRef.current) { clearInterval(holdIntervalRef.current); holdIntervalRef.current = null; }
+        hapticHeavy();
         onSaveSession(true, selectedTask?.id ?? props.draft.taskId);
         setHoldProgress(0);
       }

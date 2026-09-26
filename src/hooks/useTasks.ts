@@ -54,8 +54,8 @@ export function useTasks() {
 
   const listsColl = useFirestoreCollection<TaskList>(uid, 'taskLists');
   const tasksColl = useFirestoreCollection<Task>(uid, 'tasks');
-  const { items: lists, loading: listsLoading, set: listSet } = listsColl;
-  const { items: tasks, loading: tasksLoading, set: taskSet, update: taskUpdate } = tasksColl;
+  const { items: lists, loading: listsLoading, set: listSet, batchSet: listBatchSet } = listsColl;
+  const { items: tasks, loading: tasksLoading, set: taskSet, update: taskUpdate, batchSet: taskBatchSet, batchRemove: taskBatchRemove } = tasksColl;
 
   // Esperar a que el primer sync con Firestore termine antes de sembrar datos
   const [syncReady, setSyncReady] = useState(false);
@@ -135,13 +135,14 @@ export function useTasks() {
     setModal({
       isOpen: true, type: 'confirm', title: '¿Estás seguro de que deseas borrar esta lista?',
       onConfirm: () => {
+        const taskIds = tasks.filter((t) => t.listId === id).map((t) => t.id);
         listsColl.remove(id);
-        tasks.filter((t) => t.listId === id).forEach((t) => tasksColl.remove(t.id));
+        taskBatchRemove(taskIds);
         closeModal();
       },
       onCancel: closeModal,
     });
-  }, [lists.length, lists, tasks, listsColl, tasksColl, closeModal]);
+  }, [lists.length, lists, tasks, listsColl, taskBatchRemove, closeModal]);
 
   const renameList = useCallback((id: string, currentName: string) => {
     if (id === PRINCIPAL_ID) {
@@ -265,12 +266,13 @@ export function useTasks() {
     setModal({
       isOpen: true, type: 'confirm', title: '¿Eliminar todos los separadores de esta lista?',
       onConfirm: () => {
-        tasks.filter((t) => t.listId === listId && t.isSeparator).forEach((t) => tasksColl.remove(t.id));
+        const ids = tasks.filter((t) => t.listId === listId && t.isSeparator).map((t) => t.id);
+        taskBatchRemove(ids);
         closeModal();
       },
       onCancel: closeModal,
     });
-  }, [tasks, tasksColl, closeModal]);
+  }, [tasks, taskBatchRemove, closeModal]);
 
   const deleteTask = useCallback((taskId: string) => {
     setModal({
@@ -284,36 +286,40 @@ export function useTasks() {
     setModal({
       isOpen: true, type: 'confirm', title: '¿Eliminar todas las tareas completadas de esta lista?',
       onConfirm: () => {
-        tasks.filter((t) => t.listId === listId && t.completed).forEach((t) => tasksColl.remove(t.id));
+        const ids = tasks.filter((t) => t.listId === listId && t.completed).map((t) => t.id);
+        taskBatchRemove(ids);
         closeModal();
       },
       onCancel: closeModal,
     });
-  }, [tasks, tasksColl, closeModal]);
+  }, [tasks, taskBatchRemove, closeModal]);
 
-  // Reordenar listas (actualiza posiciones en Firestore)
+  // Reordenar listas (batch: una sola transacción en vez de N writes)
   const reorderLists = useCallback((orderedIds: string[]) => {
-    orderedIds.forEach((id, i) => {
-      listsColl.update(id, { position: i });
-    });
-  }, [listsColl]);
+    const updated = orderedIds
+      .map((id, i) => { const l = lists.find((x) => x.id === id); return l ? { ...l, position: i } : null; })
+      .filter((x): x is TaskList => x !== null);
+    listBatchSet(updated);
+  }, [lists, listBatchSet]);
 
-  // Vincular/desvincular una actividad a una lista y sincronizar tareas
+  // Vincular/desvincular una actividad a una lista y sincronizar tareas (batch)
   const setListActivity = useCallback((listId: string, activityId: string | null) => {
     if (activityId) {
       listsColl.update(listId, { activityId });
-      tasks.filter((t) => t.listId === listId && !t.isSeparator && !t.isActivityOnly).forEach((t) => {
-        tasksColl.update(t.id, { activityId });
-      });
+      const toUpdate = tasks
+        .filter((t) => t.listId === listId && !t.isSeparator && !t.isActivityOnly && t.activityId !== activityId)
+        .map((t) => ({ ...t, activityId }));
+      if (toUpdate.length > 0) taskBatchSet(toUpdate);
     } else {
       listsColl.update(listId, { activityId: deleteField() });
-      tasks.filter((t) => t.listId === listId && !t.isSeparator && !t.isActivityOnly).forEach((t) => {
-        tasksColl.update(t.id, { activityId: deleteField() });
-      });
+      const toUpdate = tasks
+        .filter((t) => t.listId === listId && !t.isSeparator && !t.isActivityOnly && t.activityId !== undefined)
+        .map((t) => ({ ...t, activityId: undefined }));
+      if (toUpdate.length > 0) taskBatchSet(toUpdate);
     }
-  }, [lists, tasks, listsColl, tasksColl]);
+  }, [lists, tasks, listsColl, taskBatchSet]);
 
-  // Crear una lista para una actividad: reúne todas las tareas con esa actividad
+  // Crear una lista para una actividad: reúne todas las tareas con esa actividad (batch)
   const createActivityList = useCallback((activity: Activity) => {
     const id = `act-${activity.id}`;
     listsColl.set(id, {
@@ -322,11 +328,12 @@ export function useTasks() {
       activityId: activity.id,
       createdAt: new Date().toISOString(),
     });
-    // Mover todas las tareas con esa actividad a la nueva lista
-    tasks.filter((t) => t.activityId === activity.id && !t.isSeparator && t.listId !== id).forEach((t) => {
-      tasksColl.update(t.id, { listId: id });
-    });
-  }, [lists.length, tasks, listsColl, tasksColl]);
+    // Mover todas las tareas con esa actividad a la nueva lista en una sola transacción
+    const toMove = tasks
+      .filter((t) => t.activityId === activity.id && !t.isSeparator && t.listId !== id)
+      .map((t) => ({ ...t, listId: id }));
+    if (toMove.length > 0) taskBatchSet(toMove);
+  }, [lists.length, tasks, listsColl, taskBatchSet]);
 
   return {
     lists, tasks, addList, deleteList, renameList, addTask, addTaskWithData,

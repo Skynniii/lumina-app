@@ -4,6 +4,7 @@ import type { Task, SortMode } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 import { playCompleteSound } from '../../utils/sound';
+import { hapticMedium, hapticHeavy } from '../../utils/haptic';
 import { Sparkles } from './Sparkles';
 import { useUserStorage } from '../../hooks/useUserStorage';
 import type { RunningTimer, TrackerDraft } from '../../hooks/useTimeTracker';
@@ -125,6 +126,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const handleComplete = (e: React.MouseEvent | React.ChangeEvent) => {
     e.stopPropagation();
     if (!task.completed) {
+      hapticHeavy();
       if (task.isImportant) {
         const el = liRef.current;
         if (el) setRectSize({ w: el.offsetWidth, h: el.offsetHeight });
@@ -145,6 +147,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
 
   const handleImportant = (e: React.MouseEvent) => {
     e.stopPropagation();
+    hapticMedium();
     onUpdate(task.id, { isImportant: !task.isImportant });
   };
 
@@ -260,7 +263,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           style={{ pointerEvents: completingImportant ? 'none' : undefined }}
           className="flex-none p-2 ml-2 cursor-pointer rounded-full hover:bg-black/5 transition-colors self-center"
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? '#ffcc00' : 'none'} stroke={task.isImportant ? '#ffcc00' : '#d1d1d6'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-300">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? '#ffcc00' : 'none'} stroke={task.isImportant ? '#ffcc00' : '#d1d1d6'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-200">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
         </motion.button>
