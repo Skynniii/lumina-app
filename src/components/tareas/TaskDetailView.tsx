@@ -258,9 +258,13 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
     let str = d.toLocaleDateString('es-CO', opts);
     if (typeof task.scheduledTime === 'string' && task.scheduledTime) {
       const [h, min] = task.scheduledTime.split(':').map(Number);
-      const period = h >= 12 ? 'PM' : 'AM';
-      const h12 = h % 12 || 12;
-      str += ` · ${h12}:${String(min).padStart(2, '0')} ${period}`;
+      if (settings.timeFormat === '12h') {
+        const period = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        str += ` · ${h12}:${String(min).padStart(2, '0')} ${period}`;
+      } else {
+        str += ` · ${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+      }
     }
     if (task.repeat?.enabled) str += ' · 🔁';
     return str;

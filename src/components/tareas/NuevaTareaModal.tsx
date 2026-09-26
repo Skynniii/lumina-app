@@ -5,6 +5,7 @@ import { NotesToolbar } from './NotesToolbar';
 import { SourcePickerModal } from './SourcePickerModal';
 import { ActivityPicker } from '../timer/ActivityPicker';
 import { useActivities } from '../../hooks/useActivities';
+import { useSettings } from '../../context/SettingsContext';
 import type { RepeatConfig, TaskList, Activity, Task } from '../../types';
 
 interface Props {
@@ -20,15 +21,19 @@ interface Props {
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-function fmtFecha(scheduledDate?: string, scheduledTime?: string, repeat?: RepeatConfig) {
+function fmtFecha(scheduledDate: string | undefined, scheduledTime: string | undefined, repeat: RepeatConfig | undefined, timeFormat: '12h' | '24h') {
   const d = scheduledDate;
   if (!d) return null;
   const [, m, day] = d.split('-').map(Number);
   let s = `${day} ${MONTHS[m - 1]}`;
   if (scheduledTime) {
     const [h, min] = scheduledTime.split(':').map(Number);
-    const h12 = h % 12 || 12;
-    s += ` · ${h12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+    if (timeFormat === '12h') {
+      const h12 = h % 12 || 12;
+      s += ` · ${h12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+    } else {
+      s += ` · ${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    }
   }
   if (repeat?.enabled) s += ' 🔁';
   return s;
@@ -47,11 +52,13 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const [showPicker, setShowPicker] = useState(false);
   const [targetListId, setTargetListId] = useState(defaultListId);
   const { activities, addActivity } = useActivities();
+  const { settings } = useSettings();
   const [activityId, setActivityId] = useState<string | undefined>(undefined);
   const [linkedTaskId, setLinkedTaskId] = useState<string | undefined>(undefined);
   const [showSourcePicker, setShowSourcePicker] = useState(false);
   const [activityPickerOpen, setActivityPickerOpen] = useState(false);
   const notesRef = useRef<HTMLDivElement>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const selectedActivity = activities.find((a) => a.id === activityId);
   const isLinked = !!linkedTaskId;
@@ -84,6 +91,21 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
     }
   }, [notesOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Seguir la altura del teclado para que la pestaña suba con él
+  useEffect(() => {
+    if (!isOpen) { setKeyboardHeight(0); return; }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const kb = window.innerHeight - vv.height;
+      setKeyboardHeight(kb > 0 ? kb : 0);
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); };
+  }, [isOpen]);
+
   const execCommand = (cmd: string, value?: string) => {
     notesRef.current?.focus();
     document.execCommand(cmd, false, value);
@@ -105,7 +127,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
     onClose();
   };
 
-  const fechaLabel = fmtFecha(scheduledDate, scheduledTime, repeat);
+  const fechaLabel = fmtFecha(scheduledDate, scheduledTime, repeat, settings.timeFormat);
   const hasNotes = !!notesHtml.replace(/<[^>]*>/g, '').trim();
 
   const iconBtn = (active: boolean, onClick: () => void, title: string, children: React.ReactNode) => (
@@ -131,7 +153,8 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               onClick={onClose}
             />
             <motion.div
-              className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[420px] z-[1002] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] px-5 pt-3 pb-6"
+              className="fixed left-1/2 -translate-x-1/2 w-full max-w-[420px] z-[1002] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] px-5 pt-3 pb-6"
+              style={{ bottom: keyboardHeight, transition: 'bottom 0.25s ease-out' }}
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 360, damping: 36 }}
             >

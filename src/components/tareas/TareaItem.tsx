@@ -116,8 +116,12 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
     let s = d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
     if (typeof task.scheduledTime === 'string' && task.scheduledTime) {
       const [h, min] = task.scheduledTime.split(':').map(Number);
-      const h12 = h % 12 || 12;
-      s += ` · ${h12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+      if (settings.timeFormat === '12h') {
+        const h12 = h % 12 || 12;
+        s += ` · ${h12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+      } else {
+        s += ` · ${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+      }
     }
     if (task.repeat?.enabled) s += ' 🔁';
     return s;

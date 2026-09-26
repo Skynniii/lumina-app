@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed, todayKey, isoToDateKey } from '../../hooks/useTimeTracker';
 import type { Activity, TimeSession } from '../../types';
 import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
+import { useSettings } from '../../context/SettingsContext';
 
 interface Props {
   entries: TimeSession[];
@@ -37,6 +38,7 @@ interface ActivityGroup {
 export function TodaySummary({ entries, activities, liveElapsed, isRunning, liveActivityId, liveDescription, onSelectEntry }: Props) {
   const [expanded, setExpanded] = useState(false);
   const cap = useDeviceCapability();
+  const { settings } = useSettings();
   const todayEntries = useMemo(() => entries.filter((e) => isoToDateKey(e.startTime) === todayKey()), [entries]);
 
   const allSessions: Session[] = todayEntries.map((e) => ({
@@ -143,7 +145,7 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
                             {s.description}
                           </p>
                           <p className="text-[11px] text-[#b0b0b0] m-0">
-                            {s.isLive ? 'En curso' : `${new Date(s.entry!.startTime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })} – ${new Date(s.entry!.endTime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })}`}
+                            {s.isLive ? 'En curso' : `${new Date(s.entry!.startTime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: settings.timeFormat === '12h' })} – ${new Date(s.entry!.endTime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: settings.timeFormat === '12h' })}`}
                           </p>
                         </div>
                         <span className="text-[12px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(s.seconds)}</span>
