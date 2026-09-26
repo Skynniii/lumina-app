@@ -116,7 +116,7 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
                     <div className="h-1.5 rounded-full bg-[#f0f0f0] overflow-hidden">
                       <div className="h-full rounded-full transition-[width] duration-700 ease-out relative overflow-hidden" style={{ width: `${pct}%`, background: g.color }}>
                         {g.hasLive && (
-                          <motion.div className="absolute inset-0" style={{ background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)` }} animate={{ x: ['-100%', '200%'] }} transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }} />
+                          <div className="absolute inset-0 anim-shimmer" style={{ background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)` }} />
                         )}
                       </div>
                     </div>

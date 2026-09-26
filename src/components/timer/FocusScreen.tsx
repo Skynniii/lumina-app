@@ -11,7 +11,7 @@ import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { useSettings } from '../../context/SettingsContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
-import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
+
 import type { Task, TaskList } from '../../types';
 
 interface Props extends ActiveTimerCardProps {
@@ -34,7 +34,6 @@ const MODE_LABELS: Record<TimerMode, string> = {
 export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard, onSaveSession, onSaveManualSession, ...props }: Props) {
   const { mode, onModeChange, countdown, pomodoroPhase, pomodoroCycle, onPomodoroSkip } = props;
   const { settings, update } = useSettings();
-  const cap = useDeviceCapability();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [taskPickerOpen, setTaskPickerOpen] = useState(false);
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
@@ -221,18 +220,16 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
         {/* Anillo */}
         <div className="flex flex-col items-center py-4">
           <div className="relative flex items-center justify-center">
-            {cap.enableParticles && (
-            <motion.div className="absolute w-[260px] h-[260px] rounded-full bg-[#7f70ff]/5 blur-[50px]" animate={{ opacity: [0.3, 0.5, 0.3], scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }} />
-          )}
-            <motion.div animate={isActive && cap.enableParticles ? { scale: [1, 1.01, 1] } : {}} transition={isActive && cap.enableParticles ? { repeat: Infinity, duration: 3, ease: 'easeInOut' } : {}}>
+            <div className="absolute w-[260px] h-[260px] rounded-full bg-[#7f70ff]/5 blur-[50px] anim-glow-pulse" />
+            <div className={isActive ? 'anim-ring-breathe' : ''}>
               <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" isStatic={mode === 'rastreador'}>
                 <div className="flex flex-col items-center gap-1">
-                  {isActive && <motion.span className="w-2 h-2 rounded-full bg-[#34c77b] mb-1" animate={cap.enableParticles ? { opacity: [1, 0.3, 1] } : {}} transition={cap.enableParticles ? { repeat: Infinity, duration: 2, ease: 'easeInOut' } : {}} />}
-                  <motion.span key={timeDisplay} className="text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none" animate={isActive && cap.enableParticles ? { scale: [1, 1.02, 1] } : {}} transition={isActive && cap.enableParticles ? { repeat: Infinity, duration: 2, ease: 'easeInOut' } : {}}>{timeDisplay}</motion.span>
+                  {isActive && <span className="w-2 h-2 rounded-full bg-[#34c77b] mb-1 anim-dot-pulse" />}
+                  <span key={timeDisplay} className={`text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none ${isActive ? 'anim-time-breathe' : ''}`}>{timeDisplay}</span>
                   <span className="text-[11px] text-[#999] uppercase tracking-wide mt-0.5">{statusLabel}</span>
                 </div>
               </FocusRing>
-            </motion.div>
+            </div>
           </div>
 
           {mode === 'pomodoro' && (

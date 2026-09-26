@@ -3,7 +3,7 @@ import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
 import type { ViewType } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
-import { DeviceCapabilityProvider, useDeviceCapability } from './context/DeviceCapabilityContext';
+import { DeviceCapabilityProvider } from './context/DeviceCapabilityContext';
 import { migrateToSubcollections } from './hooks/useFirestoreCollection';
 import { initSyncEngine, stopSyncEngine } from './hooks/syncEngine';
 import { NavegacionBar } from './components/navegacion/NavegacionBar';
@@ -119,9 +119,8 @@ function AppContent() {
 }
 
 function MotionWrapper({ children }: { children: React.ReactNode }) {
-  const cap = useDeviceCapability();
   return (
-    <MotionConfig reducedMotion={cap.level === 'low' ? 'user' : 'never'}>
+    <MotionConfig reducedMotion="never">
       {children}
     </MotionConfig>
   );

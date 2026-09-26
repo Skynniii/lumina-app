@@ -1,13 +1,12 @@
 import { motion } from 'framer-motion';
-import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 
+/**
+ * Celebration burst: particles, ring, and stars.
+ * Always renders the full effect on every device — no reduction.
+ */
 export function Sparkles() {
-  const cap = useDeviceCapability();
-  // On low-end devices, skip particles entirely for performance.
-  // On medium, render a reduced set. On high, render the full effect.
-  const particleCount = cap.enableParticles ? 12 : 0;
-  const starCount = cap.enableParticles ? 4 : 0;
-  const showRing = cap.enableParticles;
+  const particleCount = 12;
+  const starCount = 4;
 
   const particles = [...Array(particleCount)].map((_, i) => {
     const angle = (i * 30 * Math.PI) / 180;
@@ -17,14 +16,12 @@ export function Sparkles() {
 
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-      {showRing && (
-        <motion.div
-          initial={{ scale: 0, opacity: 0.5 }}
-          animate={{ scale: 3, opacity: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="absolute w-[22px] h-[22px] border-2 border-[#7f70ff] rounded-full"
-        />
-      )}
+      <motion.div
+        initial={{ scale: 0, opacity: 0.5 }}
+        animate={{ scale: 3, opacity: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="absolute w-[22px] h-[22px] border-2 border-[#7f70ff] rounded-full"
+      />
       {particles.map((p, i) => (
         <motion.div
           key={i}

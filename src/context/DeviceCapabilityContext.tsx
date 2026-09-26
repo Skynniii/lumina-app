@@ -6,7 +6,7 @@ interface DeviceCapability {
   level: DeviceLevel;
   /** Whether layout animations (framer-motion `layout` prop) should be enabled */
   enableLayout: boolean;
-  /** Spring transition config adjusted for device capability */
+  /** Spring transition config */
   spring: { type: 'spring'; stiffness: number; damping: number };
   /** Duration multiplier for tween transitions */
   durationScale: number;
@@ -14,7 +14,13 @@ interface DeviceCapability {
   enableParticles: boolean;
 }
 
-const HIGH: DeviceCapability = {
+/**
+ * All device levels keep every feature enabled — no animations, particles,
+ * or layout transitions are ever removed. Optimization is done at the
+ * animation implementation level (CSS keyframes, GPU-accelerated properties),
+ * not by stripping visual richness from lower-end devices.
+ */
+const FULL: DeviceCapability = {
   level: 'high',
   enableLayout: true,
   spring: { type: 'spring', stiffness: 700, damping: 45 },
@@ -22,23 +28,7 @@ const HIGH: DeviceCapability = {
   enableParticles: true,
 };
 
-const MEDIUM: DeviceCapability = {
-  level: 'medium',
-  enableLayout: true,
-  spring: { type: 'spring', stiffness: 500, damping: 40 },
-  durationScale: 0.85,
-  enableParticles: true,
-};
-
-const LOW: DeviceCapability = {
-  level: 'low',
-  enableLayout: false,
-  spring: { type: 'spring', stiffness: 400, damping: 35 },
-  durationScale: 0.6,
-  enableParticles: false,
-};
-
-const DeviceCapabilityContext = createContext<DeviceCapability>(HIGH);
+const DeviceCapabilityContext = createContext<DeviceCapability>(FULL);
 
 /** Measures real FPS over ~1.5s using requestAnimationFrame. */
 function measureFPS(): Promise<number> {
@@ -60,14 +50,14 @@ function measureFPS(): Promise<number> {
   });
 }
 
-function classify(cores: number, memGB: number, fps: number): DeviceCapability {
-  if (cores <= 4 || memGB <= 2 || fps < 45) return LOW;
-  if (cores <= 8 || memGB <= 4) return MEDIUM;
-  return HIGH;
+function classify(cores: number, memGB: number, fps: number): DeviceLevel {
+  if (cores <= 4 || memGB <= 2 || fps < 45) return 'low';
+  if (cores <= 8 || memGB <= 4) return 'medium';
+  return 'high';
 }
 
 export function DeviceCapabilityProvider({ children }: { children: ReactNode }) {
-  const [cap, setCap] = useState<DeviceCapability>(HIGH);
+  const [cap, setCap] = useState<DeviceCapability>(FULL);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +65,11 @@ export function DeviceCapabilityProvider({ children }: { children: ReactNode }) 
       const cores = navigator.hardwareConcurrency || 8;
       const memGB = (navigator as Navigator & { deviceMemory?: number }).deviceMemory || 8;
       const fps = await measureFPS();
-      if (!cancelled) setCap(classify(cores, memGB, fps));
+      if (!cancelled) {
+        const level = classify(cores, memGB, fps);
+        // Keep all features enabled regardless of level; only record the level for diagnostics.
+        setCap({ ...FULL, level });
+      }
     })();
     return () => { cancelled = true; };
   }, []);

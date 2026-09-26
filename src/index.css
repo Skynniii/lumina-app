@@ -53,3 +53,49 @@ button:active, [role="button"]:active {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* === CSS keyframe animations for infinite loops === */
+/* Replaces Framer Motion JS-driven loops with compositor-thread CSS animations */
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.05); }
+}
+
+@keyframes ring-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.01); }
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes time-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes timer-ring-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes timer-dot-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+@keyframes shimmer-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.anim-glow-pulse { animation: glow-pulse 4s ease-in-out infinite; will-change: transform, opacity; }
+.anim-ring-breathe { animation: ring-breathe 3s ease-in-out infinite; will-change: transform; }
+.anim-dot-pulse { animation: dot-pulse 2s ease-in-out infinite; will-change: opacity; }
+.anim-time-breathe { animation: time-breathe 2s ease-in-out infinite; will-change: transform; }
+.anim-timer-ring { animation: timer-ring-pulse 1.5s ease-in-out infinite; will-change: transform, opacity; }
+.anim-timer-dot { animation: timer-dot-pulse 1.5s ease-in-out infinite; will-change: transform; }
+.anim-shimmer { animation: shimmer-slide 1.5s linear infinite; will-change: transform; }

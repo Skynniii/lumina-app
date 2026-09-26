@@ -227,16 +227,8 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
 
       {isTimerActive && (
         <div className="flex-none ml-1 relative flex items-center justify-center w-5 h-5">
-          <motion.span
-            className="absolute w-4 h-4 rounded-full bg-[#34c77b]/30"
-            animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <motion.span
-            className="w-2.5 h-2.5 rounded-full bg-[#34c77b]"
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          />
+          <span className="absolute w-4 h-4 rounded-full bg-[#34c77b]/30 anim-timer-ring" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#34c77b] anim-timer-dot" />
         </div>
       )}
 
