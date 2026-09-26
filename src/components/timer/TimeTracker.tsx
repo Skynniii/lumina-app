@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
@@ -136,7 +136,12 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     setShowFocus(false);
   };
 
-  const historyEntries = tracker.sessions.filter((e) => isoToDateKey(e.startTime) !== todayKey());
+  const historyEntries = useMemo(
+    () => tracker.sessions.filter((e) => isoToDateKey(e.startTime) !== todayKey()),
+    [tracker.sessions]
+  );
+
+  const handleSelectEntry = useCallback((e: { id: string }) => setSelectedEntryId(e.id), []);
 
   const isTimerActive = mode === 'rastreador'
     ? tracker.running !== null
@@ -177,7 +182,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               isRunning={tracker.isTicking}
               liveActivityId={tracker.draft.activityId}
               liveDescription={tracker.draft.description}
-              onSelectEntry={(e) => setSelectedEntryId(e.id)}
+              onSelectEntry={handleSelectEntry}
             />
 
             <div className="flex items-center gap-3 pt-2">
@@ -190,7 +195,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               entries={historyEntries}
               activities={tracker.activities}
               onDelete={tracker.deleteSession}
-              onSelectEntry={(e) => setSelectedEntryId(e.id)}
+              onSelectEntry={handleSelectEntry}
             />
           </div>
         </div>

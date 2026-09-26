@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react';
-import { motion } from 'framer-motion';
 import { formatElapsed, type RunningTimer, type TrackerDraft } from '../../hooks/useTimeTracker';
 import type { TimerMode } from '../../hooks/useCountdownTimer';
 import { ActivityPicker } from './ActivityPicker';
@@ -156,16 +155,14 @@ export function ActiveTimerCard(props: ActiveTimerCardProps) {
           <TimerRing progressDeg={trackerDeg} color="#7f70ff">
             <div className="flex items-center justify-center gap-2">
               {isTicking && (
-                <motion.span className="w-2 h-2 rounded-full bg-[#34c77b]" animate={{ opacity: [1, 0.25, 1] }} transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }} />
+                <span className="w-2 h-2 rounded-full bg-[#34c77b] anim-dot-pulse" />
               )}
-              <motion.span
+              <span
                 key={props.running ? 'live' : 'idle'}
-                className="text-[32px] font-bold text-[#333] tabular-nums tracking-tight leading-none"
-                animate={isTicking ? { scale: [1, 1.015, 1] } : {}}
-                transition={isTicking ? { repeat: Infinity, duration: 2, ease: 'easeInOut' } : {}}
+                className={`text-[32px] font-bold text-[#333] tabular-nums tracking-tight leading-none ${isTicking ? 'anim-time-breathe' : ''}`}
               >
                 {formatElapsed(props.elapsed)}
-              </motion.span>
+              </span>
             </div>
           </TimerRing>
 
