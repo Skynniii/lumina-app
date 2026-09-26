@@ -103,47 +103,37 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
 
       {/* Contenido scrollable */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-[110px]">
-        {!hasData ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-16 h-16 rounded-2xl bg-[#f0edff] flex items-center justify-center">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 3v18h18" /><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
-              </svg>
-            </div>
-            <p className="text-[16px] font-semibold text-[#555] m-0">Sin registros esta semana</p>
-            <p className="text-[14px] text-[#999] m-0">Inicia un contador para rastrear tu tiempo</p>
+        <div className="flex flex-col gap-5 mt-2">
+          {/* Selector de rango semanal */}
+          <div className="flex items-center justify-center gap-4 py-1">
+            <button
+              onClick={() => setWeekOffset((o) => o - 1)}
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 active:scale-90 border-none bg-transparent cursor-pointer transition-transform"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            <span className="text-[14px] font-semibold text-[#333] tabular-nums min-w-[120px] text-center">{weekLabel}</span>
+            <button
+              onClick={() => setWeekOffset((o) => Math.min(0, o + 1))}
+              disabled={weekOffset >= 0}
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 active:scale-90 border-none bg-transparent cursor-pointer transition-transform disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
           </div>
-        ) : (
-          <div className="flex flex-col gap-5 mt-2">
-            {/* Selector de rango semanal */}
-            <div className="flex items-center justify-center gap-4 py-1">
-              <button
-                onClick={() => setWeekOffset((o) => o - 1)}
-                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 active:scale-90 border-none bg-transparent cursor-pointer transition-transform"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-              </button>
-              <span className="text-[14px] font-semibold text-[#333] tabular-nums min-w-[120px] text-center">{weekLabel}</span>
-              <button
-                onClick={() => setWeekOffset((o) => Math.min(0, o + 1))}
-                disabled={weekOffset >= 0}
-                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 active:scale-90 border-none bg-transparent cursor-pointer transition-transform disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-              </button>
-            </div>
 
-            {/* Gráfico circular del tiempo semanal */}
-            <WeeklyCircularChart activityStats={allStats} totalSeconds={totalSeconds} subtitle={weekOffset === 0 ? 'esta semana' : weekOffset === -1 ? 'semana pasada' : weekLabel} />
+          {/* Gráfico circular del tiempo semanal */}
+          <WeeklyCircularChart activityStats={allStats} totalSeconds={totalSeconds} subtitle={weekOffset === 0 ? 'esta semana' : weekOffset === -1 ? 'semana pasada' : weekLabel} />
 
-            {/* Separador */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-[#eceaf3]" />
-              <span className="text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]">Actividades</span>
-              <div className="flex-1 h-px bg-[#eceaf3]" />
-            </div>
+          {/* Separador */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-[#eceaf3]" />
+            <span className="text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]">Actividades</span>
+            <div className="flex-1 h-px bg-[#eceaf3]" />
+          </div>
 
-            {/* Barras de actividades */}
+          {/* Barras de actividades */}
+          {hasData ? (
             <div className="flex flex-col gap-3">
               {allStats.map((stat, idx) => (
                 <ActivityStatCard
@@ -153,8 +143,10 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
                 />
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-center text-[14px] text-[#999] py-6 m-0">Sin registros esta semana</p>
+          )}
+        </div>
       </div>
 
       <AnimatePresence>

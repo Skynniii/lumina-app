@@ -45,6 +45,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const [notesExpanded, setNotesExpanded] = useState(() => !!displayNotes?.replace(/<[^>]*>/g, '').trim());
   const [notesEditing, setNotesEditing] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
+  const [titleValue, setTitleValue] = useState(task.title);
 
   const taskActivity = activities.find((a) => {
     if (linkedTask?.activityId) return a.id === linkedTask.activityId;
@@ -116,6 +117,11 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const hasSubtasks = (task.subtasks?.length || 0) > 0;
   const hasNotes = !!displayNotes?.replace(/<[^>]*>/g, '').trim();
 
+  // Sincronizar el título local cuando no se está editando
+  useEffect(() => {
+    if (!editingTitle) setTitleValue(task.title);
+  }, [task.title, editingTitle]);
+
   // Auto-resize del título
   useEffect(() => {
     const resize = () => {
@@ -127,7 +133,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
     resize();
     const t = setTimeout(resize, 100);
     return () => clearTimeout(t);
-  }, [task.title, editingTitle]);
+  }, [task.title, editingTitle, titleValue]);
 
   // Inicializar contentEditable de notas al expandir
   useEffect(() => {
@@ -348,11 +354,11 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         ) : (
           <textarea
             ref={titleRef}
-            value={task.title}
-            onChange={(e) => handleSyncedUpdate(task.id, { title: e.target.value })}
+            value={editingTitle ? titleValue : task.title}
+            onChange={(e) => setTitleValue(e.target.value)}
             readOnly={isCompleted || isLinked || !editingTitle}
-            onClick={() => { if (!isCompleted && !isLinked) { setEditingTitle(true); setTimeout(() => titleRef.current?.focus(), 10); } }}
-            onBlur={() => setEditingTitle(false)}
+            onClick={() => { if (!isCompleted && !isLinked) { setEditingTitle(true); setTitleValue(task.title); setTimeout(() => titleRef.current?.focus(), 10); } }}
+            onBlur={() => { if (titleValue !== task.title) handleSyncedUpdate(task.id, { title: titleValue }); setEditingTitle(false); }}
             rows={1}
             className={`w-full bg-transparent outline-none resize-none border-none text-[20px] font-bold leading-snug mb-4 ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#2b2b2b]'} ${editingTitle ? 'cursor-text' : 'cursor-pointer'}`}
           />

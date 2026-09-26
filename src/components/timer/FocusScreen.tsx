@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed } from '../../hooks/useTimeTracker';
 import type { TimerMode } from '../../hooks/useCountdownTimer';
@@ -56,6 +56,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const isHoldingRef = useRef(false);
   const [customDurations, setCustomDurations] = useUserStorage<number[]>('timer-custom-durations', [25, 45, 60]);
   const [showCustomDuration, setShowCustomDuration] = useState(false);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   const formatDurationLabel = (min: number) => {
     const h = Math.floor(min / 60);
@@ -151,6 +152,14 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const checkSize = 56;
   const checkRadius = (checkSize - 6) / 2;
   const checkCircumference = 2 * Math.PI * checkRadius;
+
+  // Auto-resize del textarea de notas
+  useEffect(() => {
+    const el = notesRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [props.draft.notes]);
 
   return (
     <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} className="fixed inset-0 z-[9999] flex flex-col bg-white">
@@ -347,7 +356,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
               <span className="text-[#a0a0a0] mt-0.5">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
               </span>
-              <textarea value={props.draft.notes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Notas" rows={1} className="flex-1 bg-transparent outline-none border-none resize-none text-[15px] text-[#333] placeholder:text-[#aaa] min-h-[24px]" />
+              <textarea ref={notesRef} value={props.draft.notes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Notas" rows={1} className="flex-1 bg-transparent outline-none border-none resize-none text-[15px] text-[#333] placeholder:text-[#aaa] min-h-[24px] overflow-hidden" />
             </div>
           </div>
         </div>
