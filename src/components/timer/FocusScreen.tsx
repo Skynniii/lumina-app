@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed } from '../../hooks/useTimeTracker';
 import type { TimerMode } from '../../hooks/useCountdownTimer';
@@ -51,6 +51,26 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   });
   const [manualStart, setManualStart] = useState('09:00');
   const [manualEnd, setManualEnd] = useState('10:00');
+
+  // Duración calculada del modo manual (segundos)
+  const manualDurationSec = useMemo(() => {
+    if (!manualMode) return 0;
+    const [y, m, d] = manualDate.split('-').map(Number);
+    const [sh, sm] = manualStart.split(':').map(Number);
+    const [eh, em] = manualEnd.split(':').map(Number);
+    const startMs = new Date(y, m - 1, d, sh, sm, 0, 0).getTime();
+    let endMs = new Date(y, m - 1, d, eh, em, 0, 0).getTime();
+    if (endMs <= startMs) endMs += 86400000;
+    return Math.max(0, Math.floor((endMs - startMs) / 1000));
+  }, [manualMode, manualDate, manualStart, manualEnd]);
+
+  const adjustManualEnd = (minutes: number) => {
+    const [y, m, d] = manualDate.split('-').map(Number);
+    const [eh, em] = manualEnd.split(':').map(Number);
+    const endMs = new Date(y, m - 1, d, eh, em, 0, 0).getTime() + minutes * 60000;
+    const nd = new Date(endMs);
+    setManualEnd(`${String(nd.getHours()).padStart(2, '0')}:${String(nd.getMinutes()).padStart(2, '0')}`);
+  };
   const [holdProgress, setHoldProgress] = useState(0);
   const holdIntervalRef = useRef<number | null>(null);
   const isHoldingRef = useRef(false);
@@ -76,8 +96,8 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
   const progress = mode === 'rastreador' ? 0 : (countdown.targetSeconds > 0 ? countdown.remaining / countdown.targetSeconds : 0);
   const ringColor = mode === 'pomodoro' ? (pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b') : '#7f70ff';
-  const elapsedCount = mode === 'rastreador' ? props.elapsed : (countdown.targetSeconds - countdown.remaining);
-  const timeDisplay = mode === 'temporizador' ? formatElapsed(countdown.remaining) : formatElapsed(elapsedCount);
+  const elapsedCount = manualMode ? manualDurationSec : (mode === 'rastreador' ? props.elapsed : (countdown.targetSeconds - countdown.remaining));
+  const timeDisplay = manualMode ? formatElapsed(manualDurationSec) : (mode === 'temporizador' ? formatElapsed(countdown.remaining) : formatElapsed(elapsedCount));
   const statusLabel = !hasStarted ? 'Listo' : (isRunning ? 'En curso' : 'Pausado');
 
   const handleCenterButton = () => {
@@ -252,6 +272,17 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
             </div>
           )}
 
+          {/* Botones de ajuste rápido (modo manual) */}
+          {manualMode && (
+            <div className="flex gap-2 mt-4">
+              {[{ label: '-10', val: -10 }, { label: '-5', val: -5 }, { label: '+5', val: 5 }, { label: '+10', val: 10 }].map((b) => (
+                <button key={b.label} onClick={() => adjustManualEnd(b.val)} className="px-4 py-2 rounded-full text-[14px] font-bold bg-[#f7f6f9] text-[#7f70ff] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors active:scale-90">
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Presets de temporizador */}
           {mode === 'temporizador' && (
             <div className="flex gap-2 mt-4 flex-wrap justify-center max-w-[320px]">
@@ -396,7 +427,13 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
             </button>
           </div>
         ) : (
-          <button onClick={() => setManualMode(true)} className="w-[56px] h-[56px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
+          <button onClick={() => {
+            const now = new Date();
+            const start = new Date(now.getTime() - 3600000);
+            setManualStart(`${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`);
+            setManualEnd(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+            setManualMode(true);
+          }} className="w-[56px] h-[56px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4" /><path d="M16 2v4" /><rect x="4" y="4" width="16" height="18" rx="2" /><path d="M12 11v5" /><path d="M9.5 13.5h5" /></svg>
           </button>
         )}

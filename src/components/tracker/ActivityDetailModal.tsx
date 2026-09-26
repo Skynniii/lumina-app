@@ -7,7 +7,8 @@ import {
 } from './trackerUtils';
 import { ConsistencyGraph } from './ConsistencyGraph';
 import { ActivityTrendStats } from './ActivityTrendStats';
-import type { Activity, TimeSession, Task, TaskList } from '../../types';
+import type { Activity, TimeSession, Task, TaskList, ViewType } from '../../types';
+import { setPendingTimerTask } from '../../shared/pendingTimerTask';
 
 interface Props {
   activity: Activity;
@@ -19,6 +20,7 @@ interface Props {
   onUpdateActivity: (id: string, updates: Partial<Activity>) => void;
   onDeleteActivity: (id: string) => void;
   onToggleTask: (taskId: string) => void;
+  onNavigate: (v: ViewType) => void;
 }
 
 type Tab = 'resumen' | 'tareas' | 'estadisticas' | 'registros';
@@ -30,7 +32,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'registros', label: 'Registros' },
 ];
 
-export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, onBack, onUpdateActivity, onDeleteActivity, onToggleTask }: Props) {
+export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, onBack, onUpdateActivity, onDeleteActivity, onToggleTask, onNavigate }: Props) {
   const [tab, setTab] = useState<Tab>('resumen');
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(activity.name);
@@ -43,7 +45,7 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
     [sessions, activity.id],
   );
 
-  const actTasksRaw = getActivityTasks(tasks, activity.id);
+  const actTasksRaw = getActivityTasks(tasks, activity.id).filter((t) => !t.isActivityOnly);
 
   // Ordenar tareas: si la actividad tiene lista vinculada, usar el orden de la lista;
   // si no, las más recientes van abajo (ascendente por createdAt)
@@ -101,6 +103,11 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
     const bestStreak = getBestStreak(allActSessions);
     return { activeDays, streak, bestStreak };
   }, [sessions, activity.id]);
+
+  const handleResumeTask = (task: Task) => {
+    setPendingTimerTask(task);
+    onNavigate('cronometro');
+  };
 
   const handleSaveEdit = () => {
     if (editName.trim()) {
@@ -243,9 +250,11 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
                             return (
                               <div key={t.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-[#f2f2f2]' : ''}`}>
                                 <button
-                                  onClick={() => onToggleTask(t.id)}
-                                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-[1.5px] border-[#d1d1d6] bg-transparent cursor-pointer transition-colors hover:border-[#7f70ff]"
-                                />
+                                  onClick={() => handleResumeTask(t)}
+                                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 border-[1.5px] border-[#d1d1d6] bg-transparent cursor-pointer transition-colors hover:border-[#7f70ff] active:scale-90"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#7f70ff" className="ml-0.5"><path d="M8 5v14l11-7z" /></svg>
+                                </button>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[15px] font-medium text-[#333] truncate m-0">{t.title}</p>
                                   {taskTime > 0 && (
@@ -270,11 +279,10 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
                             return (
                               <div key={t.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-[#f2f2f2]' : ''}`}>
                                 <button
-                                  onClick={() => onToggleTask(t.id)}
-                                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 cursor-pointer"
-                                  style={{ background: activity.color }}
+                                  onClick={() => handleResumeTask(t)}
+                                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 border-[1.5px] border-[#d1d1d6] bg-transparent cursor-pointer transition-colors hover:border-[#7f70ff] active:scale-90"
                                 >
-                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#bbb" className="ml-0.5"><path d="M8 5v14l11-7z" /></svg>
                                 </button>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[15px] font-medium text-[#a0a0a0] line-through truncate m-0">{t.title}</p>

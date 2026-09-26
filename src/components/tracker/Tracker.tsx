@@ -12,16 +12,17 @@ import { NewActivityModal } from './NewActivityModal';
 import {
   getActivityStats, getWeekRange, getWeekLabel, filterSessionsByDateRange, type ActivityStats,
 } from './trackerUtils';
-import type { Activity, Task, TaskList, TimeSession } from '../../types';
+import type { Activity, Task, TaskList, TimeSession, ViewType } from '../../types';
 
 interface Props {
   onMenuClick: () => void;
   onOpenAccount: () => void;
+  onNavigate: (v: ViewType) => void;
 }
 
 const GHOST_ACTIVITY: Activity = { id: '__no_activity__', name: 'Sin actividad', color: '#c8c8d0' };
 
-export function Tracker({ onMenuClick, onOpenAccount }: Props) {
+export function Tracker({ onMenuClick, onOpenAccount, onNavigate }: Props) {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
   const { activities, addActivity: collAddActivity, updateActivity, deleteActivity } = useActivities();
@@ -162,6 +163,7 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
             onUpdateActivity={updateActivity}
             onDeleteActivity={(id) => { deleteActivity(id); setSelectedActivityIdx(null); }}
             onToggleTask={handleToggleTask}
+            onNavigate={onNavigate}
           />
         )}
       </AnimatePresence>
