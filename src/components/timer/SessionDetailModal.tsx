@@ -145,7 +145,7 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
       transition={{ type: 'spring', stiffness: 320, damping: 30 }}
       className="absolute left-0 right-0 top-0 bottom-0 z-[1000] bg-white flex flex-col origin-top"
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f0f5] shrink-0">
+      <div className="flex items-center justify-between px-4 pb-3 border-b border-[#f0f0f5] shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
         <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
         </button>

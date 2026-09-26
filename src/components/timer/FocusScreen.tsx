@@ -184,7 +184,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   return (
     <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} className="fixed inset-0 z-[9999] flex flex-col bg-white">
       {/* === Barra superior === */}
-      <div className="flex items-center justify-between px-4 pt-5 pb-3 shrink-0">
+      <div className="flex items-center justify-between px-4 pb-3 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
         <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
         </button>

@@ -65,7 +65,11 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
     return [...tasksToSort].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   };
   const actTasks = sortTasks(actTasksRaw);
-  const completedTasks = actTasks.filter((t) => t.completed);
+  const completedTasks = actTasks.filter((t) => t.completed).sort((a, b) => {
+    const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+    const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+    return bTime - aTime;
+  });
   const pendingTasks = actTasks.filter((t) => !t.completed);
   const timeByTasks = getTimeByTasks(sessions, tasks, activity.id);
 
@@ -125,7 +129,7 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
       className="fixed inset-0 z-[1500] bg-[#f7f6f9] flex flex-col"
     >
       {/* Header con lápiz de edición */}
-      <div className="flex items-center gap-3 px-5 pt-5 pb-3 shrink-0">
+      <div className="flex items-center gap-3 px-5 pb-3 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
         <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90 border-none bg-transparent cursor-pointer">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
         </button>
