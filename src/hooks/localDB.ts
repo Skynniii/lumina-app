@@ -18,7 +18,11 @@ export interface OutboxEntry {
 }
 
 // ─── Event emitter para reactividad de los hooks ───
+// Debounce: múltiples notifyLocal dentro del mismo tick se agrupan en una
+// sola notificación, evitando re-lecturas redundantes de IndexedDB durante
+// operaciones masivas (seeds, bulk updates, etc.).
 const listeners = new Map<string, Set<() => void>>();
+let pendingNotify: Set<string> | null = null;
 
 export function subscribeLocal(collection: string, cb: () => void): () => void {
   if (!listeners.has(collection)) listeners.set(collection, new Set());
@@ -27,7 +31,17 @@ export function subscribeLocal(collection: string, cb: () => void): () => void {
 }
 
 export function notifyLocal(collection: string): void {
-  listeners.get(collection)?.forEach((cb) => cb());
+  if (!pendingNotify) {
+    pendingNotify = new Set();
+    queueMicrotask(() => {
+      const batch = pendingNotify!;
+      pendingNotify = null;
+      for (const coll of batch) {
+        listeners.get(coll)?.forEach((cb) => cb());
+      }
+    });
+  }
+  pendingNotify.add(collection);
 }
 
 // ─── IndexedDB ───
@@ -182,6 +196,9 @@ export async function bulkMergeLocal(
 }
 
 // ─── Outbox (bandeja de salida) ───
+// Coalescing: la clave es `${collection}:${docId}` para que múltiples
+// operaciones sobre el mismo documento se fusionen en una sola entrada,
+// evitando writes redundantes a Firestore.
 
 export async function getOutbox(): Promise<OutboxEntry[]> {
   const db = await openDB();
@@ -193,11 +210,12 @@ export async function getOutbox(): Promise<OutboxEntry[]> {
   });
 }
 
-export async function addOutbox(entry: OutboxEntry): Promise<void> {
+export async function addOutbox(entry: Omit<OutboxEntry, 'id'>): Promise<void> {
+  const id = `${entry.collection}:${entry.docId}`;
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('outbox', 'readwrite');
-    tx.objectStore('outbox').put(entry);
+    tx.objectStore('outbox').put({ ...entry, id });
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -208,6 +226,47 @@ export async function removeOutbox(id: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction('outbox', 'readwrite');
     tx.objectStore('outbox').delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ─── Operaciones batch (una sola transacción IndexedDB) ───
+
+/** Escribe múltiples documentos + sus entradas de outbox en una sola transacción. */
+export async function batchPutLocal<T extends { id: string }>(
+  collection: string,
+  docs: T[],
+): Promise<void> {
+  if (docs.length === 0) return;
+  const db = await openDB();
+  const now = new Date().toISOString();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['data', 'outbox'], 'readwrite');
+    for (const doc of docs) {
+      const docWithUpdated = { ...doc, updatedAt: now };
+      tx.objectStore('data').put({ key: keyFor(collection, doc.id), _collection: collection, ...docWithUpdated });
+      tx.objectStore('outbox').put({ id: `${collection}:${doc.id}`, collection, docId: doc.id, operation: 'set', updatedAt: now });
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/** Elimina múltiples documentos + crea entradas de outbox en una sola transacción. */
+export async function batchDeleteLocal(
+  collection: string,
+  ids: string[],
+): Promise<void> {
+  if (ids.length === 0) return;
+  const db = await openDB();
+  const now = new Date().toISOString();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['data', 'outbox'], 'readwrite');
+    for (const id of ids) {
+      tx.objectStore('data').delete(keyFor(collection, id));
+      tx.objectStore('outbox').put({ id: `${collection}:${id}`, collection, docId: id, operation: 'delete', updatedAt: now });
+    }
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });

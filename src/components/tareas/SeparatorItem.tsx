@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
 import type { Task } from '../../types';
+import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 
 interface Props {
   task: Task;
@@ -13,15 +14,16 @@ interface Props {
 
 export const SeparatorItem = memo(({ task, reorderable, dragId, overlay, onDragPointerDown, onDragPointerEnd }: Props) => {
   const isDragged = dragId === task.id;
+  const cap = useDeviceCapability();
 
   return (
     <motion.li
-      layout={!isDragged}
+      layout={cap.enableLayout && !isDragged}
       data-task={task.id}
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0, scale: isDragged ? 1.03 : 1 }}
       exit={{ opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' }}
-      transition={{ duration: 0.3, ease: 'easeInOut', layout: { type: 'spring', stiffness: 700, damping: 45 } }}
+      transition={{ duration: 0.3 * cap.durationScale, ease: 'easeInOut', layout: cap.spring }}
       className={`flex items-center gap-3 py-2.5 px-2 w-full select-none ${overlay ? '' : 'my-0.5'} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : ''}`}
       style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : 'auto' }}
     >

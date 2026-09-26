@@ -45,7 +45,7 @@ export function CalendarView({ onMenuClick, onOpenAccount }: Props) {
   );
 
   return (
-    <section className="absolute top-0 left-0 w-full h-full p-5 pb-[110px] overflow-y-auto no-scrollbar">
+    <section className="absolute top-0 left-0 w-full h-full p-5 pb-[110px] overflow-y-auto no-scrollbar" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
       <TopBar title="Calendar" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
 
       <div className="mt-3 flex flex-col gap-5">

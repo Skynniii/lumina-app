@@ -31,16 +31,30 @@ export function SourcePickerModal({
     return lists
       .map((l) => {
         let items = eligible.filter((t) => t.listId === l.id);
-        // Ordenar por taskOrder si existe, si no por createdAt
-        if (l.taskOrder) {
+        const sortMode = l.sortMode || 'custom';
+        if (sortMode === 'recent') {
+          items = [...items].sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+        } else if (sortMode === 'date') {
           items = [...items].sort((a, b) => {
-            const aIdx = l.taskOrder!.indexOf(a.id);
-            const bIdx = l.taskOrder!.indexOf(b.id);
-            if (aIdx === -1 && bIdx === -1) return 0;
-            if (aIdx === -1) return 1;
-            if (bIdx === -1) return -1;
-            return aIdx - bIdx;
+            const av = a.scheduledDate, bv = b.scheduledDate;
+            if (typeof av !== 'string' || !av) return 1;
+            if (typeof bv !== 'string' || !bv) return -1;
+            return av.localeCompare(bv);
           });
+        } else if (sortMode === 'deadline') {
+          items = [...items].sort((a, b) => {
+            const av = a.dueDate, bv = b.dueDate;
+            if (typeof av !== 'string' || !av) return 1;
+            if (typeof bv !== 'string' || !bv) return -1;
+            return av.localeCompare(bv);
+          });
+        } else if (l.taskOrder) {
+          const order = l.taskOrder;
+          const inOrder = items.filter((t) => order.includes(t.id));
+          const notInOrder = items.filter((t) => !order.includes(t.id)).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+          items = [...inOrder.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)), ...notInOrder];
+        } else {
+          items = [...items].sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
         }
         return { list: l, items };
       })

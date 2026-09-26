@@ -185,7 +185,7 @@ export function getCompletedTasks(tasks: Task[], period: Period): Task[] {
 
 /** Tareas vinculadas a una actividad. */
 export function getActivityTasks(tasks: Task[], activityId: string): Task[] {
-  return tasks.filter((t) => t.activityId === activityId && !t.isSeparator);
+  return tasks.filter((t) => t.activityId === activityId && !t.isSeparator && !t.isActivityOnly);
 }
 
 // ===== Navegación semanal =====

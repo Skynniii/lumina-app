@@ -186,14 +186,14 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave }:
 
         {/* Digital display */}
         <div className="flex items-center justify-center gap-2 py-3">
-          <button onClick={() => { setMode('hour'); setKeyboardMode(true); }}
+          <button onClick={() => { if (mode === 'hour') setKeyboardMode(k => !k); else { setMode('hour'); setKeyboardMode(false); } }}
             className={`rounded-xl px-4 py-2 transition-colors ${mode === 'hour' && !keyboardMode ? 'bg-[#f0edff]' : 'bg-[#f5f5f7]'}`}>
             <span className={`text-[28px] font-bold tabular-nums ${mode === 'hour' && !keyboardMode ? 'text-[#7f70ff]' : 'text-[#555]'}`}>
               {is12h ? String(displayHour12).padStart(2, '0') : String(hour24).padStart(2, '0')}
             </span>
           </button>
           <span className="text-[24px] font-bold text-[#aaa]">:</span>
-          <button onClick={() => { setMode('minute'); setKeyboardMode(true); }}
+          <button onClick={() => { if (mode === 'minute') setKeyboardMode(k => !k); else { setMode('minute'); setKeyboardMode(false); } }}
             className={`rounded-xl px-4 py-2 transition-colors ${mode === 'minute' && !keyboardMode ? 'bg-[#f0edff]' : 'bg-[#f5f5f7]'}`}>
             <span className={`text-[28px] font-bold tabular-nums ${mode === 'minute' && !keyboardMode ? 'text-[#7f70ff]' : 'text-[#555]'}`}>
               {String(minute).padStart(2, '0')}

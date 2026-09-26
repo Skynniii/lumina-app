@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTimeTracker, ACTIVITY_COLORS } from '../../hooks/useTimeTracker';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
+import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 
 interface Props {
   onBack: () => void;
@@ -9,6 +10,7 @@ interface Props {
 
 export function ActivitiesPage({ onBack }: Props) {
   const { activities, addActivity, updateActivity, deleteActivity } = useTimeTracker();
+  const cap = useDeviceCapability();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
@@ -62,7 +64,7 @@ export function ActivitiesPage({ onBack }: Props) {
             {activities.map((a) => (
               <motion.div
                 key={a.id}
-                layout
+                layout={cap.enableLayout}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -100 }}

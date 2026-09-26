@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed } from '../../hooks/useTimeTracker';
 import type { TimerMode } from '../../hooks/useCountdownTimer';
@@ -11,6 +11,8 @@ import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { useSettings } from '../../context/SettingsContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
+import { hapticMedium, hapticHeavy } from '../../utils/haptic';
+
 import type { Task, TaskList } from '../../types';
 
 interface Props extends ActiveTimerCardProps {
@@ -49,11 +51,32 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   });
   const [manualStart, setManualStart] = useState('09:00');
   const [manualEnd, setManualEnd] = useState('10:00');
+
+  // Duración calculada del modo manual (segundos)
+  const manualDurationSec = useMemo(() => {
+    if (!manualMode) return 0;
+    const [y, m, d] = manualDate.split('-').map(Number);
+    const [sh, sm] = manualStart.split(':').map(Number);
+    const [eh, em] = manualEnd.split(':').map(Number);
+    const startMs = new Date(y, m - 1, d, sh, sm, 0, 0).getTime();
+    let endMs = new Date(y, m - 1, d, eh, em, 0, 0).getTime();
+    if (endMs <= startMs) endMs += 86400000;
+    return Math.max(0, Math.floor((endMs - startMs) / 1000));
+  }, [manualMode, manualDate, manualStart, manualEnd]);
+
+  const adjustManualEnd = (minutes: number) => {
+    const [y, m, d] = manualDate.split('-').map(Number);
+    const [eh, em] = manualEnd.split(':').map(Number);
+    const endMs = new Date(y, m - 1, d, eh, em, 0, 0).getTime() + minutes * 60000;
+    const nd = new Date(endMs);
+    setManualEnd(`${String(nd.getHours()).padStart(2, '0')}:${String(nd.getMinutes()).padStart(2, '0')}`);
+  };
   const [holdProgress, setHoldProgress] = useState(0);
   const holdIntervalRef = useRef<number | null>(null);
   const isHoldingRef = useRef(false);
   const [customDurations, setCustomDurations] = useUserStorage<number[]>('timer-custom-durations', [25, 45, 60]);
   const [showCustomDuration, setShowCustomDuration] = useState(false);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   const formatDurationLabel = (min: number) => {
     const h = Math.floor(min / 60);
@@ -73,11 +96,12 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
   const progress = mode === 'rastreador' ? 0 : (countdown.targetSeconds > 0 ? countdown.remaining / countdown.targetSeconds : 0);
   const ringColor = mode === 'pomodoro' ? (pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b') : '#7f70ff';
-  const elapsedCount = mode === 'rastreador' ? props.elapsed : (countdown.targetSeconds - countdown.remaining);
-  const timeDisplay = mode === 'temporizador' ? formatElapsed(countdown.remaining) : formatElapsed(elapsedCount);
+  const elapsedCount = manualMode ? manualDurationSec : (mode === 'rastreador' ? props.elapsed : (countdown.targetSeconds - countdown.remaining));
+  const timeDisplay = manualMode ? formatElapsed(manualDurationSec) : (mode === 'temporizador' ? formatElapsed(countdown.remaining) : formatElapsed(elapsedCount));
   const statusLabel = !hasStarted ? 'Listo' : (isRunning ? 'En curso' : 'Pausado');
 
   const handleCenterButton = () => {
+    hapticMedium();
     if (mode === 'rastreador') {
       if (!hasStarted) props.onStart();
       else if (isTicking) props.onPause();
@@ -132,6 +156,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       if (p >= 0.12) isHoldingRef.current = true;
       if (p >= 1) {
         if (holdIntervalRef.current) { clearInterval(holdIntervalRef.current); holdIntervalRef.current = null; }
+        hapticHeavy();
         onSaveSession(true, selectedTask?.id ?? props.draft.taskId);
         setHoldProgress(0);
       }
@@ -148,10 +173,18 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const checkRadius = (checkSize - 6) / 2;
   const checkCircumference = 2 * Math.PI * checkRadius;
 
+  // Auto-resize del textarea de notas
+  useEffect(() => {
+    const el = notesRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [props.draft.notes]);
+
   return (
     <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} className="fixed inset-0 z-[9999] flex flex-col bg-white">
       {/* === Barra superior === */}
-      <div className="flex items-center justify-between px-4 pt-5 pb-3 shrink-0">
+      <div className="flex items-center justify-between px-4 pb-3 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
         <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
         </button>
@@ -219,16 +252,16 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
         {/* Anillo */}
         <div className="flex flex-col items-center py-4">
           <div className="relative flex items-center justify-center">
-            <motion.div className="absolute w-[260px] h-[260px] rounded-full bg-[#7f70ff]/5 blur-[50px]" animate={{ opacity: [0.3, 0.5, 0.3], scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }} />
-            <motion.div animate={isActive ? { scale: [1, 1.01, 1] } : {}} transition={isActive ? { repeat: Infinity, duration: 3, ease: 'easeInOut' } : {}}>
+            <div className="absolute w-[260px] h-[260px] rounded-full bg-[#7f70ff]/5 blur-[50px] anim-glow-pulse" />
+            <div className={isActive ? 'anim-ring-breathe' : ''}>
               <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" isStatic={mode === 'rastreador'}>
                 <div className="flex flex-col items-center gap-1">
-                  {isActive && <motion.span className="w-2 h-2 rounded-full bg-[#34c77b] mb-1" animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }} />}
-                  <motion.span key={timeDisplay} className="text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none" animate={isActive ? { scale: [1, 1.02, 1] } : {}} transition={isActive ? { repeat: Infinity, duration: 2, ease: 'easeInOut' } : {}}>{timeDisplay}</motion.span>
+                  {isActive && <span className="w-2 h-2 rounded-full bg-[#34c77b] mb-1 anim-dot-pulse" />}
+                  <span key={timeDisplay} className={`text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none ${isActive ? 'anim-time-breathe' : ''}`}>{timeDisplay}</span>
                   <span className="text-[11px] text-[#999] uppercase tracking-wide mt-0.5">{statusLabel}</span>
                 </div>
               </FocusRing>
-            </motion.div>
+            </div>
           </div>
 
           {mode === 'pomodoro' && (
@@ -236,6 +269,17 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b' }} />
               <span className="text-[13px] font-bold uppercase tracking-wide" style={{ color: pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b' }}>{pomodoroPhase === 'work' ? 'Trabajo' : 'Descanso'}</span>
               <span className="text-[11px] text-[#b0b0b0]">· Ciclo {pomodoroCycle}</span>
+            </div>
+          )}
+
+          {/* Botones de ajuste rápido (modo manual) */}
+          {manualMode && (
+            <div className="flex gap-2 mt-4">
+              {[{ label: '-10', val: -10 }, { label: '-5', val: -5 }, { label: '+5', val: 5 }, { label: '+10', val: 10 }].map((b) => (
+                <button key={b.label} onClick={() => adjustManualEnd(b.val)} className="px-4 py-2 rounded-full text-[14px] font-bold bg-[#f7f6f9] text-[#7f70ff] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors active:scale-90">
+                  {b.label}
+                </button>
+              ))}
             </div>
           )}
 
@@ -343,7 +387,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
               <span className="text-[#a0a0a0] mt-0.5">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
               </span>
-              <textarea value={props.draft.notes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Notas" rows={1} className="flex-1 bg-transparent outline-none border-none resize-none text-[15px] text-[#333] placeholder:text-[#aaa] min-h-[24px]" />
+              <textarea ref={notesRef} value={props.draft.notes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Notas" rows={1} className="flex-1 bg-transparent outline-none border-none resize-none text-[15px] text-[#333] placeholder:text-[#aaa] min-h-[24px] overflow-hidden" />
             </div>
           </div>
         </div>
@@ -352,16 +396,16 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       {/* === Botones flotantes inferiores === */}
       <div className="flex items-center justify-center gap-10 pb-8 pt-2 shrink-0">
         {manualMode ? (
-          <motion.button onClick={() => setManualMode(false)} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow">
+          <button onClick={() => setManualMode(false)} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-          </motion.button>
+          </button>
         ) : hasStarted ? (
-          <motion.button onClick={handleXClick} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow">
+          <button onClick={handleXClick} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-          </motion.button>
+          </button>
         ) : <div className="w-[52px]" />}
 
-        <motion.button onClick={manualMode ? handleSaveManual : handleCenterButton} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)]">
+        <button onClick={manualMode ? handleSaveManual : handleCenterButton} className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)] active:scale-[0.88] transition-transform">
           {manualMode ? (
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           ) : !hasStarted || (!isRunning && hasStarted) ? (
@@ -369,7 +413,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           ) : (
             <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><rect x="6" y="5" width="4" height="14" rx="1.5" /><rect x="14" y="5" width="4" height="14" rx="1.5" /></svg>
           )}
-        </motion.button>
+        </button>
 
         {manualMode ? (
           <div className="w-[56px]" />
@@ -378,14 +422,20 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
             <svg className="absolute inset-0 -rotate-90 pointer-events-none" width={checkSize} height={checkSize}>
               <circle cx={checkSize / 2} cy={checkSize / 2} r={checkRadius} fill="none" stroke="#34c77b" strokeWidth="3" strokeDasharray={checkCircumference} strokeDashoffset={checkCircumference * (1 - holdProgress)} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.05s linear' }} />
             </svg>
-            <motion.button onPointerDown={handleCheckPointerDown} onPointerUp={handleCheckPointerEnd} onPointerLeave={handleCheckPointerEnd} whileTap={{ scale: 0.92 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="absolute inset-[3px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow touch-none">
+            <button onPointerDown={handleCheckPointerDown} onPointerUp={handleCheckPointerEnd} onPointerLeave={handleCheckPointerEnd} className="absolute inset-[3px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow touch-none active:scale-[0.92] transition-transform">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34c77b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            </motion.button>
+            </button>
           </div>
         ) : (
-          <motion.button onClick={() => setManualMode(true)} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }} className="w-[56px] h-[56px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow">
+          <button onClick={() => {
+            const now = new Date();
+            const start = new Date(now.getTime() - 3600000);
+            setManualStart(`${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`);
+            setManualEnd(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+            setManualMode(true);
+          }} className="w-[56px] h-[56px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4" /><path d="M16 2v4" /><rect x="4" y="4" width="16" height="18" rx="2" /><path d="M12 11v5" /><path d="M9.5 13.5h5" /></svg>
-          </motion.button>
+          </button>
         )}
       </div>
 

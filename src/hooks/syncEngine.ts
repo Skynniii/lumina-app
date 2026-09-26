@@ -29,6 +29,7 @@ let intervalId: ReturnType<typeof setInterval> | null = null;
 /**
  * Procesa la bandeja de salida: sube los cambios locales a Firestore.
  * Coalesa entradas por documento (keep latest). Usa writeBatch para subir todo de golpe.
+ * Respeta el límite de 500 operaciones por batch de Firestore.
  */
 async function processOutbox(uid: string): Promise<void> {
   const entries = await getOutbox();
@@ -44,31 +45,36 @@ async function processOutbox(uid: string): Promise<void> {
     }
   }
 
-  const batch = writeBatch(db);
-  const toRemove: string[] = [];
+  const allEntries = [...coalesced.values()];
+  const BATCH_LIMIT = 450; // Firestore: máx 500 ops por batch
 
-  for (const entry of coalesced.values()) {
-    const ref = doc(db, 'users', uid, entry.collection, entry.docId);
+  for (let i = 0; i < allEntries.length; i += BATCH_LIMIT) {
+    const chunk = allEntries.slice(i, i + BATCH_LIMIT);
+    const batch = writeBatch(db);
+    const toRemove: string[] = [];
 
-    if (entry.operation === 'delete') {
-      batch.delete(ref);
-    } else {
-      // Para 'set' y 'update': leer el doc local y subirlo completo (set)
-      const localDoc = await getLocal<Record<string, unknown>>(entry.collection, entry.docId);
-      if (!localDoc) {
-        // El doc fue eliminado localmente, omitir
-        toRemove.push(entry.id);
-        continue;
+    for (const entry of chunk) {
+      const ref = doc(db, 'users', uid, entry.collection, entry.docId);
+
+      if (entry.operation === 'delete') {
+        batch.delete(ref);
+      } else {
+        // Para 'set' y 'update': leer el doc local y subirlo completo (set)
+        const localDoc = await getLocal<Record<string, unknown>>(entry.collection, entry.docId);
+        if (!localDoc) {
+          toRemove.push(entry.id);
+          continue;
+        }
+        batch.set(ref, clean(localDoc));
       }
-      batch.set(ref, clean(localDoc));
+      toRemove.push(entry.id);
     }
-    toRemove.push(entry.id);
-  }
 
-  await batch.commit();
+    await batch.commit();
 
-  for (const id of toRemove) {
-    await removeOutbox(id);
+    for (const id of toRemove) {
+      await removeOutbox(id);
+    }
   }
 }
 

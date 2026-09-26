@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { deleteField } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { useTimeTracker } from '../../hooks/useTimeTracker';
+import { useActivities } from '../../hooks/useActivities';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { TopBar } from '../ui/TopBar';
 import { WeeklyCircularChart } from './WeeklyCircularChart';
@@ -12,19 +12,21 @@ import { NewActivityModal } from './NewActivityModal';
 import {
   getActivityStats, getWeekRange, getWeekLabel, filterSessionsByDateRange, type ActivityStats,
 } from './trackerUtils';
-import type { Activity, Task, TaskList } from '../../types';
+import type { Activity, Task, TaskList, TimeSession, ViewType } from '../../types';
 
 interface Props {
   onMenuClick: () => void;
   onOpenAccount: () => void;
+  onNavigate: (v: ViewType) => void;
 }
 
 const GHOST_ACTIVITY: Activity = { id: '__no_activity__', name: 'Sin actividad', color: '#c8c8d0' };
 
-export function Tracker({ onMenuClick, onOpenAccount }: Props) {
+export function Tracker({ onMenuClick, onOpenAccount, onNavigate }: Props) {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  const tracker = useTimeTracker();
+  const { activities, addActivity: collAddActivity, updateActivity, deleteActivity } = useActivities();
+  const sessionsColl = useFirestoreCollection<TimeSession>(uid, 'timeSessions');
   const [selectedActivityIdx, setSelectedActivityIdx] = useState<number | null>(null);
   const [showNewActivity, setShowNewActivity] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -34,7 +36,11 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
   const tasks = tasksColl.items;
   const lists = listsColl.items;
 
-  const { activities, sessions } = tracker;
+  const sessions = sessionsColl.items;
+
+  const addActivity = useCallback((name: string, color: string) => {
+    collAddActivity({ name: name.trim(), color });
+  }, [collAddActivity]);
 
   // Escuchar botón + de la barra de navegación
   useEffect(() => {
@@ -92,53 +98,43 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
 
   return (
     <section className="absolute top-0 left-0 w-full h-full flex flex-col bg-[#f7f6f9]">
-      <div className="px-5 pt-5 pb-2 shrink-0 z-50 bg-[#f7f6f9]">
+      <div className="px-5 pb-2 shrink-0 z-50 bg-[#f7f6f9]" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
         <TopBar title="Tracker" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
       </div>
 
       {/* Contenido scrollable */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-[110px]">
-        {!hasData ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-16 h-16 rounded-2xl bg-[#f0edff] flex items-center justify-center">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 3v18h18" /><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
-              </svg>
-            </div>
-            <p className="text-[16px] font-semibold text-[#555] m-0">Sin registros esta semana</p>
-            <p className="text-[14px] text-[#999] m-0">Inicia un contador para rastrear tu tiempo</p>
+        <div className="flex flex-col gap-5 mt-2">
+          {/* Selector de rango semanal */}
+          <div className="flex items-center justify-center gap-4 py-1">
+            <button
+              onClick={() => setWeekOffset((o) => o - 1)}
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 active:scale-90 border-none bg-transparent cursor-pointer transition-transform"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            <span className="text-[14px] font-semibold text-[#333] tabular-nums min-w-[120px] text-center">{weekLabel}</span>
+            <button
+              onClick={() => setWeekOffset((o) => Math.min(0, o + 1))}
+              disabled={weekOffset >= 0}
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 active:scale-90 border-none bg-transparent cursor-pointer transition-transform disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
           </div>
-        ) : (
-          <div className="flex flex-col gap-5 mt-2">
-            {/* Selector de rango semanal */}
-            <div className="flex items-center justify-center gap-4 py-1">
-              <button
-                onClick={() => setWeekOffset((o) => o - 1)}
-                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 active:scale-90 border-none bg-transparent cursor-pointer transition-transform"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-              </button>
-              <span className="text-[14px] font-semibold text-[#333] tabular-nums min-w-[120px] text-center">{weekLabel}</span>
-              <button
-                onClick={() => setWeekOffset((o) => Math.min(0, o + 1))}
-                disabled={weekOffset >= 0}
-                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 active:scale-90 border-none bg-transparent cursor-pointer transition-transform disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-              </button>
-            </div>
 
-            {/* Gráfico circular del tiempo semanal */}
-            <WeeklyCircularChart activityStats={allStats} totalSeconds={totalSeconds} subtitle={weekOffset === 0 ? 'esta semana' : weekOffset === -1 ? 'semana pasada' : weekLabel} />
+          {/* Gráfico circular del tiempo semanal */}
+          <WeeklyCircularChart activityStats={allStats} totalSeconds={totalSeconds} subtitle={weekOffset === 0 ? 'esta semana' : weekOffset === -1 ? 'semana pasada' : weekLabel} />
 
-            {/* Separador */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-[#eceaf3]" />
-              <span className="text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]">Actividades</span>
-              <div className="flex-1 h-px bg-[#eceaf3]" />
-            </div>
+          {/* Separador */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-[#eceaf3]" />
+            <span className="text-[12px] font-bold uppercase tracking-wider text-[#a0a0a0]">Actividades</span>
+            <div className="flex-1 h-px bg-[#eceaf3]" />
+          </div>
 
-            {/* Barras de actividades */}
+          {/* Barras de actividades */}
+          {hasData ? (
             <div className="flex flex-col gap-3">
               {allStats.map((stat, idx) => (
                 <ActivityStatCard
@@ -148,8 +144,10 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
                 />
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-center text-[14px] text-[#999] py-6 m-0">Sin registros esta semana</p>
+          )}
+        </div>
       </div>
 
       <AnimatePresence>
@@ -162,9 +160,10 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
             tasks={tasks}
             lists={lists}
             onBack={() => setSelectedActivityIdx(null)}
-            onUpdateActivity={tracker.updateActivity}
-            onDeleteActivity={(id) => { tracker.deleteActivity(id); setSelectedActivityIdx(null); }}
+            onUpdateActivity={updateActivity}
+            onDeleteActivity={(id) => { deleteActivity(id); setSelectedActivityIdx(null); }}
             onToggleTask={handleToggleTask}
+            onNavigate={onNavigate}
           />
         )}
       </AnimatePresence>
@@ -172,7 +171,7 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
       <NewActivityModal
         isOpen={showNewActivity}
         onClose={() => setShowNewActivity(false)}
-        onCreate={(name, color) => tracker.addActivity(name, color)}
+        onCreate={(name, color) => addActivity(name, color)}
       />
     </section>
   );

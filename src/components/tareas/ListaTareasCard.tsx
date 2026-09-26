@@ -3,8 +3,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { Task, TaskList, SortMode } from '../../types';
 import { TareaItem } from './TareaItem';
 import { SeparatorItem } from './SeparatorItem';
+import { VirtualizedList } from './VirtualizedList';
 import { DesplegableMenu } from '../ui/DesplegableMenu';
 import { SortMenu } from './SortMenu';
+import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 import { useActivities } from '../../hooks/useActivities';
 
 interface Props {
@@ -59,6 +61,7 @@ export function ListaTareasCard({
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
   const { activities } = useActivities();
+  const cap = useDeviceCapability();
   const activityMap = useMemo(() => {
     const m: Record<string, { color: string; name: string }> = {};
     for (const a of activities) m[a.id] = { color: a.color, name: a.name };
@@ -128,6 +131,8 @@ export function ListaTareasCard({
       ? [...active].sort(byCreated).map((t) => t.id)
       : activeSorted.map((t) => t.id);
   const orderedIds = dragOrder ?? baseIds;
+  // Virtualize long lists in default (non-reorder, non-grouped) mode for performance.
+  const shouldVirtualize = !reorderable && !showGroups && orderedIds.length > 30;
 
   const setDragOrderBoth = useCallback((v: string[] | null) => {
     dragOrderRef.current = v;
@@ -261,7 +266,7 @@ export function ListaTareasCard({
           items.push(
             <motion.li
               key={`hdr-${key ?? 'none'}`}
-              layout
+              layout={cap.enableLayout}
               className={`list-none pt-3 first:pt-0 pb-1 text-[12px] font-bold uppercase tracking-wider ${overdue ? 'text-[#e53935]' : 'text-[#a0a0a0]'}`}
             >
               {groupLabel(key, groupKey === 'deadline')}{overdue ? ' · Atrasado' : ''}
@@ -356,6 +361,21 @@ export function ListaTareasCard({
               </AnimatePresence>
               {activeNonSep.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
             </ul>
+          ) : shouldVirtualize ? (
+            <>
+              <VirtualizedList
+                scrollRef={scrollRef}
+                items={orderedIds}
+                getItemKey={(id) => id}
+                renderItem={(id) => {
+                  const task = taskByIdRef.current[id];
+                  if (!task) return null;
+                  if (task.isSeparator) return <SeparatorItem task={task} />;
+                  return <TareaItem task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />;
+                }}
+              />
+              {activeNonSep.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
+            </>
           ) : (
             <ul ref={ulRef} className="list-none m-0 p-0 flex flex-col mb-2 relative">
               <AnimatePresence mode="popLayout">
@@ -379,7 +399,7 @@ export function ListaTareasCard({
               className="w-full flex justify-between items-center bg-[#fcfcfd] border border-[#e8e8ed] rounded-[16px] px-4 py-3 text-[14px] font-medium text-[#777] transition-colors hover:bg-[#f5f5f7]"
             >
               <span>Completadas ({completed.length})</span>
-              <svg className={`w-4 h-4 transition-transform duration-300 ${showCompleted ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              <svg className={`w-4 h-4 transition-transform duration-200 ${showCompleted ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
             </button>
 
             <div className={`grid transition-[grid-template-rows] duration-300 ${showCompleted ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>

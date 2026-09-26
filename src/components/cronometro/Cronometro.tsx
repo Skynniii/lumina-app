@@ -32,22 +32,18 @@ export function Cronometro({ onMenuClick }: Props) {
         </div>
 
         <div className="flex gap-5">
-          <motion.button
+          <button
             onClick={toggleTimer}
-            whileTap={{ scale: 0.9 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-            className="w-[50px] h-[50px] border-none rounded-full bg-white text-xl cursor-pointer shadow-[4px_4px_8px_#e6e6e6,-4px_-4px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6] flex items-center justify-center transition-shadow"
+            className="w-[50px] h-[50px] border-none rounded-full bg-white text-xl cursor-pointer shadow-[4px_4px_8px_#e6e6e6,-4px_-4px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6] flex items-center justify-center transition-shadow active:scale-[0.9] transition-transform"
           >
             {isActivo ? '⏸️' : '▶️'}
-          </motion.button>
-          <motion.button
+          </button>
+          <button
             onClick={resetTimer}
-            whileTap={{ scale: 0.9 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-            className="w-[50px] h-[50px] border-none rounded-full bg-white text-xl cursor-pointer shadow-[4px_4px_8px_#e6e6e6,-4px_-4px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6] flex items-center justify-center transition-shadow"
+            className="w-[50px] h-[50px] border-none rounded-full bg-white text-xl cursor-pointer shadow-[4px_4px_8px_#e6e6e6,-4px_-4px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6] flex items-center justify-center transition-shadow active:scale-[0.9] transition-transform"
           >
             ⏹️
-          </motion.button>
+          </button>
         </div>
       </div>
     </section>

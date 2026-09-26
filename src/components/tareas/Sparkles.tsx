@@ -1,7 +1,14 @@
 import { motion } from 'framer-motion';
 
+/**
+ * Celebration burst: particles, ring, and stars.
+ * Always renders the full effect on every device — no reduction.
+ */
 export function Sparkles() {
-  const particles = [...Array(12)].map((_, i) => {
+  const particleCount = 12;
+  const starCount = 4;
+
+  const particles = [...Array(particleCount)].map((_, i) => {
     const angle = (i * 30 * Math.PI) / 180;
     const dist = 18 + (i % 3) * 8;
     return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, size: 3 + (i % 3) * 2, gold: i % 2 === 0 };
@@ -25,17 +32,20 @@ export function Sparkles() {
           style={{ width: p.size, height: p.size, background: p.gold ? '#ffcc00' : '#7f70ff' }}
         />
       ))}
-      {[0, 90, 180, 270].map((rot, i) => (
-        <motion.div
-          key={`s${i}`}
-          initial={{ opacity: 1, scale: 0, rotate: rot }}
-          animate={{ opacity: 0, scale: 1.4, rotate: rot + 45 }}
-          transition={{ duration: 0.5, delay: 0.05 * i, ease: 'easeOut' }}
-          className="absolute text-[#ffcc00]"
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8 5.8 21.3l2.4-7.4L2 9.4h7.6z" /></svg>
-        </motion.div>
-      ))}
+      {[...Array(starCount)].map((_, i) => {
+        const rot = i * 90;
+        return (
+          <motion.div
+            key={`s${i}`}
+            initial={{ opacity: 1, scale: 0, rotate: rot }}
+            animate={{ opacity: 0, scale: 1.4, rotate: rot + 45 }}
+            transition={{ duration: 0.5, delay: 0.05 * i, ease: 'easeOut' }}
+            className="absolute text-[#ffcc00]"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8 5.8 21.3l2.4-7.4L2 9.4h7.6z" /></svg>
+          </motion.div>
+        );
+      })}
     </div>
   );
 }

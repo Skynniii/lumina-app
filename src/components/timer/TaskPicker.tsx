@@ -1,5 +1,36 @@
+import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Task, TaskList } from '../../types';
+import type { Task, TaskList, SortMode } from '../../types';
+
+function sortTasksForList(tasks: Task[], list: TaskList): Task[] {
+  const filtered = tasks.filter((t) => t.listId === list.id && !t.completed && !t.isSeparator);
+  const sortMode: SortMode = list.sortMode || 'custom';
+  if (sortMode === 'recent') {
+    return [...filtered].sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+  } else if (sortMode === 'date') {
+    return [...filtered].sort((a, b) => {
+      const av = a.scheduledDate, bv = b.scheduledDate;
+      if (typeof av !== 'string' || !av) return 1;
+      if (typeof bv !== 'string' || !bv) return -1;
+      return av.localeCompare(bv);
+    });
+  } else if (sortMode === 'deadline') {
+    return [...filtered].sort((a, b) => {
+      const av = a.dueDate, bv = b.dueDate;
+      if (typeof av !== 'string' || !av) return 1;
+      if (typeof bv !== 'string' || !bv) return -1;
+      return av.localeCompare(bv);
+    });
+  } else {
+    if (list.taskOrder) {
+      const order = list.taskOrder;
+      const inOrder = filtered.filter((t) => order.includes(t.id));
+      const notInOrder = filtered.filter((t) => !order.includes(t.id)).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+      return [...inOrder.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)), ...notInOrder];
+    }
+    return [...filtered].sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+  }
+}
 
 interface Props {
   isOpen: boolean;
@@ -43,7 +74,7 @@ export function TaskPicker({ isOpen, onClose, lists, tasks, onSelect }: Props) {
 
             <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-5">
               {visibleLists.map((list) => {
-                const listTasks = (tasks ?? []).filter((t) => t.listId === list.id && !t.completed);
+                const listTasks = sortTasksForList(tasks ?? [], list);
                 if (listTasks.length === 0) return null;
                 return (
                   <div key={list.id} className="mb-4">

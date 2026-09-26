@@ -45,6 +45,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const [notesExpanded, setNotesExpanded] = useState(() => !!displayNotes?.replace(/<[^>]*>/g, '').trim());
   const [notesEditing, setNotesEditing] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
+  const [titleValue, setTitleValue] = useState(task.title);
 
   const taskActivity = activities.find((a) => {
     if (linkedTask?.activityId) return a.id === linkedTask.activityId;
@@ -116,6 +117,11 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const hasSubtasks = (task.subtasks?.length || 0) > 0;
   const hasNotes = !!displayNotes?.replace(/<[^>]*>/g, '').trim();
 
+  // Sincronizar el título local cuando no se está editando
+  useEffect(() => {
+    if (!editingTitle) setTitleValue(task.title);
+  }, [task.title, editingTitle]);
+
   // Auto-resize del título
   useEffect(() => {
     const resize = () => {
@@ -127,7 +133,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
     resize();
     const t = setTimeout(resize, 100);
     return () => clearTimeout(t);
-  }, [task.title, editingTitle]);
+  }, [task.title, editingTitle, titleValue]);
 
   // Inicializar contentEditable de notas al expandir
   useEffect(() => {
@@ -252,9 +258,13 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
     let str = d.toLocaleDateString('es-CO', opts);
     if (typeof task.scheduledTime === 'string' && task.scheduledTime) {
       const [h, min] = task.scheduledTime.split(':').map(Number);
-      const period = h >= 12 ? 'PM' : 'AM';
-      const h12 = h % 12 || 12;
-      str += ` · ${h12}:${String(min).padStart(2, '0')} ${period}`;
+      if (settings.timeFormat === '12h') {
+        const period = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        str += ` · ${h12}:${String(min).padStart(2, '0')} ${period}`;
+      } else {
+        str += ` · ${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+      }
     }
     if (task.repeat?.enabled) str += ' · 🔁';
     return str;
@@ -281,7 +291,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
           {/* Estrella importante */}
           {!isCompleted && (
             <button onClick={handleImportant} className="p-2 rounded-full hover:bg-black/5 transition-colors">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? '#ffcc00' : 'none'} stroke={task.isImportant ? '#ffcc00' : '#d1d1d6'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-300">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? '#ffcc00' : 'none'} stroke={task.isImportant ? '#ffcc00' : '#d1d1d6'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-200">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
               </svg>
             </button>
@@ -348,11 +358,11 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         ) : (
           <textarea
             ref={titleRef}
-            value={task.title}
-            onChange={(e) => handleSyncedUpdate(task.id, { title: e.target.value })}
+            value={editingTitle ? titleValue : task.title}
+            onChange={(e) => setTitleValue(e.target.value)}
             readOnly={isCompleted || isLinked || !editingTitle}
-            onClick={() => { if (!isCompleted && !isLinked) { setEditingTitle(true); setTimeout(() => titleRef.current?.focus(), 10); } }}
-            onBlur={() => setEditingTitle(false)}
+            onClick={() => { if (!isCompleted && !isLinked) { setEditingTitle(true); setTitleValue(task.title); setTimeout(() => titleRef.current?.focus(), 10); } }}
+            onBlur={() => { if (titleValue !== task.title) handleSyncedUpdate(task.id, { title: titleValue }); setEditingTitle(false); }}
             rows={1}
             className={`w-full bg-transparent outline-none resize-none border-none text-[20px] font-bold leading-snug mb-4 ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#2b2b2b]'} ${editingTitle ? 'cursor-text' : 'cursor-pointer'}`}
           />

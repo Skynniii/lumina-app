@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   doc, deleteField, writeBatch, getDoc,
 } from 'firebase/firestore';
@@ -6,7 +6,7 @@ import { db } from '../firebase';
 import {
   getAllLocal, putLocal, deleteLocal, getLocal,
   addOutbox, notifyLocal, subscribeLocal,
-  type OutboxEntry,
+  batchPutLocal, batchDeleteLocal,
 } from './localDB';
 import type { Task } from '../types';
 
@@ -89,7 +89,7 @@ export function useFirestoreCollection<T extends { id: string }>(
     const now = new Date().toISOString();
     const newDoc = { ...data, id, updatedAt: now } as T;
     await putLocal(subcollection, newDoc);
-    await addOutbox({ id: genId(), collection: subcollection, docId: id, operation: 'set', updatedAt: now } satisfies OutboxEntry);
+    await addOutbox({ collection: subcollection, docId: id, operation: 'set', updatedAt: now });
     notifyLocal(subcollection);
     return id;
   }, [subcollection]);
@@ -99,7 +99,7 @@ export function useFirestoreCollection<T extends { id: string }>(
     const now = new Date().toISOString();
     const newDoc = { ...data, id, updatedAt: now } as T;
     await putLocal(subcollection, newDoc);
-    await addOutbox({ id: genId(), collection: subcollection, docId: id, operation: 'set', updatedAt: now } satisfies OutboxEntry);
+    await addOutbox({ collection: subcollection, docId: id, operation: 'set', updatedAt: now });
     notifyLocal(subcollection);
   }, [subcollection]);
 
@@ -111,17 +111,20 @@ export function useFirestoreCollection<T extends { id: string }>(
 
     // Fusionar update en el doc local, manejando deleteField()
     const merged: Record<string, unknown> = { ...current };
+    let hasChanges = false;
     for (const [key, value] of Object.entries(data)) {
       if (isDeleteField(value)) {
-        delete merged[key];
+        if (key in merged) { delete merged[key]; hasChanges = true; }
       } else {
-        merged[key] = value;
+        if (merged[key] !== value) { merged[key] = value; hasChanges = true; }
       }
     }
+    if (!hasChanges) return; // Skip write si no hay cambios reales
+
     merged.updatedAt = now;
 
     await putLocal(subcollection, merged as T);
-    await addOutbox({ id: genId(), collection: subcollection, docId: id, operation: 'update', updatedAt: now } satisfies OutboxEntry);
+    await addOutbox({ collection: subcollection, docId: id, operation: 'update', updatedAt: now });
     notifyLocal(subcollection);
   }, [subcollection]);
 
@@ -129,11 +132,25 @@ export function useFirestoreCollection<T extends { id: string }>(
   const remove = useCallback(async (id: string): Promise<void> => {
     const now = new Date().toISOString();
     await deleteLocal(subcollection, id);
-    await addOutbox({ id: genId(), collection: subcollection, docId: id, operation: 'delete', updatedAt: now } satisfies OutboxEntry);
+    await addOutbox({ collection: subcollection, docId: id, operation: 'delete', updatedAt: now });
     notifyLocal(subcollection);
   }, [subcollection]);
 
-  return { items, loading, add, set, update, remove };
+  /** Escribe múltiples documentos completos en una sola transacción (para operaciones masivas). */
+  const batchSet = useCallback(async (docs: T[]): Promise<void> => {
+    if (docs.length === 0) return;
+    await batchPutLocal(subcollection, docs);
+    notifyLocal(subcollection);
+  }, [subcollection]);
+
+  /** Elimina múltiples documentos en una sola transacción (para operaciones masivas). */
+  const batchRemove = useCallback(async (ids: string[]): Promise<void> => {
+    if (ids.length === 0) return;
+    await batchDeleteLocal(subcollection, ids);
+    notifyLocal(subcollection);
+  }, [subcollection]);
+
+  return useMemo(() => ({ items, loading, add, set, update, remove, batchSet, batchRemove }), [items, loading, add, set, update, remove, batchSet, batchRemove]);
 }
 
 // ─── Función auxiliar: incrementar tiempo de tarea (offline-first) ───
@@ -149,7 +166,7 @@ export async function incrementTaskTime(uid: string, taskId: string, seconds: nu
   const newTime = (task.totalTimeSpent || 0) + seconds;
   const updated = { ...task, totalTimeSpent: newTime, updatedAt: now };
   await putLocal('tasks', updated);
-  await addOutbox({ id: genId(), collection: 'tasks', docId: taskId, operation: 'update', updatedAt: now } satisfies OutboxEntry);
+  await addOutbox({ collection: 'tasks', docId: taskId, operation: 'update', updatedAt: now });
   notifyLocal('tasks');
 }
 

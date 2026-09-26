@@ -1,9 +1,10 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, useCallback, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Task, TaskList, SortMode } from '../../types';
 import { TareaItem } from './TareaItem';
 import { SortMenu } from './SortMenu';
 import { useSettings } from '../../context/SettingsContext';
+import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 import { useActivities } from '../../hooks/useActivities';
 
 interface Props {
@@ -121,9 +122,10 @@ function sortLikeList(tasks: Task[], list: TaskList): Task[] {
 /* ---------- sub-componentes de presentación ---------- */
 
 function GroupHeader({ title, color }: { title: string; color?: string }) {
+  const cap = useDeviceCapability();
   return (
     <motion.p
-      layout
+      layout={cap.enableLayout}
       className={`pt-4 first:pt-1 pb-1.5 text-[12px] font-bold uppercase tracking-wider ${color ? '' : 'text-[#a0a0a0]'}`}
       style={color ? { color } : undefined}
     >

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { dayLabel, formatClock, formatElapsed, isoToDateKey } from '../../hooks/useTimeTracker';
 import type { Activity, TimeSession } from '../../types';
@@ -10,7 +10,7 @@ interface Props {
   onSelectEntry?: (entry: TimeSession) => void;
 }
 
-export function EntryList({ entries, activities, onDelete, onSelectEntry }: Props) {
+export const EntryList = memo(function EntryList({ entries, activities, onDelete, onSelectEntry }: Props) {
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
   const groups = useMemo(() => {
@@ -124,4 +124,4 @@ export function EntryList({ entries, activities, onDelete, onSelectEntry }: Prop
       })}
     </div>
   );
-}
+});

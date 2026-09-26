@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
@@ -50,7 +50,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     };
     window.addEventListener('app-add', addHandler);
     return () => window.removeEventListener('app-add', addHandler);
-  }, [tracker]);
+  }, [tracker.setDraft]);
 
   // Manejar tarea pendiente (iniciar timer desde TaskDetailView)
   useEffect(() => {
@@ -61,7 +61,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
       tracker.setDraft({ activityId: task.activityId || '', description: task.title, notes: plainNotes, taskId: task.id });
       setShowFocus(true);
     }
-  }, [tracker]);
+  }, [tracker.setDraft]);
 
   const handleStop = async () => {
     const taskId = tracker.draft.taskId;
@@ -136,7 +136,12 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     setShowFocus(false);
   };
 
-  const historyEntries = tracker.sessions.filter((e) => isoToDateKey(e.startTime) !== todayKey());
+  const historyEntries = useMemo(
+    () => tracker.sessions.filter((e) => isoToDateKey(e.startTime) !== todayKey()),
+    [tracker.sessions]
+  );
+
+  const handleSelectEntry = useCallback((e: { id: string }) => setSelectedEntryId(e.id), []);
 
   const isTimerActive = mode === 'rastreador'
     ? tracker.running !== null
@@ -164,7 +169,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   return (
     <>
       <section className="absolute top-0 left-0 w-full h-full flex flex-col">
-        <div className="px-5 pt-5 pb-2 shrink-0 z-50 bg-[#f7f6f9]">
+        <div className="px-5 pb-2 shrink-0 z-50 bg-[#f7f6f9]" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
           <TopBar title="Timer" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
         </div>
 
@@ -177,7 +182,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               isRunning={tracker.isTicking}
               liveActivityId={tracker.draft.activityId}
               liveDescription={tracker.draft.description}
-              onSelectEntry={(e) => setSelectedEntryId(e.id)}
+              onSelectEntry={handleSelectEntry}
             />
 
             <div className="flex items-center gap-3 pt-2">
@@ -190,7 +195,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               entries={historyEntries}
               activities={tracker.activities}
               onDelete={tracker.deleteSession}
-              onSelectEntry={(e) => setSelectedEntryId(e.id)}
+              onSelectEntry={handleSelectEntry}
             />
           </div>
         </div>

@@ -69,6 +69,14 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
     onUpdate(entry.id, { endTime: newEndTime, duration: newDuration });
   };
 
+  const adjustEndTime = (minutes: number) => {
+    const newEnd = new Date(entry.endTime);
+    newEnd.setMinutes(newEnd.getMinutes() + minutes);
+    const newEndTime = newEnd.toISOString();
+    const newDuration = Math.max(0, Math.floor((newEnd.getTime() - new Date(entry.startTime).getTime()) / 1000));
+    onUpdate(entry.id, { endTime: newEndTime, duration: newDuration });
+  };
+
   // Si la sesión está vinculada, los cambios a descripción/actividad/notas se sincronizan con la tarea
   const handleDescriptionChange = (value: string) => {
     onUpdate(entry.id, { description: value });
@@ -137,7 +145,7 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
       transition={{ type: 'spring', stiffness: 320, damping: 30 }}
       className="absolute left-0 right-0 top-0 bottom-0 z-[1000] bg-white flex flex-col origin-top"
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f0f5] shrink-0">
+      <div className="flex items-center justify-between px-4 pb-3 border-b border-[#f0f0f5] shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
         <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
         </button>
@@ -147,9 +155,18 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 py-4">
-        <div className="text-center mb-6">
+        <div className="text-center mb-4">
           <p className="text-[40px] font-bold text-[#333] tabular-nums m-0 leading-none">{formatElapsed(entry.duration)}</p>
           <p className="text-[13px] text-[#999] uppercase tracking-wide mt-2 m-0 capitalize">{dayLabel(entryDateKey)}</p>
+        </div>
+
+        {/* Botones de ajuste rápido de tiempo */}
+        <div className="flex justify-center gap-2 mb-4">
+          {[{ label: '-10', val: -10 }, { label: '-5', val: -5 }, { label: '+5', val: 5 }, { label: '+10', val: 10 }].map((b) => (
+            <button key={b.label} onClick={() => adjustEndTime(b.val)} className="px-4 py-2 rounded-full text-[14px] font-bold bg-[#f7f6f9] text-[#7f70ff] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors active:scale-90">
+              {b.label}
+            </button>
+          ))}
         </div>
 
         <div className="border-b border-[#f0f0f5]">
