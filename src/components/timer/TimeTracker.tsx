@@ -50,7 +50,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     };
     window.addEventListener('app-add', addHandler);
     return () => window.removeEventListener('app-add', addHandler);
-  }, [tracker]);
+  }, [tracker.setDraft]);
 
   // Manejar tarea pendiente (iniciar timer desde TaskDetailView)
   useEffect(() => {
@@ -61,7 +61,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
       tracker.setDraft({ activityId: task.activityId || '', description: task.title, notes: plainNotes, taskId: task.id });
       setShowFocus(true);
     }
-  }, [tracker]);
+  }, [tracker.setDraft]);
 
   const handleStop = async () => {
     const taskId = tracker.draft.taskId;

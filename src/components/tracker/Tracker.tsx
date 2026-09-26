@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { deleteField } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { useTimeTracker } from '../../hooks/useTimeTracker';
+import { useActivities } from '../../hooks/useActivities';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { TopBar } from '../ui/TopBar';
 import { WeeklyCircularChart } from './WeeklyCircularChart';
@@ -12,7 +12,7 @@ import { NewActivityModal } from './NewActivityModal';
 import {
   getActivityStats, getWeekRange, getWeekLabel, filterSessionsByDateRange, type ActivityStats,
 } from './trackerUtils';
-import type { Activity, Task, TaskList } from '../../types';
+import type { Activity, Task, TaskList, TimeSession } from '../../types';
 
 interface Props {
   onMenuClick: () => void;
@@ -24,7 +24,8 @@ const GHOST_ACTIVITY: Activity = { id: '__no_activity__', name: 'Sin actividad',
 export function Tracker({ onMenuClick, onOpenAccount }: Props) {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  const tracker = useTimeTracker();
+  const { activities, addActivity: collAddActivity, updateActivity, deleteActivity } = useActivities();
+  const sessionsColl = useFirestoreCollection<TimeSession>(uid, 'timeSessions');
   const [selectedActivityIdx, setSelectedActivityIdx] = useState<number | null>(null);
   const [showNewActivity, setShowNewActivity] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -34,7 +35,11 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
   const tasks = tasksColl.items;
   const lists = listsColl.items;
 
-  const { activities, sessions } = tracker;
+  const sessions = sessionsColl.items;
+
+  const addActivity = useCallback((name: string, color: string) => {
+    collAddActivity({ name: name.trim(), color });
+  }, [collAddActivity]);
 
   // Escuchar botón + de la barra de navegación
   useEffect(() => {
@@ -162,8 +167,8 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
             tasks={tasks}
             lists={lists}
             onBack={() => setSelectedActivityIdx(null)}
-            onUpdateActivity={tracker.updateActivity}
-            onDeleteActivity={(id) => { tracker.deleteActivity(id); setSelectedActivityIdx(null); }}
+            onUpdateActivity={updateActivity}
+            onDeleteActivity={(id) => { deleteActivity(id); setSelectedActivityIdx(null); }}
             onToggleTask={handleToggleTask}
           />
         )}
@@ -172,7 +177,7 @@ export function Tracker({ onMenuClick, onOpenAccount }: Props) {
       <NewActivityModal
         isOpen={showNewActivity}
         onClose={() => setShowNewActivity(false)}
-        onCreate={(name, color) => tracker.addActivity(name, color)}
+        onCreate={(name, color) => addActivity(name, color)}
       />
     </section>
   );

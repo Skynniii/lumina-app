@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed, todayKey, isoToDateKey } from '../../hooks/useTimeTracker';
 import type { Activity, TimeSession } from '../../types';
@@ -37,7 +37,7 @@ interface ActivityGroup {
 export function TodaySummary({ entries, activities, liveElapsed, isRunning, liveActivityId, liveDescription, onSelectEntry }: Props) {
   const [expanded, setExpanded] = useState(false);
   const cap = useDeviceCapability();
-  const todayEntries = entries.filter((e) => isoToDateKey(e.startTime) === todayKey());
+  const todayEntries = useMemo(() => entries.filter((e) => isoToDateKey(e.startTime) === todayKey()), [entries]);
 
   const allSessions: Session[] = todayEntries.map((e) => ({
     id: e.id,
