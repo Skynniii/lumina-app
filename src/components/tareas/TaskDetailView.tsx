@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Task, TaskList, SubTask, TimeSession, Activity, ViewType } from '../../types';
 import { useBackHandler } from '../../hooks/useBackHandler';
+import { useKeyboardVisible } from '../../hooks/useKeyboardVisible';
 import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
 import { useAuth } from '../../context/AuthContext';
@@ -29,6 +30,7 @@ interface Props {
 
 export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate, onOpenTask }: Props) {
   useBackHandler(true, onBack);
+  const keyboardVisible = useKeyboardVisible();
   const { settings } = useSettings();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
@@ -137,24 +139,28 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
     return () => clearTimeout(t);
   }, [task.title, editingTitle, titleValue]);
 
-  // Inicializar contentEditable de notas al expandir
-  useEffect(() => {
-    if (notesExpanded && notesEditRef.current) {
-      notesEditRef.current.innerHTML = displayNotes || '';
+  // Enfoca el título en el mismo frame en que se activa la edición: pasar del
+  // título a las notas (y al revés) no cierra y reabre el teclado.
+  useLayoutEffect(() => {
+    if (editingTitle) titleRef.current?.focus();
+  }, [editingTitle]);
+
+  // Inicializar contentEditable de notas al expandir. El foco se aplica en el
+  // mismo frame (sin temporizador) para no cerrar y reabrir el teclado.
+  useLayoutEffect(() => {
+    const el = notesEditRef.current;
+    if (notesExpanded && el) {
+      el.innerHTML = displayNotes || '';
       const isUserToggle = !wasExpanded.current;
       wasExpanded.current = true;
       if (!isCompleted && isUserToggle) {
-        setTimeout(() => {
-          const el = notesEditRef.current;
-          if (!el) return;
-          el.focus();
-          const sel = window.getSelection();
-          const range = document.createRange();
-          range.selectNodeContents(el);
-          range.collapse(false);
-          sel?.removeAllRanges();
-          sel?.addRange(range);
-        }, 100);
+        el.focus();
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
       }
     } else if (!notesExpanded) {
       wasExpanded.current = false;
@@ -363,7 +369,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
             value={editingTitle ? titleValue : task.title}
             onChange={(e) => setTitleValue(e.target.value)}
             readOnly={isCompleted || isLinked || !editingTitle}
-            onClick={() => { if (!isCompleted && !isLinked) { setEditingTitle(true); setTitleValue(task.title); setTimeout(() => titleRef.current?.focus(), 10); } }}
+            onClick={() => { if (!isCompleted && !isLinked) { setEditingTitle(true); setTitleValue(task.title); } }}
             onBlur={() => { if (titleValue !== task.title) handleSyncedUpdate(task.id, { title: titleValue }); setEditingTitle(false); }}
             rows={1}
             className={`w-full bg-transparent outline-none resize-none border-none text-[20px] font-bold leading-snug mb-4 ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#2b2b2b]'} ${editingTitle ? 'cursor-text' : 'cursor-pointer'}`}
@@ -373,7 +379,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         {/* Notas expandible */}
         {!isLinked && !task.isActivityOnly && ((!isCompleted) || hasNotes) && (
           <div className="border-b border-[#f0f0f5]">
-            <div onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
+            <div onMouseDown={(e) => e.preventDefault()} onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${hasNotes ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
               </span>
@@ -579,8 +585,8 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
       </AnimatePresence>
 
-      {/* Barra inferior: eliminar + timer + completar */}
-      <div className="flex justify-between items-center px-5 py-4 border-t border-[#f0f0f5] shrink-0">
+      {/* Barra inferior: eliminar + completar (oculta con el teclado abierto) */}
+      <div className={`flex justify-between items-center px-5 py-4 border-t border-[#f0f0f5] shrink-0 ${keyboardVisible ? 'hidden' : ''}`}>
         <button onClick={() => onDelete(task.id)} className="text-[#ff4d4d] p-2.5 rounded-full hover:bg-[#fff5f5] transition-colors border-none bg-transparent cursor-pointer">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
         </button>

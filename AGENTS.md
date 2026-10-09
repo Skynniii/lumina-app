@@ -49,6 +49,25 @@ secrets. There are no `import.meta.env.*` reads anywhere in `src/`.
 - El proyecto Android **no** se compila en el sandbox (`@capacitor/android` no está
   instalado): los cambios nativos requieren `npx cap sync android` + Gradle local.
 
+## Teclado en pantalla (Android)
+
+- `src/hooks/useKeyboardVisible()` indica si el teclado está abierto: compara la
+  altura del `visualViewport` con la mayor observada, así funciona tanto con
+  `interactive-widget=resizes-content` como con `overlays-content` (meta viewport
+  en `index.html`). Devuelve `false` en escritorio, donde no hay teclado.
+- Con el teclado abierto se ocultan los controles que quedarían encima de él:
+  la barra inferior (papelera + Completada) en `TaskDetailView` y los botones
+  principales de `FocusScreen`, añadiendo la clase `hidden`. Se restauran al
+  cerrar el teclado y su comportamiento sin el flag es el de siempre.
+- Para no cerrar y reabrir el teclado al pasar del título a las notas (y al
+  revés) el foco se aplica en el mismo frame: `useLayoutEffect` + `el.focus()`
+  (sin `setTimeout`) y `onMouseDown={preventDefault}` en la cabecera de notas de
+  `TaskDetailView`.
+- En `NuevaTareaModal` el panel de notas se cierra al tocar cualquier zona
+  interior del modal o el botón Notas cuando la nota está vacía (con contenido
+  solo lo cierra el botón); el editor de notas y la barra de formato hacen
+  `stopPropagation` para no cerrarlo al escribir.
+
 ## Botón atrás de Android
 
 - `src/utils/backButton.ts` mantiene una pila de manejadores y escucha el evento

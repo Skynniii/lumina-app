@@ -133,7 +133,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const fechaLabel = fmtFecha(scheduledDate, scheduledTime, repeat, settings.timeFormat);
   const hasNotes = !!notesHtml.replace(/<[^>]*>/g, '').trim();
 
-  const iconBtn = (active: boolean, onClick: () => void, title: string, children: React.ReactNode) => (
+  const iconBtn = (active: boolean, onClick: (e: React.MouseEvent) => void, title: string, children: React.ReactNode) => (
     <button
       type="button"
       onMouseDown={(e) => e.preventDefault()}
@@ -159,6 +159,8 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
             <motion.div
               className="fixed left-1/2 -translate-x-1/2 w-full max-w-[420px] z-[1002] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] px-5 pt-3 pb-6"
               style={{ bottom: keyboardHeight }}
+              // Tocar cualquier zona interior del modal cierra las notas si están vacías
+              onClick={() => { if (!hasNotes) { setNotesOpen(false); setNotesEditing(false); } }}
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 360, damping: 36 }}
             >
@@ -215,7 +217,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 {iconBtn(important, () => setImportant((v) => !v), 'Importante',
                   <svg width="20" height="20" viewBox="0 0 24 24" fill={important ? '#ffcc00' : 'none'} stroke={important ? '#ffcc00' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
                 )}
-                {iconBtn(notesOpen || hasNotes, () => setNotesOpen((v) => !v), 'Notas',
+                {iconBtn(notesOpen || hasNotes, (e) => { e.stopPropagation(); if (notesOpen) { setNotesOpen(false); setNotesEditing(false); } else setNotesOpen(true); }, 'Notas',
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
                 )}
                 <button
@@ -234,7 +236,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               {/* Editor de notas desplegable */}
               <AnimatePresence>
                 {notesOpen && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-2">
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-2" onClick={(e) => e.stopPropagation()}>
                     <div
                       ref={notesRef}
                       contentEditable
