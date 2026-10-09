@@ -9,7 +9,7 @@ import { useCountdownTimer, type TimerMode } from '../../hooks/useCountdownTimer
 import { useUserStorage } from '../../hooks/useUserStorage';
 import { setPendingTimerTask, getPendingTimerTask, clearPendingTimerTask } from '../../shared/pendingTimerTask';
 import { sortListsForDisplay } from '../../utils/listOrder';
-import { TopBar } from '../ui/TopBar';
+import { SectionHeader } from '../ui/SectionHeader';
 import { TodaySummary } from './TodaySummary';
 import { FocusScreen } from './FocusScreen';
 import { EntryList } from './EntryList';
@@ -182,9 +182,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   return (
     <>
       <section className="absolute top-0 left-0 w-full h-full flex flex-col">
-        <div className="px-5 pb-2 shrink-0 z-50 bg-[#f7f6f9]" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
-          <TopBar title="Timer" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
-        </div>
+        <SectionHeader title="Timer" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} background="#f7f6f9" className="z-50" />
 
         <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-[110px]">
           <div className="flex flex-col gap-5 mt-3">

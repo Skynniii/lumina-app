@@ -26,6 +26,29 @@ Firebase web config (api key, project id, etc.) is **committed in
 `/run/base44/app.env` entries are required; `.base44/environment.json` lists no
 secrets. There are no `import.meta.env.*` reads anywhere in `src/`.
 
+## Cabecera de sección (UI)
+
+- Todas las secciones usan `src/components/ui/SectionHeader.tsx`, con exactamente
+  la misma posición/márgenes que la cabecera de Tasks (safe-area top + `px-5 pt-3`,
+  y `TopBar` con `px-4 py-2.5`). Para mover el título, cámbialo ahí y no en cada
+  sección. El color de fondo es propio de cada sección y llega por la prop
+  `background` (Tasks blanco, el resto `#f7f6f9`).
+- La cabecera va **fuera** de la zona scrolleable en todas las secciones
+  (`flex flex-col` + contenedor interno `overflow-y-auto`), por eso queda fija.
+
+## Barra de estado en Android (Capacitor)
+
+- `android/app/src/main/java/com/lumina/app/MainActivity.java` activa edge-to-edge
+  (`WindowCompat.setDecorFitsSystemWindows(false)`), deja transparentes la barra de
+  estado y la de navegación, y fuerza iconos oscuros: así el color superior de la
+  app se ve detrás de la barra de estado (fusión tipo app nativa).
+  Las cabeceras reservan ese espacio con `env(safe-area-inset-top)`.
+- `res/values/styles.xml` usa el mismo color como respaldo para la pantalla de
+  arranque. `res/values/colors.xml` se añadió porque `styles.xml` referenciaba
+  `@color/colorPrimary` y no estaba definido.
+- El proyecto Android **no** se compila en el sandbox (`@capacitor/android` no está
+  instalado): los cambios nativos requieren `npx cap sync android` + Gradle local.
+
 ## Quirks
 
 - `vite.config.ts` sets `server.allowedHosts: true`; the compose file also

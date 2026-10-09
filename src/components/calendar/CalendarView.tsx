@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useCalendarEvents, dateKey } from '../../hooks/useCalendarEvents';
-import { TopBar } from '../ui/TopBar';
+import { SectionHeader } from '../ui/SectionHeader';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
 import { MonthGrid } from './MonthGrid';
 import { DayAgenda } from './DayAgenda';
@@ -45,19 +45,21 @@ export function CalendarView({ onMenuClick, onOpenAccount }: Props) {
   );
 
   return (
-    <section className="absolute top-0 left-0 w-full h-full p-5 pb-[110px] overflow-y-auto no-scrollbar" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
-      <TopBar title="Calendar" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
+    <section className="absolute top-0 left-0 w-full h-full flex flex-col bg-[#f7f6f9]">
+      <SectionHeader title="Calendar" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} background="#f7f6f9" className="z-50" />
 
-      <div className="mt-3 flex flex-col gap-5">
-        <MonthGrid
-          anchorMonth={anchorMonth}
-          onMonthChange={setAnchorMonth}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-          eventsByDate={eventsByDate}
-        />
+      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-[110px]">
+        <div className="mt-3 flex flex-col gap-5">
+          <MonthGrid
+            anchorMonth={anchorMonth}
+            onMonthChange={setAnchorMonth}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            eventsByDate={eventsByDate}
+          />
 
-        <DayAgenda date={selectedDate} events={selectedEvents} onSelectEvent={setDetail} />
+          <DayAgenda date={selectedDate} events={selectedEvents} onSelectEvent={setDetail} />
+        </div>
       </div>
 
       <EventForm

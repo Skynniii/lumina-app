@@ -4,7 +4,7 @@ import { deleteField } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { useActivities } from '../../hooks/useActivities';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { TopBar } from '../ui/TopBar';
+import { SectionHeader } from '../ui/SectionHeader';
 import { WeeklyCircularChart } from './WeeklyCircularChart';
 import { ActivityStatCard } from './ActivityStatCard';
 import { ActivityDetailModal } from './ActivityDetailModal';
@@ -98,9 +98,7 @@ export function Tracker({ onMenuClick, onOpenAccount, onNavigate }: Props) {
 
   return (
     <section className="absolute top-0 left-0 w-full h-full flex flex-col bg-[#f7f6f9]">
-      <div className="px-5 pb-2 shrink-0 z-50 bg-[#f7f6f9]" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
-        <TopBar title="Tracker" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
-      </div>
+      <SectionHeader title="Tracker" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} background="#f7f6f9" className="z-50" />
 
       {/* Contenido scrollable */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-[110px]">
