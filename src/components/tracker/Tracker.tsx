@@ -124,7 +124,7 @@ export function Tracker({ onMenuClick, onOpenAccount, onNavigate }: Props) {
           </div>
 
           {/* Gráfico circular del tiempo semanal */}
-          <WeeklyCircularChart activityStats={allStats} totalSeconds={totalSeconds} subtitle={weekOffset === 0 ? 'esta semana' : weekOffset === -1 ? 'semana pasada' : weekLabel} />
+          <WeeklyCircularChart activityStats={allStats} totalSeconds={totalSeconds} />
 
           {/* Separador */}
           <div className="flex items-center gap-3">

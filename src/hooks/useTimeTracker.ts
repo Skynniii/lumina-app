@@ -51,8 +51,8 @@ export function formatElapsed(totalSeconds: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function formatClock(time: number | string): string {
-  return new Date(time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
+export function formatClock(time: number | string, timeFormat: '12h' | '24h' = '24h'): string {
+  return new Date(time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: timeFormat === '12h' });
 }
 
 export function dayLabel(dateKey: string): string {

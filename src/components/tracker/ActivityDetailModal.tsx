@@ -5,6 +5,7 @@ import { ACTIVITY_COLORS } from '../../hooks/useTimeTracker';
 import {
   formatDuration, getActivityTasks, getTimeByTasks, getStreak, getBestStreak, type ActivityStats,
 } from './trackerUtils';
+import { useSettings } from '../../context/SettingsContext';
 import { ConsistencyGraph } from './ConsistencyGraph';
 import { ActivityTrendStats } from './ActivityTrendStats';
 import type { Activity, TimeSession, Task, TaskList, ViewType } from '../../types';
@@ -33,6 +34,7 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, onBack, onUpdateActivity, onDeleteActivity, onToggleTask, onNavigate }: Props) {
+  const { settings } = useSettings();
   const [tab, setTab] = useState<Tab>('resumen');
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(activity.name);
@@ -365,7 +367,7 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: activity.color }} />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[15px] font-medium text-[#333] truncate m-0">{s.description || 'Sin descripción'}</p>
-                                  <p className="text-[12px] text-[#999] m-0 mt-0.5">{formatClock(s.startTime)} – {formatClock(s.endTime)}</p>
+                                  <p className="text-[12px] text-[#999] m-0 mt-0.5">{formatClock(s.startTime, settings.timeFormat)} – {formatClock(s.endTime, settings.timeFormat)}</p>
                                 </div>
                                 <span className="text-[15px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(s.duration)}</span>
                               </div>
