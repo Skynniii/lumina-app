@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useFirestoreCollection } from './useFirestoreCollection';
 import type { CalendarEvent } from '../types';
@@ -11,34 +11,11 @@ export function dateKey(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function offsetKey(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return dateKey(d);
-}
-
-function seed(): CalendarEvent[] {
-  return [
-    { id: 'e1', title: 'Reunión de equipo', date: offsetKey(0), start: '09:00', end: '10:00', color: '#4d7cfe', location: 'Sala virtual' },
-    { id: 'e2', title: 'Almuerzo con Laura', date: offsetKey(0), start: '12:30', end: '13:30', color: '#34c77b', location: 'Café Central' },
-    { id: 'e3', title: 'Clase de inglés', date: offsetKey(1), start: '18:00', end: '19:30', color: '#ffa94d' },
-    { id: 'e4', title: 'Sesión de gimnasio', date: offsetKey(2), start: '07:00', end: '08:00', color: '#ff6b81' },
-  ];
-}
-
 export function useCalendarEvents() {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
   const coll = useFirestoreCollection<CalendarEvent>(uid, 'calendarEvents');
   const { items: events, loading, set: collSet, update: collUpdate, remove: collRemove } = coll;
-
-  // Semilla para usuarios nuevos
-  useEffect(() => {
-    if (!uid || loading) return;
-    if (events.length === 0) {
-      seed().forEach((e) => collSet(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location }));
-    }
-  }, [uid, loading, events, collSet]);
 
   const addEvent = useCallback((e: Omit<CalendarEvent, 'id'>): string => {
     const id = `ev-${Date.now()}`;
@@ -54,7 +31,7 @@ export function useCalendarEvents() {
     collRemove(id);
   }, [collRemove]);
 
-  return { events, addEvent, updateEvent, deleteEvent };
+  return { events, loading, addEvent, updateEvent, deleteEvent };
 }
 
 /** Semanas del mes: array de fechas YYYY-MM-DD (null = celda vacía). */

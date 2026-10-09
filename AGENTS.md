@@ -82,6 +82,29 @@ secrets. There are no `import.meta.env.*` reads anywhere in `src/`.
   `android/capacitor.settings.gradle` y `android/app/capacitor.build.gradle`
   (es lo que genera `npx cap sync android`).
 
+## Sección Calendario
+
+- `src/hooks/useCalendarData.ts` es la única fuente de datos del calendario: cruza
+  tareas (`useTasks`), registros (`timeSessions`), actividades y eventos
+  (`calendarEvents`) en una lista de `CalendarItem` con `kind`
+  (`pending | completed | session | event`), fecha, minutos de inicio/fin y color.
+  Las tareas y los registros se **derivan** de sus colecciones (no se copian); los
+  eventos son la única fuente propia. Al añadir información al calendario, añade
+  una capa ahí y usa `LAYER_META` para su color/etiqueta.
+- Vistas: `MonthGrid` (mes), `TimeGrid` (rejilla horaria; con 7 días es semana y
+  con 1 día es día), `DaySummary` (resumen) y `DayAgenda` (agenda cronológica).
+  `CalendarToolbar` cambia de vista y filtra capas; los filtros se guardan en
+  `users/{uid}` con la clave `calendar-layers` (`useUserStorage`).
+- Los eventos ya **no** se siembran para usuarios nuevos (`useCalendarEvents`):
+  el calendario arranca vacío y solo muestra lo que el usuario crea.
+- `NuevaTareaModal` acepta `initialDate` para crear una tarea fechada desde el
+  calendario; se guarda con `addTaskWithData` de `useTasks`, así que aparece igual
+  en la sección de Tasks. El botón + de la barra de navegación abre
+  `CalendarQuickAdd` (elegir tarea o evento).
+- Detalles: los eventos usan `EventDetail`/`EventForm`, las tareas
+  `TaskDetailView`, los registros `SessionDetailModal` (con
+  `incrementTaskTime` al vincular/desvincular, igual que en `TimeTracker`).
+
 ## Quirks
 
 - `vite.config.ts` sets `server.allowedHosts: true`; the compose file also

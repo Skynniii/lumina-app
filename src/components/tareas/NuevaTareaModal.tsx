@@ -15,6 +15,8 @@ interface Props {
   availableLists?: TaskList[];
   allLists?: TaskList[];
   allTasks?: Task[];
+  /** Fecha preseleccionada (usada al crear una tarea desde el calendario). */
+  initialDate?: string;
   onClose: () => void;
   onCreate: (data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string; linkedTaskId?: string; isActivityOnly?: boolean }, listId: string) => void;
 }
@@ -39,7 +41,7 @@ function fmtFecha(scheduledDate: string | undefined, scheduledTime: string | und
   return s;
 }
 
-export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allLists, allTasks, onClose, onCreate }: Props) {
+export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allLists, allTasks, initialDate, onClose, onCreate }: Props) {
   useBackHandler(isOpen, onClose);
   const [title, setTitle] = useState('');
   const [notesHtml, setNotesHtml] = useState('');
@@ -73,7 +75,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   useEffect(() => {
     if (isOpen) {
       setTitle(''); setNotesHtml(''); setNotesOpen(false); setNotesEditing(false);
-      setScheduledDate(undefined); setScheduledTime(undefined); setDueDate(undefined); setRepeat(undefined);
+      setScheduledDate(initialDate); setScheduledTime(undefined); setDueDate(undefined); setRepeat(undefined);
       setImportant(false); setShowPicker(false);
       setTargetListId(defaultListId);
       // Lista con actividad vinculada: llega ya seleccionada por defecto.
