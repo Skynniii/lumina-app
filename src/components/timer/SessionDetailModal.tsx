@@ -156,12 +156,12 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 py-4">
-        <div className="text-center mt-2 mb-7">
+        <div className="text-center mt-3 mb-9">
           <p className="text-[40px] font-bold text-[#333] tabular-nums m-0 leading-none">{formatElapsed(entry.duration)}</p>
         </div>
 
         {/* Botones de ajuste rápido de tiempo */}
-        <div className="flex justify-center gap-2 mb-4">
+        <div className="flex justify-center gap-2 mb-9">
           {[{ label: '-10', val: -10 }, { label: '-5', val: -5 }, { label: '+5', val: 5 }, { label: '+10', val: 10 }].map((b) => (
             <button key={b.label} onClick={() => adjustEndTime(b.val)} className={`px-4 py-2.5 rounded-2xl text-[15px] font-bold bg-[#f7f6f9] border-none cursor-pointer active:scale-95 transition-transform ${b.val < 0 ? 'text-[#333]' : 'text-[#7f70ff]'}`}>
               {b.label}
