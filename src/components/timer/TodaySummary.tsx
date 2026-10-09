@@ -107,22 +107,24 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
                 {groups.map((g) => {
                 const pct = total > 0 ? Math.min(100, (g.totalSeconds / total) * 100) : 0;
                 return (
-                  <motion.div key={g.activityId} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.35 * cap.durationScale, ease: 'easeInOut' }} className="flex flex-col gap-1.5 overflow-hidden">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.color }} />
-                        <span className="text-[13px] font-semibold text-[#555]">{g.activityName}</span>
+                  <motion.div key={g.activityId} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.35 * cap.durationScale, ease: 'easeInOut' }} className="overflow-hidden">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.color }} />
+                          <span className="text-[13px] font-semibold text-[#555]">{g.activityName}</span>
+                        </div>
+                        <span className="text-[13px] font-semibold text-[#777] tabular-nums">{formatElapsed(g.totalSeconds)}</span>
                       </div>
-                      <span className="text-[13px] font-semibold text-[#777] tabular-nums">{formatElapsed(g.totalSeconds)}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-[#f0f0f0] overflow-hidden">
-                      <div className="h-full rounded-full transition-[width] duration-700 ease-out relative overflow-hidden" style={{ width: `${pct}%`, background: g.color }}>
-                        {g.hasLive && (
-                          <div className="absolute inset-0 anim-shimmer" style={{ background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)` }} />
-                        )}
+                      <div className="h-1.5 rounded-full bg-[#f0f0f0] overflow-hidden">
+                        <div className="h-full rounded-full transition-[width] duration-700 ease-out relative overflow-hidden" style={{ width: `${pct}%`, background: g.color }}>
+                          {g.hasLive && (
+                            <div className="absolute inset-0 anim-shimmer" style={{ background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)` }} />
+                          )}
+                        </div>
                       </div>
                     </div>
-                          <AnimatePresence initial={false}>
+                    <AnimatePresence initial={false}>
                       {expanded && (
                         <motion.div
                           key="sessions"
@@ -130,8 +132,9 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }, opacity: { duration: 0.2, ease: 'easeInOut' } }}
-                          className="overflow-hidden flex flex-col"
+                          className="overflow-hidden"
                         >
+                          <div className="flex flex-col pt-2">
                           {g.sessions.map((s) => (
                       <button
                         key={s.id}
@@ -151,6 +154,7 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
                         <span className="text-[12px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(s.seconds)}</span>
                       </button>
                           ))}
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>

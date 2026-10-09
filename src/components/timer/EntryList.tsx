@@ -11,7 +11,15 @@ interface Props {
   onSelectEntry?: (entry: TimeSession) => void;
 }
 
-export const EntryList = memo(function EntryList({ entries, activities, onDelete, onSelectEntry }: Props) {
+interface ActivityGroup {
+  id: string;
+  activity?: Activity;
+  color: string;
+  total: number;
+  sessions: TimeSession[];
+}
+
+export const EntryList = memo(function EntryList({ entries, activities, onSelectEntry }: Props) {
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const { settings } = useSettings();
 
@@ -56,16 +64,19 @@ export const EntryList = memo(function EntryList({ entries, activities, onDelete
     );
   }
 
-  const activityGroupsForDay = (dayEntries: TimeSession[]) => {
-    const map = new Map<string, { activity?: Activity; total: number; color: string }>();
+  // Agrupa las sesiones de un día por actividad (mismo criterio que el resumen "Hoy")
+  const activityGroupsForDay = (dayEntries: TimeSession[]): ActivityGroup[] => {
+    const map = new Map<string, ActivityGroup>();
     for (const e of dayEntries) {
       const activity = activities.find((a) => a.id === e.activityId);
-      const key = e.activityId;
+      const key = activity ? activity.id : '__none__';
       const existing = map.get(key);
-      if (existing) existing.total += e.duration;
-      else map.set(key, { activity, total: e.duration, color: activity?.color ?? '#bbb' });
+      if (existing) { existing.total += e.duration; existing.sessions.push(e); }
+      else map.set(key, { id: key, activity, color: activity?.color ?? '#bbb', total: e.duration, sessions: [e] });
     }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+    return Array.from(map.values())
+      .map((ag) => ({ ...ag, sessions: ag.sessions.sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime()) }))
+      .sort((a, b) => b.total - a.total);
   };
 
   return (
@@ -83,12 +94,12 @@ export const EntryList = memo(function EntryList({ entries, activities, onDelete
               <span className="text-[13px] font-semibold text-[#999] tabular-nums">{formatElapsed(g.total)}</span>
             </button>
 
-            {!isExpanded && (
-              <div className="px-5 pb-3.5 flex flex-col gap-2">
-                {actGroups.map((ag) => {
-                  const pct = g.total > 0 ? Math.min(100, (ag.total / g.total) * 100) : 0;
-                  return (
-                    <div key={ag.activity?.id ?? 'none'} className="flex flex-col gap-1">
+            <div className="px-5 pb-3.5 flex flex-col gap-3">
+              {actGroups.map((ag) => {
+                const pct = g.total > 0 ? Math.min(100, (ag.total / g.total) * 100) : 0;
+                return (
+                  <div key={ag.id} className="flex flex-col">
+                    <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: ag.color }} />
@@ -100,33 +111,35 @@ export const EntryList = memo(function EntryList({ entries, activities, onDelete
                         <div className="h-full rounded-full transition-[width] duration-500 ease-out" style={{ width: `${pct}%`, background: ag.color }} />
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <AnimatePresence initial={false}>
-              {isExpanded && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }, opacity: { duration: 0.2, ease: 'easeInOut' } }} className="overflow-hidden">
-                  <div className="flex flex-col px-5 pb-1">
-                    {g.entries.map((e) => {
-                      const activity = activities.find((a) => a.id === e.activityId);
-                      const color = activity?.color ?? '#bbb';
-                      return (
-                        <button key={e.id} onClick={() => onSelectEntry?.(e)} className="w-full flex items-center gap-3 py-1.5 text-left bg-transparent border-none cursor-pointer transition-colors">
-                          <span className="w-1 h-6 rounded-full shrink-0" style={{ background: color }} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] text-[#999] truncate m-0">{e.description || 'Sin descripción'}</p>
-                            <p className="text-[11px] text-[#b0b0b0] m-0">{activity?.name ?? 'Sin actividad'} · {fmtTime(e.startTime)} – {fmtTime(e.endTime)}</p>
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          key="sessions"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }, opacity: { duration: 0.2, ease: 'easeInOut' } }}
+                          className="overflow-hidden"
+                        >
+                          <div className="flex flex-col pt-1.5">
+                            {ag.sessions.map((e) => (
+                              <button key={e.id} onClick={() => onSelectEntry?.(e)} className="w-full flex items-center gap-3 py-1.5 text-left bg-transparent border-none cursor-pointer transition-colors">
+                                <span className="w-1 h-6 rounded-full shrink-0" style={{ background: ag.color }} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[12px] text-[#999] truncate m-0">{e.description || 'Sin descripción'}</p>
+                                  <p className="text-[11px] text-[#b0b0b0] m-0">{fmtTime(e.startTime)} – {fmtTime(e.endTime)}</p>
+                                </div>
+                                <span className="text-[12px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(e.duration)}</span>
+                              </button>
+                            ))}
                           </div>
-                          <span className="text-[12px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(e.duration)}</span>
-                        </button>
-                      );
-                    })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                );
+              })}
+            </div>
           </div>
         );
       })}

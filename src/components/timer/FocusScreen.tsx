@@ -101,11 +101,18 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
     ? (countdown.targetSeconds > 0 ? countdown.remaining / countdown.targetSeconds : 0)
     : mode === 'temporizador'
       ? (timerFilled ? 1 : 0)
-      : 0;
+      : (hasStarted ? 1 : 0);
   const ringColor = mode === 'pomodoro' ? (pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b') : activityColor;
   const ringShimmer = mode === 'temporizador' && countdown.running;
   const elapsedCount = manualMode ? manualDurationSec : (mode === 'rastreador' ? props.elapsed : (countdown.targetSeconds - countdown.remaining));
   const timeDisplay = manualMode ? formatElapsed(manualDurationSec) : (mode === 'temporizador' ? formatElapsed(countdown.remaining) : formatElapsed(elapsedCount));
+
+  // Hora "HH:mm" (24h) mostrada según el formato elegido en ajustes (12h / 24h)
+  const fmtManualTime = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    if (settings.timeFormat === '12h') return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
 
   const handleCenterButton = () => {
     hapticMedium();
@@ -261,9 +268,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           <div className="relative flex items-center justify-center">
             <div className="absolute w-[260px] h-[260px] rounded-full bg-[#7f70ff]/5 blur-[50px] anim-glow-pulse" />
             <div className={isActive ? 'anim-ring-breathe' : ''}>
-              <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" isStatic={mode === 'rastreador'} shimmer={ringShimmer}>
-                <div className="flex flex-col items-center gap-1">
-                  {isActive && <span className="w-2 h-2 rounded-full bg-[#7f70ff] mb-1 anim-dot-pulse" />}
+              <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" shimmer={ringShimmer}>
+                <div className="relative flex items-center justify-center">
+                  {isActive && <span className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-[#7f70ff] anim-dot-pulse" style={{ bottom: 'calc(100% + 8px)' }} />}
                   <span key={timeDisplay} className={`text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none ${isActive ? 'anim-time-breathe' : ''}`}>{timeDisplay}</span>
                 </div>
               </FocusRing>
@@ -345,9 +352,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
                 <div className="flex-1" />
                 {manualMode ? (
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#7f70ff] tabular-nums bg-transparent border-none cursor-pointer">{manualStart}</button>
+                    <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#7f70ff] tabular-nums bg-transparent border-none cursor-pointer">{fmtManualTime(manualStart)}</button>
                     <span className="text-[#bbb]">–</span>
-                    <button onClick={() => setShowEndTimePicker(true)} className="text-[15px] font-medium text-[#7f70ff] tabular-nums bg-transparent border-none cursor-pointer">{manualEnd}</button>
+                    <button onClick={() => setShowEndTimePicker(true)} className="text-[15px] font-medium text-[#7f70ff] tabular-nums bg-transparent border-none cursor-pointer">{fmtManualTime(manualEnd)}</button>
                   </div>
                 ) : (
                   <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none cursor-pointer">
