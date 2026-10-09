@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import type { Activity, Task, TaskList, TimeSession } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { useActivities } from '../../hooks/useActivities';
-import { formatElapsed, dayLabel, isoToDateKey } from '../../hooks/useTimeTracker';
+import { formatElapsed, isoToDateKey } from '../../hooks/useTimeTracker';
 import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { ActivityPicker } from './ActivityPicker';
@@ -43,10 +43,11 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
     const d = new Date(iso);
     const h = d.getHours();
     const min = d.getMinutes();
+    const sec = d.getSeconds();
     if (settings.timeFormat === '12h') {
-      return `${h % 12 || 12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+      return `${h % 12 || 12}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
     }
-    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   };
 
   const updateStartTime = (hour24: string, minute: string) => {
@@ -157,13 +158,12 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 py-4">
         <div className="text-center mb-4">
           <p className="text-[40px] font-bold text-[#333] tabular-nums m-0 leading-none">{formatElapsed(entry.duration)}</p>
-          <p className="text-[13px] text-[#999] uppercase tracking-wide mt-2 m-0 capitalize">{dayLabel(entryDateKey)}</p>
         </div>
 
         {/* Botones de ajuste rápido de tiempo */}
         <div className="flex justify-center gap-2 mb-4">
           {[{ label: '-10', val: -10 }, { label: '-5', val: -5 }, { label: '+5', val: 5 }, { label: '+10', val: 10 }].map((b) => (
-            <button key={b.label} onClick={() => adjustEndTime(b.val)} className="px-4 py-2 rounded-full text-[14px] font-bold bg-[#f7f6f9] text-[#7f70ff] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors active:scale-90">
+            <button key={b.label} onClick={() => adjustEndTime(b.val)} className={`px-4 py-2.5 rounded-2xl text-[15px] font-bold bg-[#f7f6f9] border-none cursor-pointer active:scale-95 transition-transform ${b.val < 0 ? 'text-[#333]' : 'text-[#7f70ff]'}`}>
               {b.label}
             </button>
           ))}
@@ -175,8 +175,7 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
             </span>
             <div className="flex-1">
-              <p className="text-[15px] font-medium text-[#333] m-0 capitalize">{dayLabel(entryDateKey)}</p>
-              <p className="text-[12px] text-[#999] m-0 capitalize">{fmtFullDate(entry.startTime)}</p>
+              <p className="text-[15px] font-medium text-[#333] m-0 capitalize">{fmtFullDate(entry.startTime)}</p>
             </div>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
           </div>

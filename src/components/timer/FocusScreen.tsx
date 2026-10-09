@@ -103,7 +103,8 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       ? (timerFilled ? 1 : 0)
       : (hasStarted ? 1 : 0);
   const ringColor = mode === 'pomodoro' ? (pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b') : activityColor;
-  const ringShimmer = mode === 'temporizador' && countdown.running;
+  // Haz de luz que recorre el anillo mientras hay una sesión activa
+  const ringShimmer = isActive;
   const elapsedCount = manualMode ? manualDurationSec : (mode === 'rastreador' ? props.elapsed : (countdown.targetSeconds - countdown.remaining));
   const timeDisplay = manualMode ? formatElapsed(manualDurationSec) : (mode === 'temporizador' ? formatElapsed(countdown.remaining) : formatElapsed(elapsedCount));
 
@@ -267,14 +268,12 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
         <div className="flex flex-col items-center py-4">
           <div className="relative flex items-center justify-center">
             <div className="absolute w-[260px] h-[260px] rounded-full bg-[#7f70ff]/5 blur-[50px] anim-glow-pulse" />
-            <div className={isActive ? 'anim-ring-breathe' : ''}>
-              <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" shimmer={ringShimmer}>
-                <div className="relative flex items-center justify-center">
-                  {isActive && <span className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-[#7f70ff] anim-dot-pulse" style={{ bottom: 'calc(100% + 8px)' }} />}
-                  <span key={timeDisplay} className={`text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none ${isActive ? 'anim-time-breathe' : ''}`}>{timeDisplay}</span>
-                </div>
-              </FocusRing>
-            </div>
+            <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" shimmer={ringShimmer}>
+              <div className="relative flex items-center justify-center">
+                {isActive && <span className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full anim-dot-pulse" style={{ background: activityColor, bottom: 'calc(100% + 8px)' }} />}
+                <span key={timeDisplay} className="text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none">{timeDisplay}</span>
+              </div>
+            </FocusRing>
           </div>
 
           {mode === 'pomodoro' && (
@@ -289,7 +288,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           {manualMode && (
             <div className="flex gap-2 mt-4">
               {[{ label: '-10', val: -10 }, { label: '-5', val: -5 }, { label: '+5', val: 5 }, { label: '+10', val: 10 }].map((b) => (
-                <button key={b.label} onClick={() => adjustManualEnd(b.val)} className="px-4 py-2 rounded-full text-[14px] font-bold bg-[#f7f6f9] text-[#7f70ff] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors active:scale-90">
+                <button key={b.label} onClick={() => adjustManualEnd(b.val)} className={`px-4 py-2.5 rounded-2xl text-[15px] font-bold bg-[#f7f6f9] border-none cursor-pointer active:scale-95 transition-transform ${b.val < 0 ? 'text-[#333]' : 'text-[#7f70ff]'}`}>
                   {b.label}
                 </button>
               ))}
@@ -338,7 +337,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                 </span>
                 {manualMode ? (
-                  <button onClick={() => setShowDatePicker(true)} className="text-[15px] font-medium text-[#7f70ff] capitalize bg-transparent border-none cursor-pointer">
+                  <button onClick={() => setShowDatePicker(true)} className="text-[15px] font-medium text-[#333] capitalize bg-transparent border-none cursor-pointer">
                     {new Date(manualDate + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
                   </button>
                 ) : (
@@ -352,9 +351,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
                 <div className="flex-1" />
                 {manualMode ? (
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#7f70ff] tabular-nums bg-transparent border-none cursor-pointer">{fmtManualTime(manualStart)}</button>
+                    <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none cursor-pointer">{fmtManualTime(manualStart)}</button>
                     <span className="text-[#bbb]">–</span>
-                    <button onClick={() => setShowEndTimePicker(true)} className="text-[15px] font-medium text-[#7f70ff] tabular-nums bg-transparent border-none cursor-pointer">{fmtManualTime(manualEnd)}</button>
+                    <button onClick={() => setShowEndTimePicker(true)} className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none cursor-pointer">{fmtManualTime(manualEnd)}</button>
                   </div>
                 ) : (
                   <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none cursor-pointer">
@@ -418,8 +417,8 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       {/* === Botones flotantes inferiores === */}
       <div className="flex items-center justify-center gap-10 pb-8 pt-2 shrink-0">
         {manualMode ? (
-          <button onClick={() => setManualMode(false)} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          <button onClick={() => setManualMode(false)} className="w-[64px] h-[54px] rounded-2xl bg-[#f7f6f9] border-none cursor-pointer flex items-center justify-center active:scale-95 transition-transform">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
         ) : hasStarted ? (
           <button onClick={handleXClick} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
@@ -427,9 +426,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           </button>
         ) : <div className="w-[52px]" />}
 
-        <button onClick={manualMode ? handleSaveManual : handleCenterButton} className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)] active:scale-[0.88] transition-transform">
+        <button onClick={manualMode ? handleSaveManual : handleCenterButton} className={manualMode ? "w-[76px] h-[56px] rounded-2xl bg-[#f7f6f9] border-none cursor-pointer flex items-center justify-center active:scale-95 transition-transform" : "w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)] active:scale-[0.88] transition-transform"}>
           {manualMode ? (
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           ) : !hasStarted || (!isRunning && hasStarted) ? (
             <svg width="28" height="28" viewBox="0 0 24 24" fill="white" className="ml-1"><path d="M8 5v14l11-7z" /></svg>
           ) : (
@@ -438,7 +437,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
         </button>
 
         {manualMode ? (
-          <div className="w-[56px]" />
+          <div className="w-[64px]" />
         ) : hasStarted ? (
           <div className="relative" style={{ width: checkSize, height: checkSize }}>
             <svg className="absolute inset-0 -rotate-90 pointer-events-none" width={checkSize} height={checkSize}>

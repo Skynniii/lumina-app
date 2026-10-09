@@ -17,7 +17,7 @@ export function FocusRing({ progress, color, size = 220, stroke = 8, trackColor 
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(1, progress));
   const offset = circumference * (1 - clamped);
-  const shimmerLen = circumference * 0.22;
+  const shimmerLen = circumference * 0.18;
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -25,7 +25,7 @@ export function FocusRing({ progress, color, size = 220, stroke = 8, trackColor 
         <defs>
           <linearGradient id="focus-ring-shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="rgba(255,255,255,0)" />
-            <stop offset="50%" stopColor="rgba(255,255,255,0.95)" />
+            <stop offset="50%" stopColor="rgba(255,255,255,1)" />
             <stop offset="100%" stopColor="rgba(255,255,255,0)" />
           </linearGradient>
         </defs>
@@ -47,6 +47,7 @@ export function FocusRing({ progress, color, size = 220, stroke = 8, trackColor 
               fill="none" stroke="url(#focus-ring-shimmer)" strokeWidth={stroke}
               strokeDasharray={`${shimmerLen} ${circumference - shimmerLen}`}
               strokeLinecap="round"
+              style={{ filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.95))' }}
             />
           </g>
         )}
