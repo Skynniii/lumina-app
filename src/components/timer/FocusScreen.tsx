@@ -265,7 +265,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       {/* === Contenido scrolleable === */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-5">
         {/* Anillo */}
-        <div className="flex flex-col items-center py-4">
+        <div className="flex flex-col items-center pt-4 pb-8">
           <div className="relative flex items-center justify-center">
             <div className="absolute w-[260px] h-[260px] rounded-full bg-[#7f70ff]/5 blur-[50px] anim-glow-pulse" />
             <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" shimmer={ringShimmer}>
@@ -417,18 +417,18 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       {/* === Botones flotantes inferiores === */}
       <div className="flex items-center justify-center gap-10 pb-8 pt-2 shrink-0">
         {manualMode ? (
-          <button onClick={() => setManualMode(false)} className="w-[64px] h-[54px] rounded-2xl bg-[#f7f6f9] border-none cursor-pointer flex items-center justify-center active:scale-95 transition-transform">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          <button onClick={() => setManualMode(false)} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] active:scale-[0.88] transition-all">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
         ) : hasStarted ? (
-          <button onClick={handleXClick} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
+          <button onClick={handleXClick} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] active:scale-[0.88] transition-all">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
         ) : <div className="w-[52px]" />}
 
-        <button onClick={manualMode ? handleSaveManual : handleCenterButton} className={manualMode ? "w-[76px] h-[56px] rounded-2xl bg-[#f7f6f9] border-none cursor-pointer flex items-center justify-center active:scale-95 transition-transform" : "w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)] active:scale-[0.88] transition-transform"}>
+        <button onClick={manualMode ? handleSaveManual : handleCenterButton} className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] border-none cursor-pointer flex items-center justify-center shadow-[0_6px_16px_rgba(127,112,255,0.35)] active:scale-[0.88] transition-transform">
           {manualMode ? (
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           ) : !hasStarted || (!isRunning && hasStarted) ? (
             <svg width="28" height="28" viewBox="0 0 24 24" fill="white" className="ml-1"><path d="M8 5v14l11-7z" /></svg>
           ) : (
