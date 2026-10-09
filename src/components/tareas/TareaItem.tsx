@@ -35,6 +35,8 @@ interface Props {
   onDragPointerEnd?: () => void;
   activityColor?: string;
   activityName?: string;
+  /** Tareas-actividad: lanza el Timer con esa actividad. */
+  onStartActivity?: (task: Task) => void;
 }
 
 const GOLD = '#eab308';
@@ -62,6 +64,7 @@ function arePropsEqual(prev: Props, next: Props): boolean {
     (a.subtasks?.length ?? 0) === (b.subtasks?.length ?? 0) &&
     prev.activityColor === next.activityColor &&
     prev.activityName === next.activityName &&
+    prev.onStartActivity === next.onStartActivity &&
     prev.listTag === next.listTag &&
     prev.sortMode === next.sortMode &&
     prev.reorderable === next.reorderable &&
@@ -76,7 +79,7 @@ function arePropsEqual(prev: Props, next: Props): boolean {
   );
 }
 
-export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, compact, hideListTag, hideDueDate, overdueDays, onDragPointerDown, onDragPointerEnd, activityColor, activityName }: Props) => {
+export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, compact, hideListTag, hideDueDate, overdueDays, onDragPointerDown, onDragPointerEnd, activityColor, activityName, onStartActivity }: Props) => {
   const { settings } = useSettings();
   const cap = useDeviceCapability();
   const activeTaskId = useActiveTaskId();
@@ -91,6 +94,8 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const isCompleted = task.completed;
   const isChecked = task.completed || optimistic;
   const isDragged = dragId === task.id;
+  // Color del botón de reanudar de las tareas-actividad.
+  const playColor = isCompleted ? '#b0b0b0' : (activityColor ?? '#7f70ff');
 
   // Información adicional para mostrar en la tarjeta
   const hasNotes = !!task.notes?.replace(/<[^>]*>/g, '').trim();
@@ -171,6 +176,19 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         );
       })()}
 
+      {isActivityOnly ? (
+        <motion.button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onStartActivity?.(task); }}
+          title="Empezar en el Timer"
+          className="relative flex items-center justify-center w-[20px] h-[20px] flex-none mr-3 bg-transparent border-none p-0 cursor-pointer"
+          animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
+          transition={{ duration: 0.45, ease: 'easeInOut' }}
+        >
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[22px] h-[22px] rounded-full border-[1.5px]" style={{ borderColor: playColor, background: `${playColor}14` }} />
+          <svg width="11" height="11" viewBox="0 0 24 24" fill={playColor} className="relative ml-[1px]"><path d="M8 5v14l11-7z" /></svg>
+        </motion.button>
+      ) : (
       <motion.div
         className="relative flex items-center justify-center w-[20px] h-[20px] flex-none mr-3"
         onClick={handleComplete}
@@ -181,6 +199,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         <input type="checkbox" readOnly checked={isChecked} className="peer appearance-none min-w-[22px] h-[22px] border-[1.5px] border-[#d1d1d6] rounded-full cursor-pointer checked:bg-[#7f70ff] checked:border-[#7f70ff] transition-all group-hover:border-[#b0a5ff]" />
         <svg className={`absolute w-3.5 h-3.5 text-white pointer-events-none transition-opacity duration-200 ${isChecked ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
       </motion.div>
+      )}
 
       <div className="flex-grow min-w-0 flex flex-col relative">
         <motion.span
@@ -240,7 +259,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       )}
 
       {isLinked && !reorderable && (
-        <span className="flex-none ml-2 self-center text-[#7f70ff]" title="Tarea vinculada">
+        <span className="flex-none ml-2 mt-[2px] self-start text-[#7f70ff]" title="Tarea vinculada">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
@@ -251,7 +270,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       {reorderable ? (
         <div
           onPointerDown={!isCompleted && onDragPointerDown ? (e) => { e.stopPropagation(); onDragPointerDown?.(e, task.id); } : undefined}
-          className="flex-none p-2 ml-2 self-center text-[#c0c0c0] touch-none"
+          className="flex-none p-2 ml-2 self-start -mt-2 text-[#c0c0c0] touch-none"
           style={{ cursor: isDragged ? 'grabbing' : 'grab' }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -265,7 +284,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
           transition={{ duration: 0.45, ease: 'easeInOut' }}
           style={{ pointerEvents: completingImportant ? 'none' : undefined }}
-          className="flex-none p-2 ml-2 cursor-pointer rounded-full hover:bg-black/5 transition-colors self-center"
+          className="flex-none p-2 ml-2 cursor-pointer rounded-full hover:bg-black/5 transition-colors self-start -mt-2"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? '#ffcc00' : 'none'} stroke={task.isImportant ? '#ffcc00' : '#d1d1d6'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-200">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -275,7 +294,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
     </>
   );
 
-  const baseClass = `relative flex items-center py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] task-item-perf ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
+  const baseClass = `relative flex items-start py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] task-item-perf ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
 
   return (
     <motion.li
@@ -289,9 +308,9 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       onPointerDown={!reorderable && !isCompleted && onDragPointerDown ? (e) => onDragPointerDown?.(e, task.id) : undefined}
       onPointerUp={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
-      onClick={() => onExpand(task.id)}
-      className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: activityColor && !isLinked ? `3px solid ${activityColor}` : '3px solid transparent', backgroundColor: task.isActivityOnly && activityColor && !isCompleted ? `${activityColor}12` : undefined }}
+      onClick={() => { if (!isActivityOnly) onExpand(task.id); }}
+      className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable || isActivityOnly ? 'cursor-default' : 'cursor-pointer'}`}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), backgroundColor: task.isActivityOnly && activityColor && !isCompleted ? `${activityColor}12` : undefined }}
     >
       {inner}
     </motion.li>

@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import type { TaskList, ViewType } from '../../types';
+import type { Task, TaskList, ViewType } from '../../types';
 import { useTasks } from '../../hooks/useTasks';
+import { sortListsForDisplay } from '../../utils/listOrder';
+import { setPendingTimerTask } from '../../shared/pendingTimerTask';
 import { NavTopHeader } from './nav-top/NavTopHeader';
 import { ListaTareasCard } from './ListaTareasCard';
 import { PrincipalView } from './PrincipalView';
@@ -17,13 +19,9 @@ interface Props {
 }
 
 export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Props) {
-  const { lists: rawLists, tasks, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteSeparators, deleteTask, deleteCompletedTasks, reorderLists, setListActivity, createActivityList, modalConfig } = useTasks();
+  const { lists: rawLists, tasks, loading, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteSeparators, deleteTask, deleteCompletedTasks, reorderLists, setListActivity, createActivityList, modalConfig } = useTasks();
   // Principal siempre aparece de primera
-  const lists = useMemo(() => [...rawLists].sort((a, b) => {
-    if (a.id === 'principal') return -1;
-    if (b.id === 'principal') return 1;
-    return (a.position ?? 0) - (b.position ?? 0);
-  }), [rawLists]);
+  const lists = useMemo(() => sortListsForDisplay(rawLists), [rawLists]);
   const [activeListId, setActiveListId] = useState(lists[0]?.id || '');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
@@ -59,6 +57,23 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
     if (!lists.find((l) => l.id === activeListId)) setActiveListId(lists[0]?.id || '');
   }, [lists, activeListId]);
 
+  // Las tareas-actividad abren el Timer con esa actividad ya cargada.
+  const handleStartActivityTask = useCallback((task: Task) => {
+    const listActivityId = lists.find((l) => l.id === task.listId)?.activityId;
+    setPendingTimerTask(task.activityId ? task : { ...task, activityId: listActivityId });
+    onNavigate?.('cronometro');
+  }, [lists, onNavigate]);
+
+  // La sección espera a que listas y tareas estén cargadas (lectura local
+  // instantánea) para aparecer completa, sin mostrar el esquema vacío primero.
+  if (loading) {
+    return (
+      <section className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-[#f7f6f9]">
+        <span className="w-7 h-7 border-2 border-[#7f70ff] border-t-transparent rounded-full animate-spin" />
+      </section>
+    );
+  }
+
   return (
     <section className="absolute top-0 left-0 w-full h-full flex flex-col p-0 bg-[#f7f6f9]">
       <NavTopHeader lists={lists} activeListId={activeListId} onSelectList={scrollTo} onAddList={addList} onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} onLongPressList={() => setShowManageLists(true)} />
@@ -82,6 +97,7 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
                 onToggleTask={toggleTask}
                 onUpdateTask={updateTask}
                 onExpandTask={setExpandedTaskId}
+                onStartActivity={handleStartActivityTask}
               />
             ) : (
               <ListaTareasCard
@@ -100,6 +116,7 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
                 onAddSeparator={addSeparator}
                 onDeleteSeparators={deleteSeparators}
                 onExpandTask={setExpandedTaskId}
+                onStartActivity={handleStartActivityTask}
               />
             )
           )}
@@ -130,7 +147,6 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
         availableLists={activeListId === 'principal' ? lists.filter((l) => l.id !== 'principal') : undefined}
         allLists={lists}
         allTasks={tasks}
-        listName={lists.find((l) => l.id === activeListId)?.name}
         onClose={() => setShowNewTask(false)}
         onCreate={(data, listId) => addTaskWithData(listId, data)}
       />

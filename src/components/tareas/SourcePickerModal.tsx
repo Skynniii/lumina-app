@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Activity, Task, TaskList } from '../../types';
+import { sortListsForDisplay } from '../../utils/listOrder';
 
 interface Props {
   isOpen: boolean;
@@ -25,10 +26,13 @@ export function SourcePickerModal({
   // Mostrar todas las actividades del usuario (misma lista que en los demás modales)
   const visibleActivities = activities;
 
+  // Mismo orden de listas que la sección de Tasks
+  const orderedLists = useMemo(() => sortListsForDisplay(lists), [lists]);
+
   // Tareas agrupadas por lista, en el orden de la lista
   const groupedTasks = useMemo(() => {
     const eligible = tasks.filter((t) => !t.completed && !t.isSeparator && !t.isActivityOnly && !t.linkedTaskId && t.listId !== targetListId);
-    return lists
+    return orderedLists
       .map((l) => {
         let items = eligible.filter((t) => t.listId === l.id);
         const sortMode = l.sortMode || 'custom';
@@ -59,7 +63,7 @@ export function SourcePickerModal({
         return { list: l, items };
       })
       .filter((g) => g.items.length > 0);
-  }, [tasks, lists, targetListId]);
+  }, [tasks, orderedLists, targetListId]);
 
   return (
     <AnimatePresence>
@@ -77,7 +81,7 @@ export function SourcePickerModal({
           >
             <div className="w-10 h-1.5 bg-[#e4e4ed] rounded-full mx-auto mb-3" />
 
-            {/* Toggle entre Actividades y Vincular tarea */}
+            {/* Toggle entre Actividades y Avances */}
             <div className="flex gap-1 bg-[#eeeaf6] rounded-full p-1 mb-3">
               <button
                 onClick={() => setTab('actividades')}
@@ -93,7 +97,7 @@ export function SourcePickerModal({
                   tab === 'vincular' ? 'bg-white text-[#333] shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]' : 'text-[#999] bg-transparent'
                 }`}
               >
-                Vincular tarea
+                Avances
               </button>
             </div>
 

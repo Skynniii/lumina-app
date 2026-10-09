@@ -1,12 +1,18 @@
 import type { Task } from '../types';
 
-let pendingTask: Task | null = null;
-
-export function setPendingTimerTask(task: Task) {
-  pendingTask = task;
+export interface PendingTimerTask {
+  task: Task;
+  /** ID del avance (referencia) que lanzó el Timer, para marcarlo al completar. */
+  avanceTaskId: string | null;
 }
 
-export function getPendingTimerTask(): Task | null {
+let pendingTask: PendingTimerTask | null = null;
+
+export function setPendingTimerTask(task: Task, avanceTaskId?: string) {
+  pendingTask = { task, avanceTaskId: avanceTaskId ?? null };
+}
+
+export function getPendingTimerTask(): PendingTimerTask | null {
   return pendingTask;
 }
 

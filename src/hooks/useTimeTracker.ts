@@ -18,6 +18,8 @@ export interface TrackerDraft {
   description: string;
   notes: string;
   taskId?: string;
+  /** Avance (referencia) desde el que se lanzó la sesión, para marcarlo al completar. */
+  avanceTaskId?: string;
   mode?: TimerMode;
 }
 

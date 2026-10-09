@@ -90,7 +90,8 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
 
   const handleStartTimer = () => {
     if (isLinked && linkedTask) {
-      setPendingTimerTask(linkedTask);
+      // El avance lanzado viaja con la sesión para marcarse al completarla
+      setPendingTimerTask(linkedTask, task.id);
     } else {
       // Para activity-only, resolver la actividad desde la lista
       let taskForTimer = task;

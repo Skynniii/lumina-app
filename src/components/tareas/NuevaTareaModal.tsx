@@ -14,7 +14,6 @@ interface Props {
   availableLists?: TaskList[];
   allLists?: TaskList[];
   allTasks?: Task[];
-  listName?: string;
   onClose: () => void;
   onCreate: (data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string; linkedTaskId?: string; isActivityOnly?: boolean }, listId: string) => void;
 }
@@ -39,7 +38,7 @@ function fmtFecha(scheduledDate: string | undefined, scheduledTime: string | und
   return s;
 }
 
-export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allLists, allTasks, listName, onClose, onCreate }: Props) {
+export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allLists, allTasks, onClose, onCreate }: Props) {
   const [title, setTitle] = useState('');
   const [notesHtml, setNotesHtml] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
@@ -63,14 +62,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const selectedActivity = activities.find((a) => a.id === activityId);
   const isLinked = !!linkedTaskId;
 
-  const generateRefTitle = (task: Task): string => {
-    const taskList = allLists?.find((l) => l.id === task.listId);
-    if (taskList?.activityId) {
-      const activity = activities.find((a) => a.id === taskList.activityId);
-      return `${activity?.name ?? 'Actividad'}: ${task.title}`;
-    }
-    return `Avance en: ${task.title}`;
-  };
+  const generateRefTitle = (task: Task): string => `Avanzar en: ${task.title}`;
 
   useEffect(() => {
     if (isOpen) {
@@ -78,11 +70,12 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
       setScheduledDate(undefined); setScheduledTime(undefined); setDueDate(undefined); setRepeat(undefined);
       setImportant(false); setShowPicker(false);
       setTargetListId(defaultListId);
-      setActivityId(undefined);
+      // Lista con actividad vinculada: llega ya seleccionada por defecto.
+      setActivityId(allLists?.find((l) => l.id === defaultListId)?.activityId);
       setLinkedTaskId(undefined); setShowSourcePicker(false);
       setActivityPickerOpen(false);
     }
-  }, [isOpen, defaultListId]);
+  }, [isOpen, defaultListId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (notesOpen && notesRef.current) {
@@ -159,7 +152,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               transition={{ type: 'spring', stiffness: 360, damping: 36 }}
             >
               <div className="w-10 h-1.5 bg-[#e4e4ed] rounded-full mx-auto mb-3" />
-              <p className="text-center text-[13px] text-[#a0a0a0] font-medium mb-3">Nueva tarea{listName ? ` · ${listName}` : ''}</p>
+              <p className="text-left text-[13px] text-[#a0a0a0] font-medium mb-3">Nueva tarea</p>
 
               {availableLists && (
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-3 -mx-1 px-1">
@@ -169,7 +162,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                       <button
                         key={l.id}
                         type="button"
-                        onClick={() => setTargetListId(l.id)}
+                        onClick={() => { setTargetListId(l.id); setActivityId(allLists?.find((x) => x.id === l.id)?.activityId); }}
                         className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors flex-none ${sel ? 'bg-[#7f70ff] text-white' : 'bg-[#f4f4f6] text-[#777]'}`}
                       >
                         {l.name}

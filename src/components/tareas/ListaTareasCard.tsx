@@ -23,6 +23,7 @@ interface Props {
   onAddSeparator: (listId: string) => void;
   onDeleteSeparators: (listId: string) => void;
   onExpandTask: (id: string) => void;
+  onStartActivity: (task: Task) => void;
   isProtected?: boolean;
 }
 
@@ -57,7 +58,7 @@ function groupLabel(dateKey: string | undefined, isDeadline: boolean = false): s
 }
 
 export function ListaTareasCard({
-  list, tasks, allTasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderListTasks, onAddSeparator, onDeleteSeparators, onExpandTask, isProtected,
+  list, tasks, allTasks, onRename, onDelete, onDeleteCompleted, onToggleTask, onUpdateTask, onUpdateList, onReorderListTasks, onAddSeparator, onDeleteSeparators, onExpandTask, onStartActivity, isProtected,
 }: Props) {
   const [showCompleted, setShowCompleted] = useState(false);
   const { activities } = useActivities();
@@ -85,6 +86,8 @@ export function ListaTareasCard({
     }
     return undefined;
   };
+  // Actividad vinculada a la lista: colorea la línea bajo el título.
+  const listActivity = list.activityId ? activityMap[list.activityId] : undefined;
 
   // --- Modo reordenar + arrastre fluido ---
   const [dragId, setDragId] = useState<string | null>(null);
@@ -274,7 +277,7 @@ export function ListaTareasCard({
           );
         }
         items.push(
-          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />
+          <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onStartActivity={onStartActivity} activityColor={actColor(task)} activityName={actName(task)} />
         );
         return items;
       })
@@ -306,7 +309,7 @@ export function ListaTareasCard({
               <h3 className="flex-1 text-center leading-none m-0 p-0 text-[18px] text-[#2b2b2b] font-bold tracking-tight">{list.name}</h3>
               <DesplegableMenu isProtected={isProtected} onRename={() => onRename(list.id, list.name)} onDelete={() => onDelete(list.id)} onDeleteCompleted={() => onDeleteCompleted(list.id)} onAddSeparator={() => onAddSeparator(list.id)} onDeleteSeparators={() => onDeleteSeparators(list.id)} />
             </div>
-            <hr className="border-t border-[#f0f0f5] m-0 mx-1 flex-none" />
+            <hr className={`m-0 mx-1 flex-none ${listActivity ? 'border-t-2' : 'border-t border-[#f0f0f5]'}`} style={listActivity ? { borderTopColor: listActivity.color } : undefined} />
           </div>
         </div>
 
@@ -338,6 +341,7 @@ export function ListaTareasCard({
                     onToggle={onToggleTask}
                     onUpdate={onUpdateTask}
                     onExpand={onExpandGuarded}
+                    onStartActivity={onStartActivity}
                     activityColor={actColor(taskByIdRef.current[id])}
                     activityName={actName(taskByIdRef.current[id])}
                   />
@@ -349,7 +353,7 @@ export function ListaTareasCard({
                   {draggedTask.isSeparator ? (
                     <SeparatorItem task={draggedTask} reorderable dragId={dragId} overlay onDragPointerDown={onItemPointerDown} onDragPointerEnd={onItemPointerEnd} />
                   ) : (
-                    <TareaItem task={draggedTask} sortMode={sortMode} reorderable dragId={dragId} overlay onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandGuarded} activityColor={actColor(draggedTask)} activityName={actName(draggedTask)} />
+                    <TareaItem task={draggedTask} sortMode={sortMode} reorderable dragId={dragId} overlay onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandGuarded} onStartActivity={onStartActivity} activityColor={actColor(draggedTask)} activityName={actName(draggedTask)} />
                   )}
                 </div>
               )}
@@ -371,7 +375,7 @@ export function ListaTareasCard({
                   const task = taskByIdRef.current[id];
                   if (!task) return null;
                   if (task.isSeparator) return <SeparatorItem task={task} />;
-                  return <TareaItem task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />;
+                  return <TareaItem task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onStartActivity={onStartActivity} activityColor={actColor(task)} activityName={actName(task)} />;
                 }}
               />
               {activeNonSep.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}
@@ -407,7 +411,7 @@ export function ListaTareasCard({
                 <ul className="list-none m-0 mt-3 px-1 flex flex-col relative">
                   <AnimatePresence mode="popLayout">
                     {completed.map((task) => (
-                      <TareaItem key={task.id} task={task} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />
+                      <TareaItem key={task.id} task={task} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onStartActivity={onStartActivity} activityColor={actColor(task)} activityName={actName(task)} />
                     ))}
                   </AnimatePresence>
                 </ul>
