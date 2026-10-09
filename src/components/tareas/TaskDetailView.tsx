@@ -30,7 +30,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const { settings } = useSettings();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  const { activities, addActivity } = useActivities();
+  const { activities } = useActivities();
   const sessionsColl = useFirestoreCollection<TimeSession>(uid, 'timeSessions');
   const linkedTask = task.linkedTaskId ? allTasks?.find((t) => t.id === task.linkedTaskId) : null;
   const isLinked = !!linkedTask;
@@ -615,11 +615,6 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         activities={activities}
         selectedId={task.activityId}
         onSelect={(id) => { handleSyncedUpdate(task.id, { activityId: id }); setActivityPickerOpen(false); }}
-        onCreate={async (name, color) => {
-          const id = await addActivity({ name: name.trim(), color });
-          handleSyncedUpdate(task.id, { activityId: id });
-          setActivityPickerOpen(false);
-        }}
       />
 
       {/* Modal flotante de calendario */}

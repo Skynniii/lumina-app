@@ -273,7 +273,6 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               onClose={() => setActivityPickerOpen(false)}
               activities={activities}
               selectedId={activityId ?? ''}
-              allowCreate={false}
               onSelect={(id) => {
                 // Solo asigna la actividad a la tarea; no crea una tarea-actividad.
                 setActivityId(id);

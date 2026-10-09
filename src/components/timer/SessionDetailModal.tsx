@@ -23,7 +23,7 @@ interface Props {
 
 export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, taskLists, onLinkTask, onUnlinkTask, onSyncToTask }: Props) {
   const { settings } = useSettings();
-  const { activities, addActivity } = useActivities();
+  const { activities } = useActivities();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
@@ -305,11 +305,6 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
         activities={activities}
         selectedId={entry.activityId}
         onSelect={(id) => handleActivityChange(id)}
-        onCreate={async (name, color) => {
-          const id = await addActivity({ name: name.trim(), color });
-          onUpdate(entry.id, { activityId: id });
-          setShowActivityPicker(false);
-        }}
       />
 
       <TaskPicker

@@ -107,7 +107,7 @@ export function TodaySummary({ entries, activities, liveElapsed, isRunning, live
                 {groups.map((g) => {
                 const pct = total > 0 ? Math.min(100, (g.totalSeconds / total) * 100) : 0;
                 return (
-                  <motion.div key={g.activityId} layout={cap.enableLayout} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.35 * cap.durationScale, ease: 'easeInOut' }} className="flex flex-col gap-1.5 overflow-hidden">
+                  <motion.div key={g.activityId} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.35 * cap.durationScale, ease: 'easeInOut' }} className="flex flex-col gap-1.5 overflow-hidden">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.color }} />

@@ -1,6 +1,7 @@
 import { memo, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { dayLabel, formatClock, formatElapsed, isoToDateKey } from '../../hooks/useTimeTracker';
+import { dayLabel, formatElapsed, isoToDateKey } from '../../hooks/useTimeTracker';
+import { useSettings } from '../../context/SettingsContext';
 import type { Activity, TimeSession } from '../../types';
 
 interface Props {
@@ -12,6 +13,10 @@ interface Props {
 
 export const EntryList = memo(function EntryList({ entries, activities, onDelete, onSelectEntry }: Props) {
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const { settings } = useSettings();
+
+  // Hora según el formato elegido en ajustes (12h / 24h)
+  const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: settings.timeFormat === '12h' });
 
   const groups = useMemo(() => {
     const map = new Map<string, TimeSession[]>();
@@ -103,19 +108,22 @@ export const EntryList = memo(function EntryList({ entries, activities, onDelete
             <AnimatePresence initial={false}>
               {isExpanded && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }, opacity: { duration: 0.2, ease: 'easeInOut' } }} className="overflow-hidden">
-                  {g.entries.map((e) => {
-                    const activity = activities.find((a) => a.id === e.activityId);
-                    return (
-                      <button key={e.id} onClick={() => onSelectEntry?.(e)} className="w-full flex items-center gap-3 px-5 py-3.5 border-t border-[#f2f2f2] bg-transparent border-none cursor-pointer hover:bg-[#fafafa] transition-colors text-left">
-                        <span className="w-3 h-3 rounded-full shrink-0" style={{ background: activity?.color ?? '#bbb' }} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[15px] font-medium text-[#333] m-0 truncate">{e.description || 'Sin descripción'}</p>
-                          <p className="text-[12px] text-[#999] m-0 mt-0.5">{activity?.name ?? 'Sin actividad'} · {formatClock(e.startTime)} – {formatClock(e.endTime)}</p>
-                        </div>
-                        <span className="text-[15px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(e.duration)}</span>
-                      </button>
-                    );
-                  })}
+                  <div className="flex flex-col px-5 pb-1">
+                    {g.entries.map((e) => {
+                      const activity = activities.find((a) => a.id === e.activityId);
+                      const color = activity?.color ?? '#bbb';
+                      return (
+                        <button key={e.id} onClick={() => onSelectEntry?.(e)} className="w-full flex items-center gap-3 py-1.5 text-left bg-transparent border-none cursor-pointer transition-colors">
+                          <span className="w-1 h-6 rounded-full shrink-0" style={{ background: color }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] text-[#999] truncate m-0">{e.description || 'Sin descripción'}</p>
+                            <p className="text-[11px] text-[#b0b0b0] m-0">{activity?.name ?? 'Sin actividad'} · {fmtTime(e.startTime)} – {fmtTime(e.endTime)}</p>
+                          </div>
+                          <span className="text-[12px] font-semibold text-[#555] tabular-nums shrink-0">{formatElapsed(e.duration)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

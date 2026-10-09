@@ -81,7 +81,7 @@ export function SourcePickerModal({
           >
             <div className="w-10 h-1.5 bg-[#e4e4ed] rounded-full mx-auto mb-3" />
 
-            {/* Toggle entre Actividades y Avances */}
+            {/* Toggle entre Actividad y Avance */}
             <div className="flex gap-1 bg-[#eeeaf6] rounded-full p-1 mb-3">
               <button
                 onClick={() => setTab('actividades')}
@@ -97,7 +97,7 @@ export function SourcePickerModal({
                   tab === 'vincular' ? 'bg-white text-[#333] shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]' : 'text-[#999] bg-transparent'
                 }`}
               >
-                Avances
+                Avance
               </button>
             </div>
 

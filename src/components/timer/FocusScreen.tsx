@@ -94,11 +94,18 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const isRunning = mode === 'rastreador' ? isTicking : countdown.running;
   const isActive = isRunning;
 
-  const progress = mode === 'rastreador' ? 0 : (countdown.targetSeconds > 0 ? countdown.remaining / countdown.targetSeconds : 0);
-  const ringColor = mode === 'pomodoro' ? (pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b') : '#7f70ff';
+  const activityColor = activity?.color ?? '#7f70ff';
+  // El temporizador se llena al iniciar (0→1); al pausar se mantiene lleno y al reiniciar vuelve a 0.
+  const timerFilled = isRunning || countdown.remaining < countdown.targetSeconds;
+  const progress = mode === 'pomodoro'
+    ? (countdown.targetSeconds > 0 ? countdown.remaining / countdown.targetSeconds : 0)
+    : mode === 'temporizador'
+      ? (timerFilled ? 1 : 0)
+      : 0;
+  const ringColor = mode === 'pomodoro' ? (pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b') : activityColor;
+  const ringShimmer = mode === 'temporizador' && countdown.running;
   const elapsedCount = manualMode ? manualDurationSec : (mode === 'rastreador' ? props.elapsed : (countdown.targetSeconds - countdown.remaining));
   const timeDisplay = manualMode ? formatElapsed(manualDurationSec) : (mode === 'temporizador' ? formatElapsed(countdown.remaining) : formatElapsed(elapsedCount));
-  const statusLabel = !hasStarted ? 'Listo' : (isRunning ? 'En curso' : 'Pausado');
 
   const handleCenterButton = () => {
     hapticMedium();
@@ -151,7 +158,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
     isHoldingRef.current = false;
     let p = 0;
     holdIntervalRef.current = window.setInterval(() => {
-      p = Math.min(1, p + 0.022);
+      p = Math.min(1, p + 0.06);
       setHoldProgress(p);
       if (p >= 0.12) isHoldingRef.current = true;
       if (p >= 1) {
@@ -254,11 +261,10 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           <div className="relative flex items-center justify-center">
             <div className="absolute w-[260px] h-[260px] rounded-full bg-[#7f70ff]/5 blur-[50px] anim-glow-pulse" />
             <div className={isActive ? 'anim-ring-breathe' : ''}>
-              <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" isStatic={mode === 'rastreador'}>
+              <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" isStatic={mode === 'rastreador'} shimmer={ringShimmer}>
                 <div className="flex flex-col items-center gap-1">
-                  {isActive && <span className="w-2 h-2 rounded-full bg-[#34c77b] mb-1 anim-dot-pulse" />}
+                  {isActive && <span className="w-2 h-2 rounded-full bg-[#7f70ff] mb-1 anim-dot-pulse" />}
                   <span key={timeDisplay} className={`text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none ${isActive ? 'anim-time-breathe' : ''}`}>{timeDisplay}</span>
-                  <span className="text-[11px] text-[#999] uppercase tracking-wide mt-0.5">{statusLabel}</span>
                 </div>
               </FocusRing>
             </div>
@@ -310,8 +316,16 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           </div>
 
           {/* Fecha y hora - solo visible en sesión activa o modo manual */}
-          {(hasStarted || manualMode) && (
-            <div className="border-b border-[#f0f0f5]">
+          <AnimatePresence initial={false}>
+            {(hasStarted || manualMode) && (
+              <motion.div
+                key="session-info"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }, opacity: { duration: 0.25, ease: 'easeInOut' } }}
+                className="overflow-hidden border-b border-[#f0f0f5]"
+              >
               <div className="flex items-center gap-3 py-3">
                 <span className="text-[#a0a0a0]">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
@@ -354,8 +368,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
                   </button>
                 )}
               </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Descripción */}
           <div className="border-b border-[#f0f0f5]">
@@ -508,7 +523,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
         />
       )}
 
-      <ActivityPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} activities={props.activities} selectedId={props.draft.activityId} onSelect={(id) => { props.onActivityChange(id); setPickerOpen(false); }} onCreate={(name, color) => { const id = props.onCreateActivity(name, color); props.onActivityChange(id); setPickerOpen(false); }} />
+      <ActivityPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} activities={props.activities} selectedId={props.draft.activityId} onSelect={(id) => { props.onActivityChange(id); setPickerOpen(false); }} />
       <TaskPicker isOpen={taskPickerOpen} onClose={() => setTaskPickerOpen(false)} lists={taskLists} tasks={tasks} onSelect={handleSelectTask} />
       <CustomDurationModal isOpen={showCustomDuration} onClose={() => setShowCustomDuration(false)} onSave={handleCustomDuration} />
     </motion.div>

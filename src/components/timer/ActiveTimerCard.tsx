@@ -184,11 +184,6 @@ export function ActiveTimerCard(props: ActiveTimerCardProps) {
             activities={props.activities}
             selectedId={props.draft.activityId}
             onSelect={(id) => { props.onActivityChange(id); setPickerOpen(false); }}
-            onCreate={(name, color) => {
-              const id = props.onCreateActivity(name, color);
-              props.onActivityChange(id);
-              setPickerOpen(false);
-            }}
           />
         </>
       )}

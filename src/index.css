@@ -99,3 +99,15 @@ button:active, [role="button"]:active {
 .anim-timer-ring { animation: timer-ring-pulse 1.5s ease-in-out infinite; will-change: transform, opacity; }
 .anim-timer-dot { animation: timer-dot-pulse 1.5s ease-in-out infinite; will-change: transform; }
 .anim-shimmer { animation: shimmer-slide 1.5s linear infinite; will-change: transform; }
+
+@keyframes ring-shimmer-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Recorrido continuo del brillo alrededor de la circunferencia del anillo */
+.anim-ring-shimmer {
+  animation: ring-shimmer-spin 1.6s linear infinite;
+  transform-box: view-box;
+  transform-origin: center;
+  will-change: transform;
+}
