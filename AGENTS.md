@@ -49,6 +49,20 @@ secrets. There are no `import.meta.env.*` reads anywhere in `src/`.
 - El proyecto Android **no** se compila en el sandbox (`@capacitor/android` no está
   instalado): los cambios nativos requieren `npx cap sync android` + Gradle local.
 
+## Botón atrás de Android
+
+- `src/utils/backButton.ts` mantiene una pila de manejadores y escucha el evento
+  `backButton` de `@capacitor/app`: cierra la pantalla/modal más reciente y, si no
+  hay nada abierto, sale de la app (`App.exitApp()`). `initBackButton()` se llama
+  una vez desde `App.tsx` y es idempotente.
+- Cada pantalla o modal llama a `useBackHandler(active, onBack)` (`src/hooks/useBackHandler.ts`).
+  El que se registra último es el que está más arriba en pantalla, así que se
+  cierra en orden correcto. **Al crear una pantalla o modal nuevo, añade esa línea**
+  para que el botón atrás no salga de la app.
+- `@capacitor/app` es una dependencia nueva; queda registrada a mano en
+  `android/capacitor.settings.gradle` y `android/app/capacitor.build.gradle`
+  (es lo que genera `npx cap sync android`).
+
 ## Quirks
 
 - `vite.config.ts` sets `server.allowedHosts: true`; the compose file also

@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { TaskList, Activity, Task } from '../../types';
 import { useActivities } from '../../hooks/useActivities';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface DragState {
   startY: number;
@@ -28,6 +29,7 @@ export function ManageListsModal({
   isOpen, lists, tasks, onClose,
   onReorderLists, onSetListActivity, onCreateList, onDeleteList, onCreateActivityList,
 }: Props) {
+  useBackHandler(isOpen, onClose);
   const { activities } = useActivities();
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
   const [showActivityLists, setShowActivityLists] = useState(false);

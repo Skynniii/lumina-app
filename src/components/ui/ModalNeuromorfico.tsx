@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function ModalNeuromorfico({ isOpen, type, title, placeholder, defaultValue, onConfirm, onCancel }: Props) {
+  useBackHandler(isOpen, onCancel);
   const [val, setVal] = useState('');
 
   useEffect(() => {

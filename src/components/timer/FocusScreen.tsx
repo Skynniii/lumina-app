@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed } from '../../hooks/useTimeTracker';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import type { TimerMode } from '../../hooks/useCountdownTimer';
 import type { ActiveTimerCardProps } from './ActiveTimerCard';
 import { ActivityPicker } from './ActivityPicker';
@@ -33,6 +34,7 @@ const MODE_LABELS: Record<TimerMode, string> = {
 };
 
 export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard, onSaveSession, onSaveManualSession, ...props }: Props) {
+  useBackHandler(true, onBack);
   const { mode, onModeChange, countdown, pomodoroPhase, pomodoroCycle, onPomodoroSkip } = props;
   const { settings, update } = useSettings();
   const [pickerOpen, setPickerOpen] = useState(false);

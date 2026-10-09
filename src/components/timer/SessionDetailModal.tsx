@@ -4,6 +4,7 @@ import type { Activity, Task, TaskList, TimeSession } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { useActivities } from '../../hooks/useActivities';
 import { formatElapsed, isoToDateKey } from '../../hooks/useTimeTracker';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { ActivityPicker } from './ActivityPicker';
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, taskLists, onLinkTask, onUnlinkTask, onSyncToTask }: Props) {
+  useBackHandler(true, onClose);
   const { settings } = useSettings();
   const { activities } = useActivities();
   const [showDatePicker, setShowDatePicker] = useState(false);

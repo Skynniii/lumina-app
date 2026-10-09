@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useSettings, type Settings } from '../../context/SettingsContext';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   onBack: () => void;
@@ -78,6 +79,7 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
 }
 
 export function SettingsPage({ onBack }: Props) {
+  useBackHandler(true, onBack);
   const { settings, update } = useSettings();
 
   return (

@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { MONTHS, formatEventTime } from '../../hooks/useCalendarEvents';
 import type { CalendarEvent } from '../../types';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   event: CalendarEvent | null;
@@ -22,6 +23,7 @@ function IconRow({ icon, children }: { icon: React.ReactNode; children: React.Re
 }
 
 export function EventDetail({ event, onClose, onEdit, onDelete }: Props) {
+  useBackHandler(!!event, onClose);
   const { settings } = useSettings();
   const [y, m, d] = (event?.date ?? '2000-01-01').split('-').map(Number);
   const weekday = WEEKDAYS[new Date(y, m - 1, d).getDay()];

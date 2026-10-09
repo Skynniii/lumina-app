@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/app": "^6.0.3",
     "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "@tanstack/react-virtual": "^3.14.13",
     "firebase": "^12.19.0",

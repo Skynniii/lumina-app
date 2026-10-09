@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
 import { SourcePickerModal } from './SourcePickerModal';
@@ -39,6 +40,7 @@ function fmtFecha(scheduledDate: string | undefined, scheduledTime: string | und
 }
 
 export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allLists, allTasks, onClose, onCreate }: Props) {
+  useBackHandler(isOpen, onClose);
   const [title, setTitle] = useState('');
   const [notesHtml, setNotesHtml] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   isOpen: boolean;
@@ -42,6 +43,7 @@ function Wheel({ items, selected, onSelect }: { items: string[]; selected: strin
 }
 
 export function SelectorFechaHora({ isOpen, initialDate, initialTime, onClose, onSave }: Props) {
+  useBackHandler(isOpen, onClose);
   const [view, setView] = useState<'calendar' | 'time'>('calendar');
   const [month, setMonth] = useState(() => (initialDate ? new Date(initialDate) : new Date()));
   const [date, setDate] = useState<string | undefined>(initialDate);

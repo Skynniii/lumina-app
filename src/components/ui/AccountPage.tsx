@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { ModalNeuromorfico } from './ModalNeuromorfico';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   onBack: () => void;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function AccountPage({ onBack, onOpenSettings }: Props) {
+  useBackHandler(true, onBack);
   const { user, signOut } = useAuth();
   const [confirmLogout, setConfirmLogout] = useState(false);
 

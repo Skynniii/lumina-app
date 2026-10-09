@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ViewType } from '../../types';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   isOpen: boolean;
@@ -33,6 +34,8 @@ const SECTIONS: { id: ViewType; label: string; icon: React.ReactNode }[] = [
 ];
 
 export function Sidebar({ isOpen, onClose, activeView, onNavigate, onOpenSettings }: Props) {
+  useBackHandler(isOpen, onClose);
+
   return (
     <AnimatePresence>
       {isOpen && (

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Activity, Task, TaskList } from '../../types';
 import { sortListsForDisplay } from '../../utils/listOrder';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export function SourcePickerModal({
   selectedActivityId, selectedTaskId,
   onClose, onSelectActivity, onSelectTask,
 }: Props) {
+  useBackHandler(isOpen, onClose);
   const [tab, setTab] = useState<'actividades' | 'vincular'>('actividades');
 
   // Mostrar todas las actividades del usuario (misma lista que en los demás modales)

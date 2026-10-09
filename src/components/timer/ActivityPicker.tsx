@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Activity } from '../../types';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   isOpen: boolean;
@@ -16,6 +17,8 @@ interface Props {
  * sección de Actividades.
  */
 export function ActivityPicker({ isOpen, onClose, activities, selectedId, onSelect }: Props) {
+  useBackHandler(isOpen, onClose);
+
   return (
     <AnimatePresence>
       {isOpen && (

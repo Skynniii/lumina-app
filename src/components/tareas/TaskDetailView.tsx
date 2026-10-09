@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Task, TaskList, SubTask, TimeSession, Activity, ViewType } from '../../types';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate, onOpenTask }: Props) {
+  useBackHandler(true, onBack);
   const { settings } = useSettings();
   const { user } = useAuth();
   const uid = user?.uid ?? null;

@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Task, TaskList } from '../../types';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function TaskPicker({ isOpen, tasks, lists, onClose, onSelect }: Props) {
+  useBackHandler(isOpen, onClose);
   const eligible = tasks.filter((t) => !t.completed && !t.isSeparator);
   const byList = lists
     .map((l) => ({ list: l, items: eligible.filter((t) => t.listId === l.id) }))

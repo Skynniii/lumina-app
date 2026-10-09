@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed, formatClock, isoToDateKey, dayLabel } from '../../hooks/useTimeTracker';
 import { ACTIVITY_COLORS } from '../../hooks/useTimeTracker';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import {
   formatDuration, getActivityTasks, getTimeByTasks, getStreak, getBestStreak, type ActivityStats,
 } from './trackerUtils';
@@ -34,6 +35,7 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, onBack, onUpdateActivity, onDeleteActivity, onToggleTask, onNavigate }: Props) {
+  useBackHandler(true, onBack);
   const { settings } = useSettings();
   const [tab, setTab] = useState<Tab>('resumen');
   const [isEditing, setIsEditing] = useState(false);
