@@ -389,7 +389,7 @@ export function ListaTareasCard({
                   if (task.isSeparator) {
                     return <SeparatorItem key={task.id} task={task} />;
                   }
-                  return <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} activityColor={actColor(task)} activityName={actName(task)} />;
+                  return <TareaItem key={task.id} task={task} sortMode={sortMode} onToggle={onToggleTask} onUpdate={onUpdateTask} onExpand={onExpandTask} onStartActivity={onStartActivity} activityColor={actColor(task)} activityName={actName(task)} />;
                 })}
               </AnimatePresence>
               {activeNonSep.length === 0 && <p className="text-center text-[#a0a0a0] text-sm py-5 font-medium">Lista impecable. Sin pendientes.</p>}

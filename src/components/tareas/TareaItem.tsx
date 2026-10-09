@@ -96,6 +96,8 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const isDragged = dragId === task.id;
   // Color del botón de reanudar de las tareas-actividad.
   const playColor = isCompleted ? '#b0b0b0' : (activityColor ?? '#7f70ff');
+  // Tareas-actividad: conservan la línea de color en el borde izquierdo de la tarjeta.
+  const barColor = task.isActivityOnly && activityColor && !isCompleted ? activityColor : undefined;
 
   // Información adicional para mostrar en la tarjeta
   const hasNotes = !!task.notes?.replace(/<[^>]*>/g, '').trim();
@@ -176,6 +178,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         );
       })()}
 
+      <div className="flex items-center w-full min-h-[24px]">
       {isActivityOnly ? (
         <motion.button
           type="button"
@@ -208,41 +211,11 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'} ${task.isActivityOnly ? 'font-semibold' : ''}`}
         >
           {task.isActivityOnly ? (
-            <span style={{ color: isCompleted ? undefined : (activityColor ?? '#7f70ff') }} className="inline-flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: activityColor ?? '#7f70ff' }} />
+            <span style={{ color: isCompleted ? undefined : (activityColor ?? '#7f70ff') }}>
               {activityName || 'Actividad'}
             </span>
           ) : task.title}
         </motion.span>
-        {hasInfo && (
-          <motion.div
-            animate={{ opacity: completingImportant ? 0 : 1 }}
-            transition={{ duration: 0.45, ease: 'easeInOut' }}
-            className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]"
-          >
-            {showListTag && (
-              <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
-            )}
-            {showOverdue && (
-              <span className="inline-flex items-center text-[11px] font-medium text-[#e53935]">{overdueDays === 1 ? 'hace 1 día' : `hace ${overdueDays} días`}</span>
-            )}
-            {showDue && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#efeaff] text-[#6b5cdb] text-[12px] font-semibold">
-                <IconCal /> {dueLabel()}
-              </span>
-            )}
-            {showDeadline && (
-              <span className="flex items-center text-[#d97706]"><IconFlag /></span>
-            )}
-            {showTimeSpent && (
-              <span className="flex items-center text-[#8a8a8a]">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-              </span>
-            )}
-            {showNotes && <span className="flex items-center"><IconNotes /></span>}
-            {showSub && <span className="flex items-center"><IconSub /></span>}
-          </motion.div>
-        )}
         {showCompletedText && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <Sparkles />
@@ -259,7 +232,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       )}
 
       {isLinked && !reorderable && (
-        <span className="flex-none ml-2 mt-[2px] self-start text-[#7f70ff]" title="Tarea vinculada">
+        <span className="flex-none ml-2 text-[#7f70ff]" title="Tarea vinculada">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
@@ -270,7 +243,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       {reorderable ? (
         <div
           onPointerDown={!isCompleted && onDragPointerDown ? (e) => { e.stopPropagation(); onDragPointerDown?.(e, task.id); } : undefined}
-          className="flex-none p-2 ml-2 self-start -mt-2 text-[#c0c0c0] touch-none"
+          className="flex-none -my-2 p-2 ml-2 text-[#c0c0c0] touch-none"
           style={{ cursor: isDragged ? 'grabbing' : 'grab' }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -284,17 +257,48 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
           transition={{ duration: 0.45, ease: 'easeInOut' }}
           style={{ pointerEvents: completingImportant ? 'none' : undefined }}
-          className="flex-none p-2 ml-2 cursor-pointer rounded-full hover:bg-black/5 transition-colors self-start -mt-2"
+          className="flex-none -my-2 p-2 ml-2 cursor-pointer rounded-full hover:bg-black/5 transition-colors"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? '#ffcc00' : 'none'} stroke={task.isImportant ? '#ffcc00' : '#d1d1d6'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-200">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
         </motion.button>
       ) : null}
+      </div>
+
+      {hasInfo && (
+        <motion.div
+          animate={{ opacity: completingImportant ? 0 : 1 }}
+          transition={{ duration: 0.45, ease: 'easeInOut' }}
+          className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 ml-[32px] text-[#8a8a8a]"
+        >
+          {showListTag && (
+            <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
+          )}
+          {showOverdue && (
+            <span className="inline-flex items-center text-[11px] font-medium text-[#e53935]">{overdueDays === 1 ? 'hace 1 día' : `hace ${overdueDays} días`}</span>
+          )}
+          {showDue && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#efeaff] text-[#6b5cdb] text-[12px] font-semibold">
+              <IconCal /> {dueLabel()}
+            </span>
+          )}
+          {showDeadline && (
+            <span className="flex items-center text-[#d97706]"><IconFlag /></span>
+          )}
+          {showTimeSpent && (
+            <span className="flex items-center text-[#8a8a8a]">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+            </span>
+          )}
+          {showNotes && <span className="flex items-center"><IconNotes /></span>}
+          {showSub && <span className="flex items-center"><IconSub /></span>}
+        </motion.div>
+      )}
     </>
   );
 
-  const baseClass = `relative flex items-start py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] task-item-perf ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
+  const baseClass = `relative flex flex-col py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] task-item-perf ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
 
   return (
     <motion.li
@@ -310,7 +314,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onClick={() => { if (!isActivityOnly) onExpand(task.id); }}
       className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable || isActivityOnly ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), backgroundColor: task.isActivityOnly && activityColor && !isCompleted ? `${activityColor}12` : undefined }}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: barColor ? `3px solid ${barColor}` : undefined, backgroundColor: task.isActivityOnly && activityColor && !isCompleted ? `${activityColor}12` : undefined }}
     >
       {inner}
     </motion.li>

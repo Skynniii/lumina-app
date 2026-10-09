@@ -54,6 +54,10 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const { settings } = useSettings();
   const [activityId, setActivityId] = useState<string | undefined>(undefined);
   const [linkedTaskId, setLinkedTaskId] = useState<string | undefined>(undefined);
+  // La actividad vinculada a la lista llega preseleccionada (tarea con actividad).
+  // Solo cuando el usuario la elige explícitamente (flecha o ícono) se crea una
+  // tarea-actividad, es decir, un ítem de actividad sin título.
+  const [activityOnly, setActivityOnly] = useState(false);
   const [showSourcePicker, setShowSourcePicker] = useState(false);
   const [activityPickerOpen, setActivityPickerOpen] = useState(false);
   const notesRef = useRef<HTMLDivElement>(null);
@@ -72,6 +76,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
       setTargetListId(defaultListId);
       // Lista con actividad vinculada: llega ya seleccionada por defecto.
       setActivityId(allLists?.find((l) => l.id === defaultListId)?.activityId);
+      setActivityOnly(false);
       setLinkedTaskId(undefined); setShowSourcePicker(false);
       setActivityPickerOpen(false);
     }
@@ -113,9 +118,9 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
       onClose();
       return;
     }
-    if (!trimmed && !activityId) return;
+    if (!trimmed && !(activityOnly && activityId)) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
-    const isActivityOnly = !trimmed && !!activityId;
+    const isActivityOnly = activityOnly && !trimmed && !!activityId;
     onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, dueDate, isImportant: important, repeat, activityId, isActivityOnly }, targetListId);
     onClose();
   };
@@ -152,7 +157,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               transition={{ type: 'spring', stiffness: 360, damping: 36 }}
             >
               <div className="w-10 h-1.5 bg-[#e4e4ed] rounded-full mx-auto mb-3" />
-              <p className="text-left text-[13px] text-[#a0a0a0] font-medium mb-3">Nueva tarea</p>
+              <p className="text-left text-[16px] font-bold text-[#2b2b2b] mb-3 pl-3.5">Nueva tarea</p>
 
               {availableLists && (
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-3 -mx-1 px-1">
@@ -162,7 +167,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                       <button
                         key={l.id}
                         type="button"
-                        onClick={() => { setTargetListId(l.id); setActivityId(allLists?.find((x) => x.id === l.id)?.activityId); }}
+                        onClick={() => { setTargetListId(l.id); setActivityId(allLists?.find((x) => x.id === l.id)?.activityId); setActivityOnly(false); }}
                         className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors flex-none ${sel ? 'bg-[#7f70ff] text-white' : 'bg-[#f4f4f6] text-[#777]'}`}
                       >
                         {l.name}
@@ -178,7 +183,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                   value={title}
                   onChange={(e) => { if (!isLinked) setTitle(e.target.value); }}
                   onKeyDown={(e) => e.key === 'Enter' && submit()}
-                  placeholder={activityId ? (selectedActivity?.name ?? 'Actividad') : '¿Qué tarea quieres añadir?'}
+                  placeholder={activityOnly ? (selectedActivity?.name ?? 'Actividad') : '¿Qué tarea quieres añadir?'}
                   readOnly={isLinked}
                   autoFocus={!isLinked}
                   className={`w-full border rounded-xl py-3 pl-3.5 pr-10 text-[15px] outline-none transition-colors ${isLinked ? 'border-[#7f70ff]/30 bg-[#f0edff] text-[#7f70ff] font-medium cursor-default' : 'border-[#e4e4ed] text-[#333] bg-[#fafafc] focus:border-[#7f70ff] focus:bg-white'}`}
@@ -249,7 +254,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
 
               <div className="flex gap-3 mt-2">
                 <button onClick={onClose} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#f0f0f0] text-[#666] hover:bg-[#e4e4e4] transition-colors">Cancelar</button>
-                <button onClick={submit} disabled={!title.trim() && !activityId && !isLinked} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">{isLinked ? 'Crear referencia' : !title.trim() && activityId ? 'Crear actividad' : 'Crear tarea'}</button>
+                <button onClick={submit} disabled={!title.trim() && !(activityOnly && activityId) && !isLinked} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">{isLinked ? 'Crear referencia' : activityOnly && !title.trim() ? 'Crear actividad' : 'Crear tarea'}</button>
               </div>
             </motion.div>
 
@@ -270,6 +275,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               selectedId={activityId ?? ''}
               onSelect={(id) => {
                 setActivityId(id);
+                setActivityOnly(!!id);
                 setLinkedTaskId(undefined);
                 if (id) setTitle('');
                 setActivityPickerOpen(false);
@@ -277,6 +283,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               onCreate={async (name, color) => {
                 const id = await addActivity({ name: name.trim(), color });
                 setActivityId(id);
+                setActivityOnly(true);
                 setLinkedTaskId(undefined);
                 setTitle('');
                 setActivityPickerOpen(false);
@@ -294,6 +301,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               onClose={() => setShowSourcePicker(false)}
               onSelectActivity={(id) => {
                 setActivityId(id);
+                setActivityOnly(!!id);
                 setLinkedTaskId(undefined);
                 if (id) setTitle('');
               }}
@@ -301,6 +309,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 if (selected) {
                   setLinkedTaskId(selected.id);
                   setActivityId(undefined);
+                  setActivityOnly(false);
                   setTitle(generateRefTitle(selected));
                   setNotesHtml('');
                   setNotesOpen(false);
@@ -312,6 +321,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                   setLinkedTaskId(undefined);
                   setTitle('');
                   setActivityId(undefined);
+                  setActivityOnly(false);
                   setNotesHtml('');
                   setNotesOpen(false);
                   setScheduledDate(undefined);
