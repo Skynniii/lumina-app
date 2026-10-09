@@ -89,7 +89,7 @@ export function SourcePickerModal({
                   tab === 'actividades' ? 'bg-white text-[#333] shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]' : 'text-[#999] bg-transparent'
                 }`}
               >
-                Actividades
+                Actividad
               </button>
               <button
                 onClick={() => setTab('vincular')}

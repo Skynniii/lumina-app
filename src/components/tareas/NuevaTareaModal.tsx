@@ -50,7 +50,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const [important, setImportant] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [targetListId, setTargetListId] = useState(defaultListId);
-  const { activities, addActivity } = useActivities();
+  const { activities } = useActivities();
   const { settings } = useSettings();
   const [activityId, setActivityId] = useState<string | undefined>(undefined);
   const [linkedTaskId, setLinkedTaskId] = useState<string | undefined>(undefined);
@@ -157,7 +157,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               transition={{ type: 'spring', stiffness: 360, damping: 36 }}
             >
               <div className="w-10 h-1.5 bg-[#e4e4ed] rounded-full mx-auto mb-3" />
-              <p className="text-left text-[16px] font-bold text-[#2b2b2b] mb-3 pl-3.5">Nueva tarea</p>
+              <p className="text-left text-[16px] font-bold text-[#2b2b2b] mb-3">Nueva tarea</p>
 
               {availableLists && (
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-3 -mx-1 px-1">
@@ -273,19 +273,10 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               onClose={() => setActivityPickerOpen(false)}
               activities={activities}
               selectedId={activityId ?? ''}
+              allowCreate={false}
               onSelect={(id) => {
+                // Solo asigna la actividad a la tarea; no crea una tarea-actividad.
                 setActivityId(id);
-                setActivityOnly(!!id);
-                setLinkedTaskId(undefined);
-                if (id) setTitle('');
-                setActivityPickerOpen(false);
-              }}
-              onCreate={async (name, color) => {
-                const id = await addActivity({ name: name.trim(), color });
-                setActivityId(id);
-                setActivityOnly(true);
-                setLinkedTaskId(undefined);
-                setTitle('');
                 setActivityPickerOpen(false);
               }}
             />

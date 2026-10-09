@@ -9,10 +9,12 @@ interface Props {
   activities: Activity[];
   selectedId: string;
   onSelect: (id: string) => void;
-  onCreate: (name: string, color: string) => void;
+  onCreate?: (name: string, color: string) => void;
+  /** Oculta la opción de crear una actividad nueva desde este selector. */
+  allowCreate?: boolean;
 }
 
-export function ActivityPicker({ isOpen, onClose, activities, selectedId, onSelect, onCreate }: Props) {
+export function ActivityPicker({ isOpen, onClose, activities, selectedId, onSelect, onCreate, allowCreate = true }: Props) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [color, setColor] = useState(ACTIVITY_COLORS[0]);
@@ -27,7 +29,7 @@ export function ActivityPicker({ isOpen, onClose, activities, selectedId, onSele
 
   const submitNew = () => {
     if (!name.trim()) return;
-    onCreate(name.trim(), color);
+    onCreate?.(name.trim(), color);
   };
 
   return (
@@ -43,7 +45,7 @@ export function ActivityPicker({ isOpen, onClose, activities, selectedId, onSele
             className="w-full max-w-[420px] bg-white rounded-t-[28px] p-5 pb-7 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] max-h-[75vh] overflow-y-auto no-scrollbar"
           >
             <div className="w-10 h-1.5 rounded-full bg-[#e0e0e0] mx-auto mb-4" />
-            <p className="text-[16px] font-bold text-[#333] m-0 mb-4">Actividad</p>
+            <p className="text-[16px] font-bold text-[#333] m-0 mb-4">Actividades</p>
 
             <div className="flex flex-col">
               {activities.map((a) => {
@@ -65,7 +67,7 @@ export function ActivityPicker({ isOpen, onClose, activities, selectedId, onSele
                 );
               })}
 
-              {!creating ? (
+              {allowCreate && (!creating ? (
                 <button
                   onClick={() => setCreating(true)}
                   className="flex items-center gap-3 px-2 py-3 border-none bg-transparent cursor-pointer rounded-xl hover:bg-[#f8f7fb] transition-colors text-left"
@@ -125,7 +127,7 @@ export function ActivityPicker({ isOpen, onClose, activities, selectedId, onSele
                     </button>
                   </div>
                 </motion.div>
-              )}
+              ))}
             </div>
           </motion.div>
         </div>

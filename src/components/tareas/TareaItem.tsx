@@ -312,8 +312,8 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       onPointerDown={!reorderable && !isCompleted && onDragPointerDown ? (e) => onDragPointerDown?.(e, task.id) : undefined}
       onPointerUp={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
-      onClick={() => { if (!isActivityOnly) onExpand(task.id); }}
-      className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable || isActivityOnly ? 'cursor-default' : 'cursor-pointer'}`}
+      onClick={() => onExpand(task.id)}
+      className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-default' : 'cursor-pointer'}`}
       style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: barColor ? `3px solid ${barColor}` : undefined, backgroundColor: task.isActivityOnly && activityColor && !isCompleted ? `${activityColor}12` : undefined }}
     >
       {inner}
