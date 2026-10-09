@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Activity, Task, TaskList, TimeSession } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
@@ -32,6 +32,19 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
   const [showActivityPicker, setShowActivityPicker] = useState(false);
   const [showTaskPicker, setShowTaskPicker] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const notesRef = useRef<HTMLDivElement>(null);
+  // Cargar las notas solo cuando cambian desde fuera (p. ej. al vincular una
+  // tarea), para no mover el cursor mientras se escribe.
+  const lastNotesRef = useRef<string | null>(null);
+  useEffect(() => {
+    const el = notesRef.current;
+    if (!el) return;
+    const incoming = entry.notes || '';
+    if (incoming !== lastNotesRef.current) {
+      el.innerHTML = incoming;
+      lastNotesRef.current = incoming;
+    }
+  }, [entry.notes]);
 
   const activity = activities.find((a) => a.id === entry.activityId);
   const linkedTask = entry.taskId ? tasks.find((t) => t.id === entry.taskId) : undefined;
@@ -107,13 +120,12 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
     if (entry.taskId && entry.taskId !== task.id) {
       onUnlinkTask(entry);
     }
-    const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
     onLinkTask(entry, task);
     onUpdate(entry.id, {
       taskId: task.id,
       description: task.title,
       activityId: task.activityId || '',
-      notes: plainNotes || undefined,
+      notes: task.notes || undefined,
     });
   };
 
@@ -148,6 +160,7 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
       transition={{ type: 'spring', stiffness: 320, damping: 30 }}
       className="absolute left-0 right-0 top-0 bottom-0 z-[1000] bg-white flex flex-col origin-top"
     >
+      <style>{`[data-ph]:empty::before{content:attr(data-ph);color:#bbb;pointer-events:none}`}</style>
       <div className="flex items-center justify-between px-4 pb-3 border-b border-[#f0f0f5] shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
         <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
@@ -259,12 +272,13 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
             <span className="text-[#a0a0a0] mt-1">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
             </span>
-            <textarea
-              value={entry.notes || ''}
-              onChange={(e) => handleNotesChange(e.target.value)}
-              placeholder="Añadir notas..."
-              rows={2}
-              className="flex-1 text-[15px] text-[#333] bg-transparent border-none outline-none resize-none placeholder-[#bbb]"
+            <div
+              ref={notesRef}
+              contentEditable
+              suppressContentEditableWarning
+              data-ph="Añadir notas..."
+              onInput={(e) => { lastNotesRef.current = e.currentTarget.innerHTML; handleNotesChange(e.currentTarget.innerHTML); }}
+              className="flex-1 min-h-[44px] text-[15px] text-[#333] leading-relaxed outline-none [&_h1]:text-[17px] [&_h1]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
             />
           </div>
         </div>

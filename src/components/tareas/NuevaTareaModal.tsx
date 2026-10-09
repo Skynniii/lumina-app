@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import { CalendarModal } from './CalendarModal';
@@ -84,10 +84,13 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
     }
   }, [isOpen, defaultListId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
+  // Al abrir las notas, el foco pasa al editor en el mismo frame: así el teclado
+  // no se cierra y se vuelve a abrir.
+  useLayoutEffect(() => {
     if (notesOpen && notesRef.current) {
-      notesRef.current.innerHTML = notesHtml;
-      setTimeout(() => notesRef.current?.focus(), 60);
+      const el = notesRef.current;
+      el.innerHTML = notesHtml;
+      el.focus({ preventScroll: true });
     }
   }, [notesOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -133,6 +136,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const iconBtn = (active: boolean, onClick: () => void, title: string, children: React.ReactNode) => (
     <button
       type="button"
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       title={title}
       className={`w-11 h-11 flex-none flex items-center justify-center rounded-full border transition-colors ${active ? 'border-[#7f70ff]/30 bg-[#f0edff] text-[#7f70ff]' : 'border-[#e8e8ed] bg-[#fcfcfd] text-[#999]'}`}
@@ -154,7 +158,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
             />
             <motion.div
               className="fixed left-1/2 -translate-x-1/2 w-full max-w-[420px] z-[1002] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] px-5 pt-3 pb-6"
-              style={{ bottom: keyboardHeight, transition: 'bottom 0.25s ease-out' }}
+              style={{ bottom: keyboardHeight }}
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 360, damping: 36 }}
             >

@@ -9,6 +9,7 @@ import { FocusRing } from './FocusRing';
 import { TaskPicker } from './TaskPicker';
 import { CustomDurationModal } from './CustomDurationModal';
 import { DatePickerModal } from '../tareas/DatePickerModal';
+import { NotesToolbar } from '../tareas/NotesToolbar';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { useSettings } from '../../context/SettingsContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
@@ -78,7 +79,8 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const isHoldingRef = useRef(false);
   const [customDurations, setCustomDurations] = useUserStorage<number[]>('timer-custom-durations', [25, 45, 60]);
   const [showCustomDuration, setShowCustomDuration] = useState(false);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const notesRef = useRef<HTMLDivElement>(null);
+  const [notesEditing, setNotesEditing] = useState(false);
 
   const formatDurationLabel = (min: number) => {
     const h = Math.floor(min / 60);
@@ -139,8 +141,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
     setSelectedTask(task);
     props.onDescriptionChange(task.title);
     if (task.activityId) props.onActivityChange(task.activityId);
-    const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
-    onNotesChange(plainNotes);
+    onNotesChange(task.notes ?? '');
     props.onTaskIdChange?.(task.id);
   };
 
@@ -190,16 +191,36 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const checkRadius = (checkSize - 6) / 2;
   const checkCircumference = 2 * Math.PI * checkRadius;
 
-  // Auto-resize del textarea de notas
+  // Cargar las notas en el editor solo cuando cambian desde fuera (p. ej. al
+  // elegir una tarea), para no mover el cursor mientras se escribe.
+  const lastNotesRef = useRef<string | null>(null);
   useEffect(() => {
     const el = notesRef.current;
     if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
+    const incoming = props.draft.notes || '';
+    if (incoming !== lastNotesRef.current) {
+      el.innerHTML = incoming;
+      lastNotesRef.current = incoming;
+    }
   }, [props.draft.notes]);
+
+  const handleNotesInput = (e: React.FormEvent<HTMLDivElement>) => {
+    lastNotesRef.current = e.currentTarget.innerHTML;
+    onNotesChange(e.currentTarget.innerHTML);
+  };
+
+  const execCommand = (cmd: string, value?: string) => {
+    notesRef.current?.focus();
+    document.execCommand(cmd, false, value);
+    if (notesRef.current) {
+      lastNotesRef.current = notesRef.current.innerHTML;
+      onNotesChange(notesRef.current.innerHTML);
+    }
+  };
 
   return (
     <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} className="fixed inset-0 z-[9999] flex flex-col bg-white">
+      <style>{`[data-ph]:empty::before{content:attr(data-ph);color:#aaa;pointer-events:none}`}</style>
       {/* === Barra superior === */}
       <div className="flex items-center justify-between px-4 pb-3 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
         <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
@@ -410,11 +431,29 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
               <span className="text-[#a0a0a0] mt-0.5">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
               </span>
-              <textarea ref={notesRef} value={props.draft.notes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Notas" rows={1} className="flex-1 bg-transparent outline-none border-none resize-none text-[15px] text-[#333] placeholder:text-[#aaa] min-h-[24px] overflow-hidden" />
+              <div
+                ref={notesRef}
+                contentEditable
+                suppressContentEditableWarning
+                data-ph="Notas"
+                onInput={handleNotesInput}
+                onFocus={() => setNotesEditing(true)}
+                onBlur={() => setNotesEditing(false)}
+                className="flex-1 min-h-[24px] outline-none text-[15px] text-[#333] leading-relaxed [&_h1]:text-[17px] [&_h1]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+              />
             </div>
           </div>
         </div>
       </div>
+
+      {/* Toolbar de formato cuando se editan las notas */}
+      <AnimatePresence>
+        {notesEditing && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden shrink-0">
+            <NotesToolbar onCommand={execCommand} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* === Botones flotantes inferiores === */}
       <div className="flex items-center justify-center gap-10 pb-8 pt-2 shrink-0">

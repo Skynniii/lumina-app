@@ -67,8 +67,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
     if (updates.title !== undefined) sessionUpdates.description = updates.title;
     if (updates.activityId !== undefined) sessionUpdates.activityId = updates.activityId;
     if (updates.notes !== undefined) {
-      const plainNotes = updates.notes ? updates.notes.replace(/<[^>]*>/g, '').trim() : '';
-      sessionUpdates.notes = plainNotes || undefined;
+      sessionUpdates.notes = updates.notes || undefined;
     }
     if (Object.keys(sessionUpdates).length > 0) {
       for (const s of taskSessions) {

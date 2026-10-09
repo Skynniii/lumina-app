@@ -60,9 +60,8 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     if (pending) {
       clearPendingTimerTask();
       const { task, avanceTaskId } = pending;
-      const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
       tracker.setDraft({
-        activityId: task.activityId || '', description: task.title, notes: plainNotes,
+        activityId: task.activityId || '', description: task.title, notes: task.notes ?? '',
         taskId: task.id, avanceTaskId: avanceTaskId ?? undefined,
       });
       setShowFocus(true);
