@@ -62,10 +62,10 @@ export function ManageListsModal({
     return ids;
   }, [lists]);
 
-  // Actividades disponibles para crear listas (no vinculadas y que tengan tareas)
+  // Actividades disponibles para crear listas (no vinculadas a ninguna lista)
   const availableActivities = useMemo(() => {
-    return activities.filter((a) => !linkedActivityIds.has(a.id) && tasks.some((t) => t.activityId === a.id && !t.isSeparator));
-  }, [activities, linkedActivityIds, tasks]);
+    return activities.filter((a) => !linkedActivityIds.has(a.id));
+  }, [activities, linkedActivityIds]);
 
   const setDragOrderBoth = useCallback((v: string[] | null) => {
     dragOrderRef.current = v;
@@ -234,15 +234,10 @@ export function ManageListsModal({
                           {/* Selector de actividad */}
                           <div>
                             {list.activityId ? (
-                              <>
-                                <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide m-0 mb-2">Actividad vinculada</p>
-                                <div className="flex flex-wrap gap-2">
-                                  <button onClick={() => onSetListActivity(id, null)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border border-[#e0e0e0] bg-white text-[#666] cursor-pointer hover:bg-[#f5f5f5]">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                                    {`Quitar ${listActivity?.name ?? ''}`}
-                                  </button>
-                                </div>
-                              </>
+                              <button onClick={() => onSetListActivity(id, null)} className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[14px] font-semibold text-[#666] bg-[#f0f0f0] border-none cursor-pointer hover:bg-[#e4e4e4] transition-colors w-full">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                                {`Quitar ${listActivity?.name ?? ''}`}
+                              </button>
                             ) : (
                               <>
                                 <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide m-0 mb-2">Vincular actividad</p>

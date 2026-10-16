@@ -726,17 +726,8 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
       <AnimatePresence>
         {showAdvanceModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-[1100] flex items-center justify-center" onClick={() => setShowAdvanceModal(false)}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-2xl p-5 max-w-[300px] w-[calc(100%-40px)]" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center gap-2 mb-3">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <polygon points="8 8.5 12 12 8 15.5" fill="#7f70ff" stroke="none" />
-                  <polygon points="12 8.5 16 12 12 15.5" fill="#7f70ff" stroke="none" />
-                </svg>
-                <p className="text-[16px] font-bold text-[#333] m-0">Crear avance</p>
-              </div>
-              <p className="text-[13px] text-[#999] m-0 mb-3">Elige la lista donde crear el avance</p>
-              <div className="flex flex-col gap-1 max-h-[240px] overflow-y-auto no-scrollbar">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-2xl p-3 max-w-[300px] w-[calc(100%-40px)]" onClick={(e) => e.stopPropagation()}>
+              <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto no-scrollbar">
                 {lists.map((list) => (
                   <button
                     key={list.id}
@@ -747,7 +738,6 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
                   </button>
                 ))}
               </div>
-              <button onClick={() => setShowAdvanceModal(false)} className="w-full mt-3 py-2.5 rounded-xl text-[14px] font-semibold text-[#666] bg-[#f0f0f0] border-none cursor-pointer hover:bg-[#e4e4e4] transition-colors">Cancelar</button>
             </motion.div>
           </motion.div>
         )}
