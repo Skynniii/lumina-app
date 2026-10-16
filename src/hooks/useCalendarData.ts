@@ -4,7 +4,7 @@ import { useTasks } from './useTasks';
 import { useCalendarEvents, dateKey, timeToMinutes, MONTHS } from './useCalendarEvents';
 import { useFirestoreCollection } from './useFirestoreCollection';
 import { isoToDateKey, todayKey } from './useTimeTracker';
-import type { Activity, CalendarEvent, Task, TimeSession } from '../types';
+import type { Activity, CalendarEvent, Task, TaskList, TimeSession } from '../types';
 
 /** Capas de información que el calendario puede mostrar. */
 export type CalendarLayer = 'pending' | 'completed' | 'session' | 'event';
@@ -35,6 +35,7 @@ export interface CalendarItem {
   title: string;
   subtitle?: string;
   color: string;
+  order?: number;
   task?: Task;
   session?: TimeSession;
   event?: CalendarEvent;
@@ -87,8 +88,31 @@ export function sortItems(a: CalendarItem, b: CalendarItem): number {
   const aAll = a.startMin === undefined;
   const bAll = b.startMin === undefined;
   if (aAll !== bAll) return aAll ? -1 : 1;
-  if (aAll && bAll) return a.title.localeCompare(b.title);
+  if (aAll && bAll) {
+    if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
+    if (a.order !== undefined) return -1;
+    if (b.order !== undefined) return 1;
+    return a.title.localeCompare(b.title);
+  }
   return (a.startMin! - b.startMin!) || a.title.localeCompare(b.title);
+}
+
+/** Ordena tareas igual que el modo de orden de una lista (para espejar "Hoy"). */
+function sortTasksLikeList(taskList: Task[], list: TaskList): Task[] {
+  const mode = list.sortMode || 'custom';
+  const arr = [...taskList];
+  if (mode === 'recent') arr.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+  else if (mode === 'date') arr.sort((a, b) => (a.scheduledDate || 'zzz').localeCompare(b.scheduledDate || 'zzz'));
+  else if (mode === 'deadline') arr.sort((a, b) => (a.dueDate || 'zzz').localeCompare(b.dueDate || 'zzz'));
+  else if (mode === 'custom' && list.taskOrder) {
+    const orderMap = new Map(list.taskOrder.map((id, i) => [id, i]));
+    arr.sort((a, b) => {
+      const ai = orderMap.get(a.id) ?? Infinity;
+      const bi = orderMap.get(b.id) ?? Infinity;
+      return ai - bi;
+    });
+  }
+  return arr;
 }
 
 // ─── Hook ───
@@ -141,6 +165,29 @@ export function useCalendarData() {
         endMin: startMin !== undefined ? startMin + 30 : undefined,
         title: label, subtitle: listName(t.listId),
         color: LAYER_META.pending.color, task: t,
+      });
+    }
+
+    // Tareas vinculadas a "Hoy" (lista principal) sin fecha programada
+    const principalList = lists.find((l) => l.id === 'principal');
+    const hoyListId = principalList?.hoyListId;
+    if (hoyListId) {
+      const todayStr = todayKey();
+      const hoyList = lists.find((l) => l.id === hoyListId);
+      const hoyTasks = tasks.filter((t) =>
+        !t.completed && !t.isSeparator &&
+        t.listId === hoyListId &&
+        !t.scheduledDate && !t.dueDate
+      );
+      const sortedHoy = hoyList ? sortTasksLikeList(hoyTasks, hoyList) : hoyTasks;
+      sortedHoy.forEach((t, idx) => {
+        const activity = activityOf(t.activityId || listActivityId(t.listId));
+        const label = t.title?.trim() || activity?.name || 'Tarea';
+        out.push({
+          id: `h-${t.id}`, kind: 'pending', date: todayStr,
+          title: label, subtitle: listName(t.listId),
+          color: LAYER_META.pending.color, task: t, order: idx,
+        });
       });
     }
 

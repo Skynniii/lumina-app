@@ -85,7 +85,10 @@ export function TimeGrid({ days, itemsByDate, selectedDate, onSelectDate, onSele
           const dt = parseKey(d);
           const isSel = d === selectedDate;
           const isToday = d === today;
-          const dayItems = (itemsByDate.get(d) ?? []).slice(0, 3);
+          const dayItems = itemsByDate.get(d) ?? [];
+          const pendingCount = dayItems.filter((i) => i.kind === 'pending').length;
+          const eventCount = dayItems.filter((i) => i.kind === 'event').length;
+          const sessionCount = dayItems.filter((i) => i.kind === 'session').length;
           return (
             <button
               key={d}
@@ -94,11 +97,20 @@ export function TimeGrid({ days, itemsByDate, selectedDate, onSelectDate, onSele
             >
               <span className={`text-[10px] font-semibold ${isSel || isToday ? 'text-[#7f70ff]' : 'text-[#aaa]'}`}>{LETTER[dt.getDay()]}</span>
               <span className={`text-[13px] leading-none tabular-nums ${isSel ? 'text-[#7f70ff] font-bold' : isToday ? 'text-[#7f70ff] font-semibold' : 'text-[#555] font-medium'}`}>{dt.getDate()}</span>
-              <span className="flex items-center gap-[2px] h-[5px]">
-                {dayItems.map((it) => (
-                  <span key={it.id} className="w-[4px] h-[4px] rounded-full" style={{ background: it.color }} />
-                ))}
-              </span>
+              <div className="flex items-center gap-[3px] h-[14px]">
+                {pendingCount > 0 && (
+                  <span className="flex items-center gap-[1px]">
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /></svg>
+                    <span className="text-[8px] font-bold text-[#7f70ff] leading-none">{pendingCount}</span>
+                  </span>
+                )}
+                {eventCount > 0 && (
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#4d7cfe" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /></svg>
+                )}
+                {sessionCount > 0 && (
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#00b8a9" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+                )}
+              </div>
             </button>
           );
         })}
