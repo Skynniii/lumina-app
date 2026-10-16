@@ -257,6 +257,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             taskLists={taskLists}
             tasks={tasks}
             onNotesChange={(v) => tracker.setDraft((d) => ({ ...d, notes: v }))}
+            onSyncTaskNotes={(taskId, notes) => tasksColl.update(taskId, { notes })}
             onDiscard={handleDiscard}
             onSaveSession={handleSaveSession}
             onSaveManualSession={async (startMs, endMs) => {

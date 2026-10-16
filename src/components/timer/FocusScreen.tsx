@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed } from '../../hooks/useTimeTracker';
 import { useBackHandler } from '../../hooks/useBackHandler';
@@ -27,6 +27,7 @@ interface Props extends ActiveTimerCardProps {
   onSaveSession: (completeTask: boolean, taskId?: string) => void;
   onSaveManualSession?: (startMs: number, endMs: number) => void;
   onTaskIdChange?: (id: string | undefined) => void;
+  onSyncTaskNotes?: (taskId: string, notes: string) => void;
 }
 
 const MODE_LABELS: Record<TimerMode, string> = {
@@ -35,7 +36,7 @@ const MODE_LABELS: Record<TimerMode, string> = {
   pomodoro: 'Pomodoro',
 };
 
-export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard, onSaveSession, onSaveManualSession, ...props }: Props) {
+export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard, onSaveSession, onSaveManualSession, onSyncTaskNotes, ...props }: Props) {
   useBackHandler(true, onBack);
   const keyboardVisible = useKeyboardVisible();
   const { mode, onModeChange, countdown, pomodoroPhase, pomodoroCycle, onPomodoroSkip } = props;
@@ -83,6 +84,11 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const [showCustomDuration, setShowCustomDuration] = useState(false);
   const notesRef = useRef<HTMLDivElement>(null);
   const [notesEditing, setNotesEditing] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const wasNotesExpanded = useRef(false);
+
+  const linkedTask = props.draft.taskId ? tasks.find((t) => t.id === props.draft.taskId) : null;
+  const hasNotes = !!props.draft.notes?.replace(/<[^>]*>/g, '').trim();
 
   const formatDurationLabel = (min: number) => {
     const h = Math.floor(min / 60);
@@ -145,6 +151,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
     if (task.activityId) props.onActivityChange(task.activityId);
     onNotesChange(task.notes ?? '');
     props.onTaskIdChange?.(task.id);
+    if (task.notes?.replace(/<[^>]*>/g, '').trim()) setNotesExpanded(true);
   };
 
   const handleSaveManual = () => {
@@ -209,6 +216,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const handleNotesInput = (e: React.FormEvent<HTMLDivElement>) => {
     lastNotesRef.current = e.currentTarget.innerHTML;
     onNotesChange(e.currentTarget.innerHTML);
+    if (props.draft.taskId && onSyncTaskNotes) {
+      onSyncTaskNotes(props.draft.taskId, e.currentTarget.innerHTML);
+    }
   };
 
   const execCommand = (cmd: string, value?: string) => {
@@ -217,8 +227,43 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
     if (notesRef.current) {
       lastNotesRef.current = notesRef.current.innerHTML;
       onNotesChange(notesRef.current.innerHTML);
+      if (props.draft.taskId && onSyncTaskNotes) {
+        onSyncTaskNotes(props.draft.taskId, notesRef.current.innerHTML);
+      }
     }
   };
+
+  // Inicializar contentEditable de notas al expandir
+  useLayoutEffect(() => {
+    const el = notesRef.current;
+    if (notesExpanded && el) {
+      el.innerHTML = props.draft.notes || '';
+      const isUserToggle = !wasNotesExpanded.current;
+      wasNotesExpanded.current = true;
+      if (isUserToggle) {
+        el.focus();
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    } else if (!notesExpanded) {
+      wasNotesExpanded.current = false;
+    }
+  }, [notesExpanded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sincronizar notas desde la tarea cuando cambian externamente
+  useEffect(() => {
+    if (linkedTask && linkedTask.notes !== undefined) {
+      const taskNotes = linkedTask.notes || '';
+      if (taskNotes !== lastNotesRef.current) {
+        lastNotesRef.current = taskNotes;
+        onNotesChange(taskNotes);
+      }
+    }
+  }, [linkedTask?.notes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} className="fixed inset-0 z-[9999] flex flex-col bg-white">
@@ -429,21 +474,31 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
           {/* Notas */}
           <div className="border-b border-[#f0f0f5]">
-            <div className="flex items-start gap-3 py-3">
-              <span className="text-[#a0a0a0] mt-0.5">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+            <div onMouseDown={(e) => e.preventDefault()} onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
+              <span className={`transition-colors ${hasNotes ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
               </span>
-              <div
-                ref={notesRef}
-                contentEditable
-                suppressContentEditableWarning
-                data-ph="Notas"
-                onInput={handleNotesInput}
-                onFocus={() => setNotesEditing(true)}
-                onBlur={() => setNotesEditing(false)}
-                className="flex-1 min-h-[24px] outline-none text-[15px] text-[#333] leading-relaxed [&_h1]:text-[17px] [&_h1]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
-              />
+              <span className={`flex-1 text-[15px] ${hasNotes ? 'text-[#7f70ff] font-bold' : 'text-[#555]'}`}>
+                {hasNotes ? 'Notas' : 'Añadir notas'}
+              </span>
+              <motion.svg animate={{ rotate: notesExpanded ? 180 : 0 }} className="text-[#a0a0a0] w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></motion.svg>
             </div>
+            <AnimatePresence>
+              {notesExpanded && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                  <div
+                    ref={notesRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    data-ph="Escribe una nota..."
+                    onInput={handleNotesInput}
+                    onFocus={() => setNotesEditing(true)}
+                    onBlur={() => setNotesEditing(false)}
+                    className="w-full min-h-[80px] pb-4 pt-1 outline-none text-[15px] text-[#444] leading-relaxed [&_h1]:text-[17px] [&_h1]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

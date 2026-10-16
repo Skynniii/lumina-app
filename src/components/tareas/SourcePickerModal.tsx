@@ -150,9 +150,10 @@ export function SourcePickerModal({
                           onClick={() => { onSelectTask(task); onClose(); }}
                           className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#f4f4f6] transition-colors flex items-center gap-2"
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-none">
-                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" className="flex-none">
+                            <circle cx="12" cy="12" r="10" />
+                            <polygon points="8 8.5 12 12 8 15.5" fill="#7f70ff" stroke="none" />
+                            <polygon points="12 8.5 16 12 12 15.5" fill="#7f70ff" stroke="none" />
                           </svg>
                           <span className={`text-[14px] truncate ${selectedTaskId === task.id ? 'text-[#7f70ff] font-semibold' : 'text-[#333]'}`}>{task.title}</span>
                         </button>

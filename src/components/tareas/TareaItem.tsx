@@ -45,6 +45,7 @@ const IconNotes = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="n
 const IconSub = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>);
 const IconFlag = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>);
 const IconCal = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>);
+const IconLink = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>);
 
 function arePropsEqual(prev: Props, next: Props): boolean {
   const a = prev.task, b = next.task;
@@ -62,6 +63,7 @@ function arePropsEqual(prev: Props, next: Props): boolean {
     a.isActivityOnly === b.isActivityOnly &&
     a.activityId === b.activityId &&
     (a.subtasks?.length ?? 0) === (b.subtasks?.length ?? 0) &&
+    (a.links?.length ?? 0) === (b.links?.length ?? 0) &&
     prev.activityColor === next.activityColor &&
     prev.activityName === next.activityName &&
     prev.onStartActivity === next.onStartActivity &&
@@ -113,9 +115,10 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const showDue = !isActivityOnly && !isLinked && typeof task.scheduledDate === 'string' && !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
   const showNotes = !isActivityOnly && !isLinked && hasNotes && !inPrincipal;
   const showSub = !isActivityOnly && !isLinked && hasSub && !inPrincipal;
+  const showLinks = !isActivityOnly && !isLinked && (task.links?.length ?? 0) > 0 && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
   const showTimeSpent = (task.totalTimeSpent || 0) > 0;
-  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent;
+  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent || showLinks;
 
   const dueLabel = () => {
     if (typeof task.scheduledDate !== 'string' || !task.scheduledDate) return '';
@@ -231,14 +234,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         </div>
       )}
 
-      {isLinked && !reorderable && (
-        <span className="flex-none ml-2 text-[#7f70ff]" title="Tarea vinculada">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-          </svg>
-        </span>
-      )}
+
 
       {reorderable ? (
         <div
@@ -291,6 +287,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
             </span>
           )}
+          {showLinks && <span className="flex items-center"><IconLink /></span>}
           {showNotes && <span className="flex items-center"><IconNotes /></span>}
           {showSub && <span className="flex items-center"><IconSub /></span>}
         </motion.div>
