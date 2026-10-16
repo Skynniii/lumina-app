@@ -4,6 +4,21 @@ import { useAuth } from '../../context/AuthContext';
 import { ModalNeuromorfico } from './ModalNeuromorfico';
 import { useBackHandler } from '../../hooks/useBackHandler';
 
+function ProfileAvatar({ photoURL, name, size }: { photoURL?: string; name: string; size: number }) {
+  const [error, setError] = useState(false);
+  if (photoURL && !error) {
+    return <img src={photoURL} alt={name} className="rounded-full object-cover shadow-sm" style={{ width: size, height: size }} onError={() => setError(true)} />;
+  }
+  return (
+    <div className="rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] flex items-center justify-center shadow-sm" style={{ width: size, height: size }}>
+      <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    </div>
+  );
+}
+
 interface Props {
   onBack: () => void;
   onOpenSettings: () => void;
@@ -34,8 +49,8 @@ export function AccountPage({ onBack, onOpenSettings }: Props) {
       className="absolute top-0 left-0 w-full h-full bg-white z-[1100] flex flex-col overflow-y-auto no-scrollbar"
     >
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white pb-2">
-        <div className="flex items-center gap-3 px-5 pt-5">
+      <div className="sticky top-0 z-10 bg-white pb-2" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
+        <div className="flex items-center gap-3 px-5 pt-2">
           <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90 shrink-0">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="19" y1="12" x2="5" y2="12" />
@@ -52,16 +67,7 @@ export function AccountPage({ onBack, onOpenSettings }: Props) {
       <div className="flex-1 px-5 pb-[100px]">
         {/* Perfil */}
         <div className="flex flex-col items-center mt-4 mb-6">
-          {photoURL ? (
-            <img src={photoURL} alt={name} className="w-24 h-24 rounded-full object-cover shadow-sm" />
-          ) : (
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] flex items-center justify-center shadow-sm">
-              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-          )}
+          <ProfileAvatar photoURL={photoURL} name={name} size={96} />
           <p className="text-[18px] font-bold text-[#2b2b2b] mt-3 m-0 capitalize">{name}</p>
           {email && <p className="text-[14px] text-[#999] mt-0.5 m-0">{email}</p>}
         </div>

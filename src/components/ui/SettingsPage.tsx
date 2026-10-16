@@ -91,8 +91,8 @@ export function SettingsPage({ onBack }: Props) {
       className="absolute top-0 left-0 w-full h-full bg-white z-[1100] flex flex-col overflow-y-auto no-scrollbar"
     >
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white pb-2">
-        <div className="flex items-center gap-3 px-5 pt-5">
+      <div className="sticky top-0 z-10 bg-white pb-2" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
+        <div className="flex items-center gap-3 px-5 pt-2">
           <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90 shrink-0">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="19" y1="12" x2="5" y2="12" />

@@ -15,6 +15,7 @@ import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
 import { DatePickerModal } from './DatePickerModal';
 import { ActivityPicker } from '../timer/ActivityPicker';
+import { LinkPreview, normalizeUrl } from './LinkPreview';
 
 interface Props {
   task: Task;
@@ -26,9 +27,10 @@ interface Props {
   onDelete: (id: string) => void;
   onNavigate?: (v: ViewType) => void;
   onOpenTask?: (id: string) => void;
+  onCreateAdvance?: (listId: string, taskTitle: string) => void;
 }
 
-export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate, onOpenTask }: Props) {
+export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate, onOpenTask, onCreateAdvance }: Props) {
   useBackHandler(true, onBack);
   const keyboardVisible = useKeyboardVisible();
   const { settings } = useSettings();
@@ -50,6 +52,10 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const [notesEditing, setNotesEditing] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
+  const [linksExpanded, setLinksExpanded] = useState(() => (task.links?.length ?? 0) > 0);
+  const [linkInput, setLinkInput] = useState('');
+  const [showAdvanceMenu, setShowAdvanceMenu] = useState(false);
+  const advanceMenuRef = useRef<HTMLDivElement>(null);
 
   const taskActivity = activities.find((a) => {
     if (linkedTask?.activityId) return a.id === linkedTask.activityId;
@@ -177,6 +183,37 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
     return () => document.removeEventListener('click', handler);
   }, [showListMenu]);
 
+  // Cerrar menú de avance al hacer click fuera
+  useEffect(() => {
+    if (!showAdvanceMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (advanceMenuRef.current && !advanceMenuRef.current.contains(e.target as Node)) setShowAdvanceMenu(false);
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [showAdvanceMenu]);
+
+  const handleAddLink = () => {
+    const trimmed = linkInput.trim();
+    if (!trimmed) return;
+    const normalized = normalizeUrl(trimmed);
+    const currentLinks = task.links ?? [];
+    if (currentLinks.includes(normalized)) { setLinkInput(''); return; }
+    handleSyncedUpdate(task.id, { links: [...currentLinks, normalized] });
+    setLinkInput('');
+  };
+
+  const handleDeleteLink = (index: number) => {
+    const currentLinks = task.links ?? [];
+    handleSyncedUpdate(task.id, { links: currentLinks.filter((_, i) => i !== index) });
+  };
+
+  const handleCreateAdvance = (listId: string) => {
+    setShowAdvanceMenu(false);
+    onCreateAdvance?.(listId, task.title);
+    onBack();
+  };
+
   // Auto-focus en subtarea nueva
   useEffect(() => {
     if (editingSubId && subInputRef.current) {
@@ -287,7 +324,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
       className="absolute left-0 right-0 top-0 bottom-0 z-[1000] bg-white flex flex-col origin-top"
     >
       {/* Header: back + star + list selector */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f0f5] shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f0f5] shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
         <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12" />
@@ -400,6 +437,47 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
                     onBlur={() => setNotesEditing(false)}
                     className="w-full min-h-[100px] pb-4 pt-1 outline-none text-[15px] text-[#444] leading-relaxed [&_h1]:text-[18px] [&_h1]:font-bold [&_h1]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
                   />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Links */}
+        {!isLinked && !task.isActivityOnly && ((!isCompleted) || (task.links?.length ?? 0) > 0) && (
+          <div className="border-b border-[#f0f0f5]">
+            <div onClick={() => setLinksExpanded(!linksExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
+              <span className={`transition-colors ${(task.links?.length ?? 0) > 0 ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+              </span>
+              <span className={`flex-1 text-[15px] ${(task.links?.length ?? 0) > 0 ? 'text-[#7f70ff] font-bold' : 'text-[#555]'}`}>
+                {(task.links?.length ?? 0) > 0 ? 'Links' : 'Añadir links'}
+              </span>
+              <motion.svg animate={{ rotate: linksExpanded ? 180 : 0 }} className="text-[#a0a0a0] w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></motion.svg>
+            </div>
+            <AnimatePresence>
+              {linksExpanded && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                  <div className="pb-3 flex flex-col gap-2">
+                    {(task.links ?? []).map((link, i) => (
+                      <LinkPreview key={i} url={link} onDelete={!isCompleted ? () => handleDeleteLink(i) : undefined} readOnly={isCompleted} />
+                    ))}
+                    {!isCompleted && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          value={linkInput}
+                          onChange={(e) => setLinkInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddLink(); } }}
+                          placeholder="Pegar URL..."
+                          className="flex-1 bg-[#f8f8fa] border border-[#e8e8ed] rounded-xl px-3 py-2 text-[14px] text-[#333] outline-none focus:border-[#7f70ff] transition-colors"
+                        />
+                        <button onClick={handleAddLink} disabled={!linkInput.trim()} className="w-9 h-9 flex items-center justify-center rounded-full bg-[#f0edff] text-[#7f70ff] hover:bg-[#7f70ff] hover:text-white transition-colors disabled:opacity-40 border-none cursor-pointer shrink-0">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -550,6 +628,41 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
           </div>
         )}
 
+        {/* Crear avance */}
+        {!isCompleted && !isLinked && !task.isActivityOnly && onCreateAdvance && (
+          <div className="relative" ref={advanceMenuRef}>
+            <button onClick={() => setShowAdvanceMenu(!showAdvanceMenu)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+              <span className="text-[#a0a0a0]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><polyline points="9 15 12 12 15 15" /></svg>
+              </span>
+              <span className="flex-1 text-left text-[15px] text-[#555]">Crear avance</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+            <AnimatePresence>
+              {showAdvanceMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 top-full mt-1 bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[#eaeaea] py-1.5 w-[180px] z-10 origin-top-left"
+                >
+                  <p className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#999] m-0">Crear en lista</p>
+                  {lists.map((list) => (
+                    <button
+                      key={list.id}
+                      onClick={() => handleCreateAdvance(list.id)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-[14px] text-[#555] hover:bg-[#f8f9fa] transition-colors"
+                    >
+                      <span>{list.name}</span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
         {/* Añadir a Timer */}
         {!isCompleted && (
           <button onClick={handleStartTimer} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
@@ -586,7 +699,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
       </AnimatePresence>
 
       {/* Barra inferior: eliminar + completar (oculta con el teclado abierto) */}
-      <div className={`flex justify-between items-center px-5 py-4 border-t border-[#f0f0f5] shrink-0 ${keyboardVisible ? 'hidden' : ''}`}>
+      <div className={`flex justify-between items-center px-5 py-4 border-t border-[#f0f0f5] shrink-0 ${keyboardVisible ? 'hidden' : ''}`} style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
         <button onClick={() => onDelete(task.id)} className="text-[#ff4d4d] p-2.5 rounded-full hover:bg-[#fff5f5] transition-colors border-none bg-transparent cursor-pointer">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
         </button>

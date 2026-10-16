@@ -68,7 +68,7 @@ export function NavegacionBar({ activeView, onViewChange, onAdd }: Props) {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-[70px] bg-white flex justify-around items-center shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-[100]">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white flex justify-around items-center shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-[100]" style={{ height: 'calc(70px + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       {leftTabs.map(renderTab)}
 
       {/* Botón + incrustado, sobresale del borde superior */}

@@ -458,7 +458,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       </AnimatePresence>
 
       {/* === Botones flotantes inferiores (ocultos con el teclado abierto) === */}
-      <div className={`flex items-center justify-center gap-10 pb-8 pt-2 shrink-0 ${keyboardVisible ? 'hidden' : ''}`}>
+      <div className={`flex items-center justify-center gap-10 pt-2 shrink-0 ${keyboardVisible ? 'hidden' : ''}`} style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 32px)' }}>
         {manualMode ? (
           <button onClick={() => setManualMode(false)} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] active:scale-[0.88] transition-all">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>

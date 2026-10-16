@@ -137,6 +137,7 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
             onDelete={deleteTask}
             onNavigate={onNavigate}
             onOpenTask={setExpandedTaskId}
+            onCreateAdvance={(listId, taskTitle) => addTaskWithData(listId, { title: `Avanzar en: ${taskTitle}`, linkedTaskId: expandedTask.id })}
           />
         )}
       </AnimatePresence>

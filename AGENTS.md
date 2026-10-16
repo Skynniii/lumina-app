@@ -105,6 +105,42 @@ secrets. There are no `import.meta.env.*` reads anywhere in `src/`.
   `TaskDetailView`, los registros `SessionDetailModal` (con
   `incrementTaskTime` al vincular/desvincular, igual que en `TimeTracker`).
 
+## Safe areas (edge-to-edge)
+
+- Las pantallas de pantalla completa que NO usan `SectionHeader` deben añadir
+  `paddingTop: 'max(env(safe-area-inset-top), 12px)'` en su cabecera y
+  `paddingBottom: 'max(env(safe-area-inset-bottom), ...)'` en su barra inferior.
+  Las que ya lo tienen: `TaskDetailView`, `SettingsPage`, `AccountPage`,
+  `FocusScreen`, `SessionDetailModal`, `ActivityDetailModal`.
+- `NavegacionBar` usa `height: calc(70px + env(safe-area-inset-bottom))` con
+  `paddingBottom: env(safe-area-inset-bottom)` para no chocar con los botones
+  del sistema en dispositivos con navegación por botones (no gestos).
+- `SectionHeader` usa `max(env(safe-area-inset-top), 12px)` + `pt-2` (reducido
+  para dejar más espacio para el contenido de la sección).
+
+## Foto de perfil
+
+- `TopBar` y `AccountPage` (vía `ProfileAvatar`) manejan `onError` en la imagen
+  de perfil: si la URL de Firebase falla, se muestra el avatar SVG morado en
+  su lugar. El estado `photoError` se resetea al cambiar de usuario.
+
+## Links en tareas
+
+- `Task.links?: string[]` guarda URLs asociadas a una tarea.
+- `LinkPreview` muestra cada link como una tarjeta con favicon (vía Google
+  favicon service), dominio y título de la página (obtenido vía proxy CORS
+  `corsproxy.io`; si falla, solo muestra el dominio).
+- En `TaskDetailView`, la sección Links va debajo de Notas. Se oculta para
+  tareas vinculadas (`isLinked`) y de actividad pura (`isActivityOnly`).
+
+## Crear avance
+
+- `TaskDetailView` acepta `onCreateAdvance?: (listId, taskTitle) => void`.
+  Al pulsar "Crear avance" (antes de "Añadir a Timer") se abre un dropdown
+  con las listas disponibles; al elegir una, se crea una tarea vinculada
+  (`linkedTaskId`) con título `Avanzar en: <título>` vía `addTaskWithData`.
+- Solo aparece en tareas no completadas, no vinculadas y no de actividad pura.
+
 ## Quirks
 
 - `vite.config.ts` sets `server.allowedHosts: true`; the compose file also
