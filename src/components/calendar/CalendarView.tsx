@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
@@ -6,7 +6,7 @@ import { MONTHS, dateKey } from '../../hooks/useCalendarEvents';
 import { incrementTaskTime } from '../../hooks/useFirestoreCollection';
 import { todayKey } from '../../hooks/useTimeTracker';
 import {
-  useCalendarData, DEFAULT_LAYERS, parseKey, shiftKey, weekDaysOf, weekRangeLabel, longDateLabel,
+  useCalendarData, DEFAULT_LAYERS, parseKey, shiftKey, weekDaysOf,
   type CalendarItem, type CalendarLayer,
 } from '../../hooks/useCalendarData';
 import { sortListsForDisplay } from '../../utils/listOrder';
@@ -32,8 +32,8 @@ interface Props {
 }
 
 /**
- * Sección Calendario: vistas de mes, semana y día sobre la información cruzada
- * de tareas (pendientes y completadas), registros de tiempo y eventos propios.
+ * Sección Calendario: vistas de mes, semana, día y agenda sobre la información
+ * cruzada de tareas (pendientes y completadas), registros de tiempo y eventos.
  */
 export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) {
   const { user } = useAuth();
@@ -72,49 +72,22 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   }, [itemsByDate, layers]);
 
   const selectedItems = visibleByDate.get(selectedDate) ?? [];
-
   const weekDays = useMemo(() => weekDaysOf(anchor), [anchor]);
-  const today = todayKey();
 
-  const isToday = useMemo(() => {
-    if (mode === 'month') {
-      const now = new Date();
-      return anchor.getMonth() === now.getMonth() && anchor.getFullYear() === now.getFullYear();
-    }
-    if (mode === 'week') return weekDays.includes(today);
-    return selectedDate === today;
-  }, [mode, anchor, weekDays, selectedDate, today]);
-
-  const title = useMemo(() => {
-    if (mode === 'month') return `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
-    if (mode === 'week') return weekRangeLabel(weekDays);
-    return longDateLabel(selectedDate);
-  }, [mode, anchor, weekDays, selectedDate]);
-
-  const goPrev = useCallback(() => {
-    if (mode === 'month') setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1));
-    else if (mode === 'week') setAnchor((a) => parseKey(shiftKey(dateKey(a), -7)));
-    else {
-      const prev = shiftKey(selectedDate, -1);
-      setSelectedDate(prev);
-      setAnchor(parseKey(prev));
-    }
-  }, [mode, anchor, selectedDate]);
-
-  const goNext = useCallback(() => {
-    if (mode === 'month') setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1));
-    else if (mode === 'week') setAnchor((a) => parseKey(shiftKey(dateKey(a), 7)));
-    else {
-      const next = shiftKey(selectedDate, 1);
-      setSelectedDate(next);
-      setAnchor(parseKey(next));
-    }
-  }, [mode, anchor, selectedDate]);
+  const title = useMemo(() => `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`, [anchor]);
 
   const goToday = useCallback(() => {
     setAnchor(new Date());
     setSelectedDate(todayKey());
   }, []);
+
+  const cycleMode = useCallback(() => {
+    const order: CalendarViewMode[] = ['month', 'week', 'day', 'agenda'];
+    const idx = order.indexOf(mode);
+    const next = order[(idx + 1) % order.length];
+    setMode(next);
+    if (next === 'day' || next === 'agenda') setAnchor(parseKey(selectedDate));
+  }, [mode, selectedDate]);
 
   const toggleLayer = useCallback((l: CalendarLayer) => {
     setLayers((prev) => ({ ...prev, [l]: !prev[l] }));
@@ -131,10 +104,27 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
     setAnchor(parseKey(key));
   }, []);
 
-  const changeMode = useCallback((m: CalendarViewMode) => {
-    setMode(m);
-    if (m === 'day') setAnchor(parseKey(selectedDate));
-  }, [selectedDate]);
+  const handleMonthSelect = useCallback((year: number, month: number) => {
+    setAnchor(new Date(year, month, 1));
+    if (mode === 'day' || mode === 'agenda') {
+      setSelectedDate(dateKey(new Date(year, month, 1)));
+    }
+  }, [mode]);
+
+  // Navegación por deslizamiento para semana/día/agenda
+  const touchStart = useRef(0);
+  const onTouchStart = (e: React.TouchEvent) => { touchStart.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const diff = touchStart.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) <= 50) return;
+    if (mode === 'week') {
+      setAnchor((a) => parseKey(shiftKey(dateKey(a), diff > 0 ? 7 : -7)));
+    } else {
+      const next = shiftKey(selectedDate, diff > 0 ? 1 : -1);
+      setSelectedDate(next);
+      setAnchor(parseKey(next));
+    }
+  };
 
   const openTask = openTaskId ? tasks.find((t) => t.id === openTaskId) ?? null : null;
   const openSession = openSessionId ? sessions.find((s) => s.id === openSessionId) ?? null : null;
@@ -152,51 +142,96 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
 
   return (
     <section className="absolute top-0 left-0 w-full h-full flex flex-col bg-[#f7f6f9]">
-      <SectionHeader title="Calendario" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} background="#f7f6f9" className="z-50" />
+      <SectionHeader title="Calendario" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} background="#FFFFFF" className="z-50" />
 
       <CalendarToolbar
         mode={mode}
-        onModeChange={changeMode}
+        onCycleMode={cycleMode}
+        title={title}
+        onToday={goToday}
         layers={layers}
         onToggleLayer={toggleLayer}
-        title={title}
-        onPrev={goPrev}
-        onNext={goNext}
-        onToday={goToday}
-        isToday={isToday}
+        anchor={anchor}
+        onMonthSelect={handleMonthSelect}
       />
 
-      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-[110px]">
-        <div className="pt-2 flex flex-col gap-4">
-          {mode === 'month' ? (
-            <MonthGrid
-              anchorMonth={anchor}
-              onMonthChange={setAnchor}
-              selectedDate={selectedDate}
-              onSelectDate={selectDate}
-              itemsByDate={visibleByDate}
-            />
-          ) : (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {mode === 'month' ? (
+          <>
+            {/* Calendario: mitad superior */}
+            <div className="flex-1 min-h-0 overflow-hidden px-5 pt-2">
+              <MonthGrid
+                anchorMonth={anchor}
+                onMonthChange={setAnchor}
+                selectedDate={selectedDate}
+                onSelectDate={selectDate}
+                itemsByDate={visibleByDate}
+                fillHeight
+              />
+            </div>
+            {/* Info del día: mitad inferior */}
+            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px]">
+              <div className="pt-3 flex flex-col gap-3">
+                <DaySummary date={selectedDate} items={selectedItems} />
+                <DayAgenda
+                  date={selectedDate}
+                  items={selectedItems}
+                  onSelectItem={openItem}
+                  onNewTask={() => setShowNewTask(true)}
+                  onNewEvent={() => setEventForm({ mode: 'create' })}
+                />
+              </div>
+            </div>
+          </>
+        ) : mode === 'week' ? (
+          <div
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-2"
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+          >
             <TimeGrid
-              days={mode === 'day' ? [selectedDate] : weekDays}
+              days={weekDays}
               itemsByDate={visibleByDate}
               selectedDate={selectedDate}
               onSelectDate={selectDate}
               onSelectItem={openItem}
-              detailed={mode === 'day'}
+              detailed={false}
             />
-          )}
-
-          <DaySummary date={selectedDate} items={selectedItems} />
-
-          <DayAgenda
-            date={selectedDate}
-            items={selectedItems}
-            onSelectItem={openItem}
-            onNewTask={() => setShowNewTask(true)}
-            onNewEvent={() => setEventForm({ mode: 'create' })}
-          />
-        </div>
+          </div>
+        ) : mode === 'day' ? (
+          <div
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-2"
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+          >
+            <div className="mb-3">
+              <DaySummary date={selectedDate} items={selectedItems} />
+            </div>
+            <TimeGrid
+              days={[selectedDate]}
+              itemsByDate={visibleByDate}
+              selectedDate={selectedDate}
+              onSelectDate={selectDate}
+              onSelectItem={openItem}
+              detailed
+            />
+          </div>
+        ) : (
+          // Agenda
+          <div
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-3"
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+          >
+            <DayAgenda
+              date={selectedDate}
+              items={selectedItems}
+              onSelectItem={openItem}
+              onNewTask={() => setShowNewTask(true)}
+              onNewEvent={() => setEventForm({ mode: 'create' })}
+            />
+          </div>
+        )}
       </div>
 
       <CalendarQuickAdd
