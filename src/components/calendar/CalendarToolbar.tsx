@@ -153,6 +153,7 @@ export function CalendarToolbar({ mode, onCycleMode, title, onToday, layers, onT
           <MonthStrip
             anchor={anchor}
             onMonthSelect={(yr, mo) => { onMonthSelect(yr, mo); setMonthExpanded(false); }}
+            onCollapse={() => setMonthExpanded(false)}
           />
         )}
       </AnimatePresence>

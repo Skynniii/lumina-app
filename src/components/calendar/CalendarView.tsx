@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
 import { MONTHS, dateKey } from '../../hooks/useCalendarEvents';
@@ -16,7 +16,8 @@ import { CalendarToolbar, type CalendarViewMode } from './CalendarToolbar';
 import { MonthGrid } from './MonthGrid';
 import { TimeGrid } from './TimeGrid';
 import { DaySummary } from './DaySummary';
-import { DayAgenda } from './DayAgenda';
+import { MonthDayInfo } from './MonthDayInfo';
+import { AgendaView } from './AgendaView';
 import { CalendarQuickAdd } from './CalendarQuickAdd';
 import { EventForm } from './EventForm';
 import { EventDetail } from './EventDetail';
@@ -54,6 +55,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(null);
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [openSessionId, setOpenSessionId] = useState<string | null>(null);
+  const [daySummaryExpanded, setDaySummaryExpanded] = useState(false);
 
   // Botón + de la barra de navegación
   useEffect(() => {
@@ -157,32 +159,26 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {mode === 'month' ? (
-          <>
-            {/* Calendario: mitad superior */}
-            <div className="flex-1 min-h-0 overflow-hidden px-5 pt-2">
-              <MonthGrid
-                anchorMonth={anchor}
-                onMonthChange={setAnchor}
-                selectedDate={selectedDate}
-                onSelectDate={selectDate}
-                itemsByDate={visibleByDate}
-                fillHeight
+          // Vista de mes: calendario arriba + info del día debajo, todo deslizable
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-2">
+            <MonthGrid
+              anchorMonth={anchor}
+              onMonthChange={setAnchor}
+              selectedDate={selectedDate}
+              onSelectDate={selectDate}
+              itemsByDate={visibleByDate}
+            />
+            <div className="pt-3">
+              <MonthDayInfo
+                date={selectedDate}
+                items={selectedItems}
+                allTasks={tasks}
+                onSelectItem={openItem}
+                onNewTask={() => setShowNewTask(true)}
+                onNewEvent={() => setEventForm({ mode: 'create' })}
               />
             </div>
-            {/* Info del día: mitad inferior */}
-            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px]">
-              <div className="pt-3 flex flex-col gap-3">
-                <DaySummary date={selectedDate} items={selectedItems} />
-                <DayAgenda
-                  date={selectedDate}
-                  items={selectedItems}
-                  onSelectItem={openItem}
-                  onNewTask={() => setShowNewTask(true)}
-                  onNewEvent={() => setEventForm({ mode: 'create' })}
-                />
-              </div>
-            </div>
-          </>
+          </div>
         ) : mode === 'week' ? (
           <div
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-2"
@@ -199,14 +195,12 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
             />
           </div>
         ) : mode === 'day' ? (
+          // Vista de día: tareas/eventos arriba, resumen colapsable abajo
           <div
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-2"
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
           >
-            <div className="mb-3">
-              <DaySummary date={selectedDate} items={selectedItems} />
-            </div>
             <TimeGrid
               days={[selectedDate]}
               itemsByDate={visibleByDate}
@@ -215,20 +209,47 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
               onSelectItem={openItem}
               detailed
             />
+            {/* Resumen colapsable al final */}
+            <div className="pt-3">
+              <button
+                onClick={() => setDaySummaryExpanded(!daySummaryExpanded)}
+                className="flex items-center justify-between w-full p-4 bg-white rounded-[20px] shadow-[4px_4px_10px_#ececec,-4px_-4px_10px_#ffffff] border-none cursor-pointer"
+              >
+                <span className="text-[14px] font-bold text-[#999]">Resumen del día</span>
+                <motion.svg
+                  animate={{ rotate: daySummaryExpanded ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </motion.svg>
+              </button>
+              <AnimatePresence>
+                {daySummaryExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-3">
+                      <DaySummary date={selectedDate} items={selectedItems} />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         ) : (
-          // Agenda
-          <div
-            className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-3"
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-          >
-            <DayAgenda
-              date={selectedDate}
-              items={selectedItems}
+          // Agenda: información agrupada por meses y semanas
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-3">
+            <AgendaView
+              itemsByDate={visibleByDate}
+              selectedDate={selectedDate}
+              onSelectDate={selectDate}
               onSelectItem={openItem}
-              onNewTask={() => setShowNewTask(true)}
-              onNewEvent={() => setEventForm({ mode: 'create' })}
+              anchor={anchor}
             />
           </div>
         )}
