@@ -11,9 +11,18 @@ const TIME_COL = 40;
 interface Props {
   days: string[];                     // 1 = vista de día, 7 = vista de semana
   itemsByDate: Map<string, CalendarItem[]>;
+  /** Registros de tiempo: se pintan dentro de su rango horario real. */
+  sessionItemsByDate?: Map<string, CalendarItem[]>;
   onSelectItem: (i: CalendarItem) => void;
   detailed?: boolean;
 }
+
+const ClockGlyph = ({ color }: { color: string }) => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+    <circle cx="12" cy="12" r="9" />
+    <polyline points="12 7 12 12 15 14" />
+  </svg>
+);
 
 /** Distribuye los ítems con hora en "carriles" para que los solapados no se tapen. */
 function layout(items: CalendarItem[]) {
@@ -46,7 +55,7 @@ function layout(items: CalendarItem[]) {
  * hora y día (como en la referencia), con la línea de la hora actual solo en la
  * columna del día de hoy.
  */
-export function TimeGrid({ days, itemsByDate, onSelectItem, detailed = false }: Props) {
+export function TimeGrid({ days, itemsByDate, sessionItemsByDate, onSelectItem, detailed = false }: Props) {
   const { settings } = useSettings();
   const today = useMemo(() => {
     const d = new Date();
@@ -93,13 +102,15 @@ export function TimeGrid({ days, itemsByDate, onSelectItem, detailed = false }: 
         <div className="absolute inset-0 grid gap-x-[3px] px-1" style={{ gridTemplateColumns: colTemplate }}>
           <div />
           {days.map((d) => {
-            const { blocks, laneCount } = layout(itemsByDate.get(d) ?? []);
+            const dayItems = [...(itemsByDate.get(d) ?? []), ...(sessionItemsByDate?.get(d) ?? [])];
+            const { blocks, laneCount } = layout(dayItems);
             const colW = 100 / laneCount;
             return (
               <div key={d} className="relative">
                 {blocks.map(({ it, lane, start, end }) => {
                   const top = (start / 60) * HOUR_H;
                   const height = Math.max(detailed ? 28 : 18, ((end - start) / 60) * HOUR_H);
+                  const isSession = it.kind === 'session';
                   return (
                     <motion.button
                       key={it.id}
@@ -111,20 +122,23 @@ export function TimeGrid({ days, itemsByDate, onSelectItem, detailed = false }: 
                         top, height,
                         left: `calc(${lane * colW}% + 2px)`,
                         width: `calc(${colW}% - 4px)`,
-                        background: `${it.color}22`,
+                        background: isSession ? `${it.color}1c` : `${it.color}22`,
                         borderLeft: `3px solid ${it.color}`,
                       }}
                     >
-                      {detailed && (
-                        <>
-                          <span className={`block text-[11px] font-semibold truncate leading-tight ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>{it.title}</span>
-                          {height >= 40 && (
-                            <span className="block text-[10px] text-[#888] tabular-nums leading-tight truncate">
-                              {formatEventTime(minToHHMM(start), settings.timeFormat)} – {formatEventTime(minToHHMM(end), settings.timeFormat)}
-                            </span>
-                          )}
-                        </>
-                      )}
+                      <span className="flex items-start gap-1 min-w-0">
+                        {isSession && <span className="mt-[1px]"><ClockGlyph color={it.color} /></span>}
+                        {detailed && (
+                          <span className="flex-1 min-w-0">
+                            <span className={`block text-[11px] font-semibold truncate leading-tight ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>{it.title}</span>
+                            {height >= 40 && (
+                              <span className="block text-[10px] text-[#888] tabular-nums leading-tight truncate">
+                                {formatEventTime(minToHHMM(start), settings.timeFormat)} – {formatEventTime(minToHHMM(end), settings.timeFormat)}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </span>
                     </motion.button>
                   );
                 })}

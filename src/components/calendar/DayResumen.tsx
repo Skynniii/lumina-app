@@ -101,8 +101,8 @@ export function DayResumen({ date, items, allTasks, allEvents, lists, activities
       key: `ev-${e.id}`,
       time: created ? formatTime24(created.toISOString()) : e.start,
       icon: <PlusIcon color={e.color} />,
-      title: e.title?.trim() || 'Evento',
-      label: 'Evento',
+      title: e.title?.trim() || (e.birthday ? 'Cumpleaños' : 'Evento'),
+      label: e.birthday ? 'Cumpleaños' : 'Evento',
       item: items.find((i) => i.event?.id === e.id),
     });
   }

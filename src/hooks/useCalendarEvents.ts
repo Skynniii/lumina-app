@@ -19,12 +19,12 @@ export function useCalendarEvents() {
 
   const addEvent = useCallback((e: Omit<CalendarEvent, 'id'>): string => {
     const id = `ev-${Date.now()}`;
-    collSet(id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes });
+    collSet(id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes, birthday: e.birthday });
     return id;
   }, [collSet]);
 
   const updateEvent = useCallback((e: CalendarEvent) => {
-    collUpdate(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes });
+    collUpdate(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes, birthday: e.birthday });
   }, [collUpdate]);
 
   const deleteEvent = useCallback((id: string) => {

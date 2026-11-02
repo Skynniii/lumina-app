@@ -24,9 +24,13 @@ const EventIcon = ({ color }: { color: string }) => (
 const SessionIcon = ({ color }: { color: string }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
 );
+const CakeIcon = ({ color }: { color: string }) => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" /><path d="M4 16h16" /><path d="M12 8V5" /><circle cx="12" cy="4" r="1" /></svg>
+);
 
-/** Icono de la familia del ítem: tarea, evento o registro. */
+/** Icono de la familia del ítem: tarea, evento, cumpleaños o registro. */
 function FamilyIcon({ item }: { item: CalendarItem }) {
+  if (item.birthday) return <CakeIcon color={item.color} />;
   if (item.kind === 'event') return <EventIcon color={item.color} />;
   if (item.kind === 'session') return <SessionIcon color={item.color} />;
   return <TaskIcon color={item.color} />;

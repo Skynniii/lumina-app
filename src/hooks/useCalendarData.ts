@@ -11,6 +11,9 @@ export type CalendarLayer = 'pending' | 'completed' | 'session' | 'event';
 
 export const ALL_LAYERS: CalendarLayer[] = ['pending', 'completed', 'session', 'event'];
 
+/** Capas que se pintan en las vistas normales del calendario (mes, semana, día, agenda). */
+export const VIEW_LAYERS: CalendarLayer[] = ['pending', 'event'];
+
 export const LAYER_META: Record<CalendarLayer, { label: string; short: string; color: string }> = {
   pending: { label: 'Pendientes', short: 'Tarea', color: '#7f70ff' },
   completed: { label: 'Completadas', short: 'Completada', color: '#34c77b' },
@@ -32,10 +35,6 @@ export const DAY_MARKER_META: Record<string, { label: string; color: string }> =
 
 export const DAY_MARKER_ORDER = ['task', 'event', 'session'];
 
-export const DEFAULT_LAYERS: Record<CalendarLayer, boolean> = {
-  pending: true, completed: true, session: true, event: true,
-};
-
 /**
  * Ítem unificado del calendario. Las tareas y los registros de tiempo se derivan
  * de sus colecciones actuales; los eventos son la única fuente propia.
@@ -51,6 +50,7 @@ export interface CalendarItem {
   color: string;            // color de la familia (tarea pendiente, evento…)
   accent?: string;          // color de la actividad del ítem, si tiene
   order?: number;
+  birthday?: boolean;       // cumpleaños: se repite cada año
   task?: Task;
   session?: TimeSession;
   event?: CalendarEvent;
@@ -235,7 +235,20 @@ export function useCalendarData() {
       });
     }
 
+    const baseYear = new Date().getFullYear();
     for (const e of events) {
+      // Cumpleaños: mismo día y mes en los años cercanos (la agenda cubre ±12 meses)
+      if (e.birthday) {
+        const [, mm, dd] = e.date.split('-');
+        for (let y = baseYear - 1; y <= baseYear + 2; y++) {
+          out.push({
+            id: `b-${e.id}-${y}`, kind: 'event', date: `${y}-${mm}-${dd}`,
+            title: e.title, subtitle: 'Cumpleaños', color: e.color, accent: e.color,
+            event: e, birthday: true, order: -1,
+          });
+        }
+        continue;
+      }
       out.push({
         id: `e-${e.id}`, kind: 'event', date: e.date,
         startMin: timeToMinutes(e.start), endMin: timeToMinutes(e.end),

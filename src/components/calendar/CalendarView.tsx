@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { useUserStorage } from '../../hooks/useUserStorage';
 import { MONTHS, dateKey } from '../../hooks/useCalendarEvents';
 import { incrementTaskTime } from '../../hooks/useFirestoreCollection';
 import { todayKey } from '../../hooks/useTimeTracker';
 import {
-  useCalendarData, DEFAULT_LAYERS, parseKey, shiftKey, weekDaysOf,
-  type CalendarItem, type CalendarLayer,
+  useCalendarData, VIEW_LAYERS, parseKey, shiftKey, weekDaysOf,
+  type CalendarItem,
 } from '../../hooks/useCalendarData';
+import { smoothScrollTo } from '../../utils/smoothScroll';
 import { sortListsForDisplay } from '../../utils/listOrder';
 import { SectionHeader } from '../ui/SectionHeader';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
@@ -48,9 +48,10 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   const [mode, setMode] = useState<CalendarViewMode>('agenda');
   const [anchor, setAnchor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => todayKey());
-  // Se incrementa al pulsar "Hoy" para que la agenda baje hasta el mes actual
+  // Se incrementa al pulsar "Hoy" para que la agenda se deslice hasta el mes actual
   const [todayPulse, setTodayPulse] = useState(0);
-  const [layers, setLayers] = useUserStorage<Record<CalendarLayer, boolean>>('calendar-layers', DEFAULT_LAYERS);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const agendaScrollRef = useRef<HTMLDivElement>(null);
 
   const [quickAdd, setQuickAdd] = useState(false);
   const [showNewTask, setShowNewTask] = useState(false);
@@ -67,16 +68,32 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
     return () => window.removeEventListener('app-add', handler);
   }, []);
 
+  // En las vistas normales solo se pintan tareas pendientes y eventos;
+  // lo completado y los registros viven en "Detalles del día".
   const visibleByDate = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
     for (const [d, arr] of itemsByDate) {
-      const filtered = arr.filter((i) => layers[i.kind] !== false);
-      if (filtered.length > 0) map.set(d, filtered);
+      const shown = arr.filter((i) => VIEW_LAYERS.includes(i.kind));
+      if (shown.length > 0) map.set(d, shown);
     }
     return map;
-  }, [itemsByDate, layers]);
+  }, [itemsByDate]);
+
+  // Registros de tiempo por día, para pintarlos en su franja horaria en semana/día
+  const sessionsByDate = useMemo(() => {
+    const map = new Map<string, CalendarItem[]>();
+    for (const it of data.items) {
+      if (it.kind !== 'session') continue;
+      const arr = map.get(it.date);
+      if (arr) arr.push(it);
+      else map.set(it.date, [it]);
+    }
+    return map;
+  }, [data.items]);
 
   const selectedItems = visibleByDate.get(selectedDate) ?? [];
+  // "Detalles del día" sí recibe todo lo del día (agregadas, completadas y registros)
+  const dayItems = itemsByDate.get(selectedDate) ?? [];
   const weekDays = useMemo(() => weekDaysOf(anchor), [anchor]);
 
   const title = useMemo(() => `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`, [anchor]);
@@ -85,7 +102,10 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
     setAnchor(new Date());
     setSelectedDate(todayKey());
     setTodayPulse((n) => n + 1);
-  }, []);
+    // En mes, semana y día se vuelve arriba con animación; la agenda se desliza
+    // hasta el mes actual desde dentro de AgendaView.
+    if (mode !== 'agenda') smoothScrollTo(topScrollRef.current, 0, 600);
+  }, [mode]);
 
   // Orden de las vistas: agenda → mes → semana → día
   const cycleMode = useCallback(() => {
@@ -101,10 +121,6 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
       setAnchor(parseKey(selectedDate));
     }
   }, [mode, selectedDate]);
-
-  const toggleLayer = useCallback((l: CalendarLayer) => {
-    setLayers((prev) => ({ ...prev, [l]: !prev[l] }));
-  }, [setLayers]);
 
   const openItem = useCallback((it: CalendarItem) => {
     if (it.event) setEventDetail(it.event);
@@ -169,8 +185,6 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
         onCycleMode={cycleMode}
         title={title}
         onToday={goToday}
-        layers={layers}
-        onToggleLayer={toggleLayer}
         anchor={anchor}
         onMonthSelect={handleMonthSelect}
       />
@@ -180,6 +194,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
           // Vista de mes: calendario arriba + info del día debajo, todo deslizable
           <motion.div
             key="month"
+            ref={topScrollRef}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.26, ease: 'easeOut' }}
@@ -202,7 +217,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
               />
               <DayResumen
                 date={selectedDate}
-                items={selectedItems}
+                items={dayItems}
                 allTasks={tasks}
                 allEvents={events}
                 lists={lists}
@@ -215,6 +230,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
           // Vista de semana: días con barritas por familia + rejilla horaria, a ancho completo
           <motion.div
             key="week"
+            ref={topScrollRef}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.26, ease: 'easeOut' }}
@@ -231,6 +247,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
             <TimeGrid
               days={weekDays}
               itemsByDate={visibleByDate}
+              sessionItemsByDate={sessionsByDate}
               onSelectItem={openItem}
             />
           </motion.div>
@@ -238,6 +255,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
           // Vista de día: info del día, rejilla horaria y detalles, todo a ancho completo
           <div
             key="day"
+            ref={topScrollRef}
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-[#f2f1f6] pb-[110px]"
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
@@ -250,13 +268,14 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
             <TimeGrid
               days={[selectedDate]}
               itemsByDate={visibleByDate}
+              sessionItemsByDate={sessionsByDate}
               onSelectItem={openItem}
               detailed
             />
             <div className="px-2 pt-3">
               <DayResumen
                 date={selectedDate}
-                items={selectedItems}
+                items={dayItems}
                 allTasks={tasks}
                 allEvents={events}
                 lists={lists}
@@ -269,6 +288,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
           // Agenda: información agrupada por meses y semanas
           <motion.div
             key="agenda"
+            ref={agendaScrollRef}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.26, ease: 'easeOut' }}
@@ -281,6 +301,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
               onSelectItem={openItem}
               anchor={anchor}
               todayPulse={todayPulse}
+              scrollRef={agendaScrollRef}
             />
           </motion.div>
         )}
@@ -291,7 +312,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
         date={selectedDate}
         onClose={() => setQuickAdd(false)}
         onNewTask={() => { setQuickAdd(false); setShowNewTask(true); }}
-        onNewEvent={() => { setQuickAdd(false); setEventForm({ mode: 'create' }); }}
+        onCreateEvent={(e) => eventsApi.addEvent(e)}
       />
 
       <NuevaTareaModal

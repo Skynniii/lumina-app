@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { formatEventTime, dateKey, MONTHS } from '../../hooks/useCalendarEvents';
 import { LAYER_META, minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
 import { todayKey } from '../../hooks/useTimeTracker';
+import { smoothScrollTo } from '../../utils/smoothScroll';
 import { MonthArt } from './MonthArt';
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
   onSelectItem: (i: CalendarItem) => void;
   anchor: Date;
   todayPulse?: number;
+  /** Contenedor con scroll de la agenda (para animar el salto a hoy). */
+  scrollRef: RefObject<HTMLDivElement | null>;
 }
 
 const SHORT_WEEKDAY = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -31,6 +34,9 @@ const EventIcon = ({ color }: { color: string }) => (
 const ClockIcon = ({ color }: { color: string }) => (
   <svg {...ICON} stroke={color}><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
 );
+const CakeIcon = ({ color }: { color: string }) => (
+  <svg {...ICON} stroke={color}><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" /><path d="M4 16h16" /><path d="M12 8V5" /><circle cx="12" cy="4" r="1" /></svg>
+);
 
 /**
  * Vista de agenda: de un año atrás a un año adelante, con una ilustración por
@@ -38,7 +44,7 @@ const ClockIcon = ({ color }: { color: string }) => (
  * con el color de su actividad (barrita a la izquierda + tarjeta suave + icono)
  * y los eventos a color pleno con su icono.
  */
-export function AgendaView({ itemsByDate, onSelectDate, onSelectItem, anchor, todayPulse = 0 }: Props) {
+export function AgendaView({ itemsByDate, onSelectDate, onSelectItem, anchor, todayPulse = 0, scrollRef }: Props) {
   const { settings } = useSettings();
   const today = todayKey();
   const currentRef = useRef<HTMLDivElement>(null);
@@ -78,11 +84,15 @@ export function AgendaView({ itemsByDate, onSelectDate, onSelectItem, anchor, to
     return result;
   }, [anchor, itemsByDate]);
 
-  // El botón "Hoy" baja hasta el mes en curso
+  // El botón "Hoy" se desliza hasta el mes en curso (no salta de golpe)
   useEffect(() => {
     if (!todayPulse) return;
-    currentRef.current?.scrollIntoView({ block: 'start' });
-  }, [todayPulse]);
+    const scroller = scrollRef.current;
+    const target = currentRef.current;
+    if (!scroller || !target) return;
+    const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    smoothScrollTo(scroller, top, 750);
+  }, [todayPulse, scrollRef]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -97,15 +107,18 @@ export function AgendaView({ itemsByDate, onSelectDate, onSelectItem, anchor, to
               <span className="absolute left-3 bottom-2 text-[17px] font-bold text-[#333] capitalize">{MONTHS[month]} {year}</span>
             </div>
 
-            {weeks.map((week, wi) => (
+            {weeks.map((week, wi) => {
+              // Todas las semanas se listan (aunque estén vacías): el mes siempre se ve
+              const days = week.days.filter((d) => d.items.length > 0 || d.key === today);
+              return (
               <div key={wi} className="mt-4">
                 {/* Etiqueta de la semana */}
                 <p className="text-[11px] font-medium text-[#9a9aa8] m-0 mb-2">{week.label}</p>
 
                 {/* Días con actividad */}
+                {days.length > 0 && (
                 <div className="flex flex-col gap-3">
-                  {week.days
-                    .filter((d) => d.items.length > 0 || d.key === today)
+                  {days
                     .map(({ key, date, items }) => {
                       const isToday = key === today;
                       return (
@@ -139,7 +152,7 @@ export function AgendaView({ itemsByDate, onSelectDate, onSelectItem, anchor, to
                                 const second = time || it.subtitle || '';
                                 const isTask = it.kind === 'pending' || it.kind === 'completed';
                                 const accent = it.accent || LAYER_META.pending.color;
-                                const Icon = isTask ? TaskIcon : it.kind === 'event' ? EventIcon : ClockIcon;
+                                const Icon = it.birthday ? CakeIcon : isTask ? TaskIcon : it.kind === 'event' ? EventIcon : ClockIcon;
                                 const iconColor = isTask ? accent : '#ffffff';
 
                                 return (
@@ -171,8 +184,15 @@ export function AgendaView({ itemsByDate, onSelectDate, onSelectItem, anchor, to
                       );
                     })}
                 </div>
+                )}
               </div>
-            ))}
+              );
+            })}
+
+            {/* Mes sin nada: se muestra igual, con una nota discreta */}
+            {!weeks.some((w) => w.days.some((d) => d.items.length > 0 || d.key === today)) && (
+              <p className="text-[12px] text-[#c4c4ce] m-0 mt-3 pl-1">Sin actividad este mes</p>
+            )}
           </div>
         );
       })}
