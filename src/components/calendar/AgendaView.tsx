@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react';
 import { motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { formatEventTime, dateKey, MONTHS } from '../../hooks/useCalendarEvents';
@@ -47,7 +47,7 @@ const CakeIcon = ({ color }: { color: string }) => (
 export function AgendaView({ itemsByDate, onSelectDate, onSelectItem, anchor, todayPulse = 0, scrollRef }: Props) {
   const { settings } = useSettings();
   const today = todayKey();
-  const currentRef = useRef<HTMLDivElement>(null);
+  const todayRef = useRef<HTMLDivElement>(null);
 
   const months = useMemo(() => {
     const result: { year: number; month: number; weeks: { label: string; days: { key: string; date: Date; items: CalendarItem[] }[] }[] }[] = [];
@@ -84,22 +84,27 @@ export function AgendaView({ itemsByDate, onSelectDate, onSelectItem, anchor, to
     return result;
   }, [anchor, itemsByDate]);
 
-  // El botón "Hoy" se desliza hasta el mes en curso (no salta de golpe)
-  useEffect(() => {
-    if (!todayPulse) return;
+  /** Deja el día de hoy centrado en la agenda. */
+  const centerOnToday = useCallback((smooth: boolean) => {
     const scroller = scrollRef.current;
-    const target = currentRef.current;
+    const target = todayRef.current;
     if (!scroller || !target) return;
-    const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
-    smoothScrollTo(scroller, top, 750);
-  }, [todayPulse, scrollRef]);
+    const delta = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    const top = scroller.scrollTop + delta - scroller.clientHeight / 2 + target.offsetHeight / 2;
+    if (smooth) smoothScrollTo(scroller, top, 750);
+    else scroller.scrollTop = Math.max(0, top);
+  }, [scrollRef]);
+
+  // El botón "Hoy" se desliza hasta la fecha actual (no salta de golpe)
+  useEffect(() => {
+    if (todayPulse) centerOnToday(true);
+  }, [todayPulse, centerOnToday]);
 
   return (
     <div className="flex flex-col gap-6">
       {months.map(({ year, month, weeks }) => {
-        const isAnchorMonth = year === anchor.getFullYear() && month === anchor.getMonth();
         return (
-          <div key={`${year}-${month}`} ref={isAnchorMonth ? currentRef : undefined}>
+          <div key={`${year}-${month}`}>
             {/* Ilustración del mes con su nombre encima */}
             <div className="relative">
               <MonthArt month={month} />
@@ -124,6 +129,8 @@ export function AgendaView({ itemsByDate, onSelectDate, onSelectItem, anchor, to
                       return (
                         <motion.div
                           key={key}
+                          ref={isToday ? todayRef : undefined}
+                          data-agenda-today={isToday ? '' : undefined}
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.2 }}

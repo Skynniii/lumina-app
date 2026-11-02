@@ -66,11 +66,15 @@ export function useFirestoreCollection<T extends { id: string }>(
     if (!uid) { setItems([]); setLoading(false); return; }
     let mounted = true;
 
-    // Cargar de IndexedDB (instantáneo)
+    // Cargar de IndexedDB (instantáneo). Si la lectura falla, no dejamos la
+    // sección bloqueada en el spinner: se sigue con la lista vacía.
     getAllLocal<T>(subcollection).then((docs) => {
       if (!mounted) return;
       setItems(docs);
       setLoading(false);
+    }).catch((err) => {
+      console.error(err);
+      if (mounted) setLoading(false);
     });
 
     // Suscribirse a cambios locales (notificados por el syncEngine)

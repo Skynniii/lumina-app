@@ -93,11 +93,15 @@ export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle
   const [rectSize, setRectSize] = useState<{ w: number; h: number } | null>(null);
   const liRef = useRef<HTMLLIElement>(null);
   // Combina la ref interna (medición) con la ref externa que exige AnimatePresence popLayout.
+  // La función es estable: si cambiara en cada render, el nodo se des/re-engancharía.
+  const extRef = useRef(ref);
+  extRef.current = ref;
   const setLiRef = useCallback((el: HTMLLIElement | null) => {
     liRef.current = el;
-    if (typeof ref === 'function') ref(el);
-    else if (ref) (ref as React.MutableRefObject<HTMLLIElement | null>).current = el;
-  }, [ref]);
+    const r = extRef.current;
+    if (typeof r === 'function') r(el);
+    else if (r) (r as React.MutableRefObject<HTMLLIElement | null>).current = el;
+  }, []);
 
   const isCompleted = task.completed;
   const isChecked = task.completed || optimistic;

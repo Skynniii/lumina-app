@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { MONTHS, dateKey } from '../../hooks/useCalendarEvents';
@@ -20,6 +20,7 @@ import { MonthDayInfo } from './MonthDayInfo';
 import { DayHeadline } from './DayHeadline';
 import { DayResumen } from './DayResumen';
 import { AgendaView } from './AgendaView';
+import { SwipePager } from './SwipePager';
 import { CalendarQuickAdd } from './CalendarQuickAdd';
 import { EventForm } from './EventForm';
 import { EventDetail } from './EventDetail';
@@ -52,6 +53,18 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   const [todayPulse, setTodayPulse] = useState(0);
   const topScrollRef = useRef<HTMLDivElement>(null);
   const agendaScrollRef = useRef<HTMLDivElement>(null);
+
+  // La agenda entra siempre centrada en el día de hoy, sin desplazamiento visible.
+  // Se hace aquí (padre) porque el ref del contenedor con scroll solo está listo
+  // después de que sus hijos terminen de montarse.
+  useLayoutEffect(() => {
+    if (mode !== 'agenda') return;
+    const scroller = agendaScrollRef.current;
+    const target = scroller?.querySelector<HTMLElement>('[data-agenda-today]');
+    if (!scroller || !target) return;
+    const delta = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    scroller.scrollTop = Math.max(0, scroller.scrollTop + delta - scroller.clientHeight / 2 + target.offsetHeight / 2);
+  }, [mode, data.loading]);
 
   const [quickAdd, setQuickAdd] = useState(false);
   const [showNewTask, setShowNewTask] = useState(false);
@@ -118,7 +131,9 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
       setAnchor(new Date());
       setSelectedDate(todayKey());
     } else if (next === 'agenda') {
-      setAnchor(parseKey(selectedDate));
+      // La agenda entra siempre situada en la fecha actual
+      setAnchor(new Date());
+      setSelectedDate(todayKey());
     }
   }, [mode, selectedDate]);
 
@@ -146,21 +161,6 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
       setSelectedDate(dateKey(new Date(year, month, 1)));
     }
   }, [mode]);
-
-  // Navegación por deslizamiento para semana/día/agenda
-  const touchStart = useRef(0);
-  const onTouchStart = (e: React.TouchEvent) => { touchStart.current = e.touches[0].clientX; };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const diff = touchStart.current - e.changedTouches[0].clientX;
-    if (Math.abs(diff) <= 50) return;
-    if (mode === 'week') {
-      setAnchor((a) => parseKey(shiftKey(dateKey(a), diff > 0 ? 7 : -7)));
-    } else {
-      const next = shiftKey(selectedDate, diff > 0 ? 1 : -1);
-      setSelectedDate(next);
-      setAnchor(parseKey(next));
-    }
-  };
 
   const openTask = openTaskId ? tasks.find((t) => t.id === openTaskId) ?? null : null;
   const openSession = openSessionId ? sessions.find((s) => s.id === openSessionId) ?? null : null;
@@ -191,23 +191,33 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {mode === 'month' ? (
-          // Vista de mes: calendario arriba + info del día debajo, todo deslizable
+          // Vista de mes: la rejilla es una ventana que se desliza entre meses
           <motion.div
             key="month"
             ref={topScrollRef}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.26, ease: 'easeOut' }}
-            className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-2 pb-[110px] pt-2"
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar pb-[110px] pt-2"
           >
-            <MonthGrid
-              anchorMonth={anchor}
-              onMonthChange={setAnchor}
-              selectedDate={selectedDate}
-              onSelectDate={selectDate}
-              itemsByDate={visibleByDate}
-            />
-            <div className="pt-3 flex flex-col gap-3">
+            <div className="px-2">
+              <SwipePager
+                pageKey={`${anchor.getFullYear()}-${anchor.getMonth()}`}
+                onPrev={() => setAnchor((a) => new Date(a.getFullYear(), a.getMonth() - 1, 1))}
+                onNext={() => setAnchor((a) => new Date(a.getFullYear(), a.getMonth() + 1, 1))}
+                renderPage={(off) => (
+                  <div className="px-1">
+                    <MonthGrid
+                      anchorMonth={new Date(anchor.getFullYear(), anchor.getMonth() + off, 1)}
+                      selectedDate={selectedDate}
+                      onSelectDate={selectDate}
+                      itemsByDate={visibleByDate}
+                    />
+                  </div>
+                )}
+              />
+            </div>
+            <div className="px-2 pt-3 flex flex-col gap-3">
               <MonthDayInfo
                 date={selectedDate}
                 items={selectedItems}
@@ -227,7 +237,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
             </div>
           </motion.div>
         ) : mode === 'week' ? (
-          // Vista de semana: días con barritas por familia + rejilla horaria, a ancho completo
+          // Vista de semana: la semana entera se desliza entre semanas
           <motion.div
             key="week"
             ref={topScrollRef}
@@ -235,54 +245,74 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.26, ease: 'easeOut' }}
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-[#f2f1f6] pb-[110px]"
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
           >
-            <WeekHeader
-              days={weekDays}
-              itemsByDate={visibleByDate}
-              selectedDate={selectedDate}
-              onOpenDay={openDay}
-            />
-            <TimeGrid
-              days={weekDays}
-              itemsByDate={visibleByDate}
-              sessionItemsByDate={sessionsByDate}
-              onSelectItem={openItem}
+            <SwipePager
+              pageKey={weekDays[0]}
+              onPrev={() => setAnchor((a) => parseKey(shiftKey(dateKey(a), -7)))}
+              onNext={() => setAnchor((a) => parseKey(shiftKey(dateKey(a), 7)))}
+              renderPage={(off) => {
+                const days = off === 0 ? weekDays : weekDaysOf(parseKey(shiftKey(weekDays[0], off * 7)));
+                return (
+                  <>
+                    <WeekHeader
+                      days={days}
+                      itemsByDate={visibleByDate}
+                      selectedDate={selectedDate}
+                      onOpenDay={openDay}
+                    />
+                    <TimeGrid
+                      days={days}
+                      itemsByDate={visibleByDate}
+                      sessionItemsByDate={sessionsByDate}
+                      onSelectItem={openItem}
+                    />
+                  </>
+                );
+              }}
             />
           </motion.div>
         ) : mode === 'day' ? (
-          // Vista de día: info del día, rejilla horaria y detalles, todo a ancho completo
+          // Vista de día: el día entero se desliza entre días
           <div
             key="day"
             ref={topScrollRef}
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-[#f2f1f6] pb-[110px]"
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
           >
-            <DayHeadline
-              date={selectedDate}
-              items={selectedItems}
-              onSelectItem={openItem}
+            <SwipePager
+              pageKey={selectedDate}
+              onPrev={() => { const k = shiftKey(selectedDate, -1); setSelectedDate(k); setAnchor(parseKey(k)); }}
+              onNext={() => { const k = shiftKey(selectedDate, 1); setSelectedDate(k); setAnchor(parseKey(k)); }}
+              renderPage={(off) => {
+                const key = off === 0 ? selectedDate : shiftKey(selectedDate, off);
+                return (
+                  <>
+                    <DayHeadline
+                      date={key}
+                      items={visibleByDate.get(key) ?? []}
+                      onSelectItem={openItem}
+                    />
+                    <TimeGrid
+                      days={[key]}
+                      itemsByDate={visibleByDate}
+                      sessionItemsByDate={sessionsByDate}
+                      onSelectItem={openItem}
+                      detailed
+                    />
+                    <div className="px-2 pt-3">
+                      <DayResumen
+                        date={key}
+                        items={itemsByDate.get(key) ?? []}
+                        allTasks={tasks}
+                        allEvents={events}
+                        lists={lists}
+                        activities={activities}
+                        onSelectItem={openItem}
+                      />
+                    </div>
+                  </>
+                );
+              }}
             />
-            <TimeGrid
-              days={[selectedDate]}
-              itemsByDate={visibleByDate}
-              sessionItemsByDate={sessionsByDate}
-              onSelectItem={openItem}
-              detailed
-            />
-            <div className="px-2 pt-3">
-              <DayResumen
-                date={selectedDate}
-                items={dayItems}
-                allTasks={tasks}
-                allEvents={events}
-                lists={lists}
-                activities={activities}
-                onSelectItem={openItem}
-              />
-            </div>
           </div>
         ) : (
           // Agenda: información agrupada por meses y semanas
