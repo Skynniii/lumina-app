@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { monthWeeks, dateKey } from '../../hooks/useCalendarEvents';
-import type { CalendarItem } from '../../hooks/useCalendarData';
+import { dayMarkers, type CalendarItem } from '../../hooks/useCalendarData';
 
 interface Props {
   anchorMonth: Date;
@@ -74,12 +74,12 @@ export function MonthGrid({ anchorMonth, onMonthChange, selectedDate, onSelectDa
                     const dayItems = itemsByDate.get(key) ?? [];
                     const isSelected = key === selectedDate;
                     const isToday = key === today;
-                    const dots = dayItems.slice(0, 3);
+                    const dots = dayMarkers(dayItems);
                     return (
                       <button
                         key={key}
                         onClick={() => onSelectDate(key)}
-                        className={`${fillHeight ? 'h-full w-full' : 'h-[48px] w-full'} flex flex-col items-center justify-center gap-[3px] rounded-[12px] border-none cursor-pointer transition-colors ${
+                        className={`${fillHeight ? 'h-full w-full' : 'h-[48px] w-full'} relative flex items-center justify-center rounded-[12px] border-none cursor-pointer transition-colors ${
                           isSelected
                             ? 'bg-[#7f70ff]'
                             : isToday
@@ -90,14 +90,12 @@ export function MonthGrid({ anchorMonth, onMonthChange, selectedDate, onSelectDa
                         <span className={`text-[13px] leading-none ${isSelected ? 'text-white font-bold' : isToday ? 'text-[#7f70ff] font-bold' : 'text-[#444] font-medium'}`}>
                           {day}
                         </span>
-                        {dayItems.length > 0 && (
-                          <span className="flex items-center gap-[2.5px] h-[5px]">
-                            {dots.map((it) => (
-                              <span key={it.id} className="w-[4px] h-[4px] rounded-full" style={{ background: isSelected ? 'rgba(255,255,255,0.9)' : it.color }} />
+                        {/* Puntos en posición absoluta: el número queda siempre centrado */}
+                        {dots.length > 0 && (
+                          <span className="absolute bottom-[6px] left-0 right-0 flex items-center justify-center gap-[3px]">
+                            {dots.map((c) => (
+                              <span key={c} className="w-[4px] h-[4px] rounded-full" style={{ background: isSelected ? 'rgba(255,255,255,0.9)' : c }} />
                             ))}
-                            {dayItems.length > 3 && (
-                              <span className={`text-[8px] font-bold leading-none ${isSelected ? 'text-white/90' : 'text-[#aaa]'}`}>+{dayItems.length - 3}</span>
-                            )}
                           </span>
                         )}
                       </button>

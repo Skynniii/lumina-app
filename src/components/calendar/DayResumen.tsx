@@ -1,88 +1,143 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { isoToDateKey } from '../../hooks/useTimeTracker';
-import { formatDuration } from '../tracker/trackerUtils';
+import { isoToDateKey, todayKey } from '../../hooks/useTimeTracker';
 import { LAYER_META, minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
-import type { Task } from '../../types';
+import type { Activity, CalendarEvent, Task, TaskList } from '../../types';
 
 interface Props {
   date: string; // YYYY-MM-DD
   items: CalendarItem[];
   allTasks: Task[];
+  allEvents: CalendarEvent[];
+  lists: TaskList[];
+  activities: Activity[];
   onSelectItem: (i: CalendarItem) => void;
 }
 
-/** Formatea hora en 24h (HH:MM) para evitar salto de línea del a.m./p.m. */
+/** Hora en 24h (HH:MM) a partir de un ISO. */
 function formatTime24(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-const PlusIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+/** Momento de creación de un evento: su id guarda `ev-<epoch>`. */
+function eventCreatedAt(e: CalendarEvent): Date | null {
+  const epoch = Number(e.id.split('-')[1]);
+  return Number.isFinite(epoch) && epoch > 0 ? new Date(epoch) : null;
+}
+
+const PlusIcon = ({ color }: { color: string }) => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
 );
-const CheckResumenIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34c77b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+const CheckCircleIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></svg>
 );
-const ClockResumenIcon = ({ color }: { color: string }) => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+const ClockIcon = ({ color }: { color: string }) => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
 );
 
-type ActivityEntry = {
-  time: string;
+type DetailRow = {
+  key: string;
+  time: string;        // hora a la izquierda (HH:MM)
+  icon: ReactNode;
   title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  item?: CalendarItem;
+  label?: string;      // texto bajo el título ("Tarea: X", "Evento", actividad…)
+  dotColor?: string;   // puntito de la actividad
+  range?: string;      // rango de horas a la derecha (registros)
+  item?: CalendarItem; // si se puede abrir
 };
 
 /**
- * "Resumen del día": 3 recuadros (Agregadas, Completadas, Registros) +
- * lista cronológica de actividad. Colapsable por defecto.
+ * "Detalles del día": qué pasó ese día (agregado, completado y registros de
+ * tiempo) con su hora. Solo se muestra para hoy y días pasados. Colapsable.
  */
-export function DayResumen({ date, items, allTasks, onSelectItem }: Props) {
-  const [expanded, setExpanded] = useState(false);
+export function DayResumen({ date, items, allTasks, allEvents, lists, activities, onSelectItem }: Props) {
+  const [expanded, setExpanded] = useState(true);
+
+  // Los días futuros no tienen detalles que contar
+  if (date > todayKey()) return null;
+
+  const activityOfTask = (t: Task): Activity | undefined => {
+    const id = t.activityId || lists.find((l) => l.id === t.listId)?.activityId;
+    return id ? activities.find((a) => a.id === id) : undefined;
+  };
+  const findItemForTask = (taskId: string) => items.find((i) => i.task?.id === taskId);
 
   const completedItems = items.filter((i) => i.kind === 'completed');
   const sessionItems = items.filter((i) => i.kind === 'session');
 
-  // Tareas agregadas (creadas) ese día
-  const addedTasks = allTasks.filter((t) => {
-    if (t.isSeparator) return false;
-    if (!t.createdAt) return false;
-    return isoToDateKey(t.createdAt) === date;
+  const addedTasks = allTasks.filter((t) =>
+    !t.isSeparator && !!t.createdAt && isoToDateKey(t.createdAt) === date
+  );
+  const addedEvents = allEvents.filter((e) => {
+    const created = eventCreatedAt(e);
+    return !!created && isoToDateKey(created.toISOString()) === date;
   });
 
-  const hasActivity = completedItems.length > 0 || addedTasks.length > 0 || sessionItems.length > 0;
+  const rows: DetailRow[] = [];
 
-  // Lista cronológica de actividad
-  const activity: ActivityEntry[] = [];
-
-  for (const it of completedItems) {
-    activity.push({
-      time: it.task?.completedAt ? formatTime24(it.task.completedAt) : '',
-      title: it.title, subtitle: 'Completada',
-      icon: <CheckResumenIcon />, item: it,
-    });
-  }
+  // Tareas agregadas ese día
   for (const t of addedTasks) {
-    activity.push({
+    const activity = activityOfTask(t);
+    rows.push({
+      key: `add-${t.id}`,
       time: t.createdAt ? formatTime24(t.createdAt) : '',
-      title: t.title?.trim() || 'Tarea', subtitle: 'Agregada',
-      icon: <PlusIcon />,
+      icon: <PlusIcon color={LAYER_META.pending.color} />,
+      title: t.title?.trim() || activity?.name || 'Tarea',
+      label: activity ? `Tarea: ${activity.name}` : 'Tarea',
+      dotColor: activity?.color,
+      item: findItemForTask(t.id),
     });
   }
+
+  // Eventos agregados ese día
+  for (const e of addedEvents) {
+    const created = eventCreatedAt(e);
+    rows.push({
+      key: `ev-${e.id}`,
+      time: created ? formatTime24(created.toISOString()) : e.start,
+      icon: <PlusIcon color={e.color} />,
+      title: e.title?.trim() || 'Evento',
+      label: 'Evento',
+      item: items.find((i) => i.event?.id === e.id),
+    });
+  }
+
+  // Tareas completadas ese día
+  for (const it of completedItems) {
+    const activity = it.task ? activityOfTask(it.task) : undefined;
+    rows.push({
+      key: `done-${it.id}`,
+      time: it.task?.completedAt ? formatTime24(it.task.completedAt) : '',
+      icon: <CheckCircleIcon />,
+      title: it.title,
+      label: activity ? `Tarea: ${activity.name}` : 'Tarea',
+      dotColor: activity?.color,
+      item: it,
+    });
+  }
+
+  // Registros de tiempo: hora de fin a la izquierda, rango a la derecha
   for (const it of sessionItems) {
-    const startStr = it.startMin !== undefined ? minToHHMM(it.startMin) : '';
-    const endStr = it.endMin !== undefined ? minToHHMM(it.endMin) : '';
-    const timeRange = startStr && endStr ? `${startStr} - ${endStr}` : startStr;
-    activity.push({
-      time: timeRange,
-      title: it.title, subtitle: `Registro · ${formatDuration(it.session?.duration ?? 0)}`,
-      icon: <ClockResumenIcon color={it.color} />, item: it,
+    const s = it.session;
+    const startStr = s ? formatTime24(s.startTime) : it.startMin !== undefined ? minToHHMM(it.startMin) : '';
+    const endStr = s ? formatTime24(s.endTime) : it.endMin !== undefined ? minToHHMM(it.endMin) : '';
+    const activity = s?.activityId ? activities.find((a) => a.id === s.activityId) : undefined;
+    rows.push({
+      key: `ses-${it.id}`,
+      time: endStr,
+      icon: <ClockIcon color={activity?.color || LAYER_META.session.color} />,
+      title: s?.description?.trim() || 'Sin descripción',
+      label: activity?.name,
+      dotColor: activity?.color,
+      range: startStr && endStr ? `${startStr} - ${endStr}` : startStr,
+      item: it,
     });
   }
-  activity.sort((a, b) => a.time.localeCompare(b.time));
+
+  rows.sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+
+  const addedCount = addedTasks.length + addedEvents.length;
 
   return (
     <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] p-4">
@@ -92,7 +147,7 @@ export function DayResumen({ date, items, allTasks, onSelectItem }: Props) {
       >
         <div className="flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="9" /></svg>
-          <span className="text-[15px] font-bold text-[#333]">Resumen del día</span>
+          <span className="text-[15px] font-bold text-[#333]">Detalles del día</span>
         </div>
         <motion.svg animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></motion.svg>
       </button>
@@ -100,10 +155,10 @@ export function DayResumen({ date, items, allTasks, onSelectItem }: Props) {
       <AnimatePresence>
         {expanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-            {/* 3 recuadros */}
+            {/* Contadores */}
             <div className="grid grid-cols-3 gap-2 pt-3">
               <div className="rounded-2xl bg-[#f7f6f9] py-2.5 flex flex-col items-center gap-0.5">
-                <span className="text-[17px] font-bold leading-none tabular-nums" style={{ color: addedTasks.length > 0 ? '#7f70ff' : '#c8c8d0' }}>{addedTasks.length}</span>
+                <span className="text-[17px] font-bold leading-none tabular-nums" style={{ color: addedCount > 0 ? LAYER_META.pending.color : '#c8c8d0' }}>{addedCount}</span>
                 <span className="text-[10px] text-[#999] leading-none">Agregadas</span>
               </div>
               <div className="rounded-2xl bg-[#f7f6f9] py-2.5 flex flex-col items-center gap-0.5">
@@ -116,26 +171,40 @@ export function DayResumen({ date, items, allTasks, onSelectItem }: Props) {
               </div>
             </div>
 
-            {/* Lista de actividad */}
-            {hasActivity && (
-              <div className="flex flex-col gap-2.5 pt-3">
-                {activity.map((a, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className="text-[11px] font-semibold text-[#aaa] tabular-nums shrink-0 w-[85px] text-right whitespace-nowrap">{a.time}</span>
-                    <span className="shrink-0">{a.icon}</span>
-                    {a.item ? (
-                      <button onClick={() => onSelectItem(a.item!)} className="flex-1 min-w-0 p-0 border-none bg-transparent cursor-pointer text-left">
-                        <p className="text-[13px] font-medium text-[#555] m-0 truncate">{a.title}</p>
-                        <p className="text-[10px] text-[#bbb] m-0">{a.subtitle}</p>
-                      </button>
-                    ) : (
+            {/* Actividad cronológica */}
+            {rows.length === 0 ? (
+              <p className="text-[13px] text-[#bbb] pt-3 m-0">Sin actividad registrada</p>
+            ) : (
+              <div className="flex flex-col gap-3 pt-3">
+                {rows.map((r) => {
+                  const content = (
+                    <>
+                      <span className="text-[11px] font-semibold text-[#aaa] tabular-nums shrink-0 w-[38px] pt-[1px]">{r.time}</span>
+                      <span className="shrink-0 flex items-center justify-center w-[18px] h-[18px] mt-[1px]">{r.icon}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium text-[#555] m-0 truncate">{a.title}</p>
-                        <p className="text-[10px] text-[#bbb] m-0">{a.subtitle}</p>
+                        <p className="text-[13px] font-medium text-[#333] m-0 truncate">{r.title}</p>
+                        {(r.label || r.range) && (
+                          <div className="flex items-center justify-between gap-2 mt-[1px]">
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              {r.dotColor && <span className="w-[6px] h-[6px] rounded-full shrink-0" style={{ background: r.dotColor }} />}
+                              {r.label && <span className="text-[10px] text-[#aaa] truncate">{r.label}</span>}
+                            </span>
+                            {r.range && <span className="text-[10px] font-semibold text-[#aaa] tabular-nums shrink-0 whitespace-nowrap">{r.range}</span>}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    </>
+                  );
+                  return r.item ? (
+                    <button key={r.key} onClick={() => onSelectItem(r.item!)} className="flex items-start gap-2.5 w-full p-0 border-none bg-transparent cursor-pointer text-left active:scale-[0.99] transition-transform">
+                      {content}
+                    </button>
+                  ) : (
+                    <div key={r.key} className="flex items-start gap-2.5">
+                      {content}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </motion.div>

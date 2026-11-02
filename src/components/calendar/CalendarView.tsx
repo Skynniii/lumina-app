@@ -40,7 +40,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   const { user } = useAuth();
   const uid = user?.uid ?? null;
   const data = useCalendarData();
-  const { taskApi, sessionApi, eventsApi, itemsByDate, lists: rawLists, tasks, sessions } = data;
+  const { taskApi, sessionApi, eventsApi, itemsByDate, lists: rawLists, tasks, sessions, activities, events } = data;
   const lists = useMemo(() => sortListsForDisplay(rawLists), [rawLists]);
 
   const [mode, setMode] = useState<CalendarViewMode>('month');
@@ -159,7 +159,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
       <div className="flex-1 flex flex-col overflow-hidden">
         {mode === 'month' ? (
           // Vista de mes: calendario arriba + info del día debajo, todo deslizable
-          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-2">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-2 pb-[110px] pt-2">
             <MonthGrid
               anchorMonth={anchor}
               onMonthChange={setAnchor}
@@ -179,6 +179,9 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                 date={selectedDate}
                 items={selectedItems}
                 allTasks={tasks}
+                allEvents={events}
+                lists={lists}
+                activities={activities}
                 onSelectItem={openItem}
               />
             </div>
@@ -227,6 +230,9 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                 date={selectedDate}
                 items={selectedItems}
                 allTasks={tasks}
+                allEvents={events}
+                lists={lists}
+                activities={activities}
                 onSelectItem={openItem}
               />
             </div>
