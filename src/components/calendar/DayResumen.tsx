@@ -14,8 +14,6 @@ interface Props {
   lists: TaskList[];
   activities: Activity[];
   onSelectItem: (i: CalendarItem) => void;
-  /** Sin tarjeta: fondo completo, para las vistas de semana y día. */
-  flush?: boolean;
 }
 
 /** Hora en 24h (HH:MM) a partir de un ISO. */
@@ -55,7 +53,7 @@ type DetailRow = {
  * "Detalles del día": qué pasó ese día (agregado, completado y registros de
  * tiempo) con su hora. Solo se muestra para hoy y días pasados. Colapsable.
  */
-export function DayResumen({ date, items, allTasks, allEvents, lists, activities, onSelectItem, flush = false }: Props) {
+export function DayResumen({ date, items, allTasks, allEvents, lists, activities, onSelectItem }: Props) {
   const { settings } = useSettings();
   const [expanded, setExpanded] = useState(true);
   const fmt = (hhmm: string) => (hhmm ? formatEventTime(hhmm, settings.timeFormat) : '');
@@ -147,7 +145,7 @@ export function DayResumen({ date, items, allTasks, allEvents, lists, activities
   const addedCount = addedTasks.length + addedEvents.length;
 
   return (
-    <div className={flush ? 'bg-white px-4 py-3' : 'bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] p-4'}>
+    <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] p-4">
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center justify-between w-full p-0 border-none bg-transparent cursor-pointer"

@@ -15,13 +15,13 @@ interface Props {
 const LETTER = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 
 const TaskBarIcon = ({ color }: { color: string }) => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></svg>
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></svg>
 );
 const EventBarIcon = ({ color }: { color: string }) => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
 );
 const ClockBarIcon = ({ color }: { color: string }) => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
 );
 
 const BAR_ICONS: Record<string, (p: { color: string }) => ReactElement> = {
@@ -38,7 +38,7 @@ export function WeekHeader({ days, itemsByDate, selectedDate, onSelectDate }: Pr
   const today = dateKey();
 
   return (
-    <div className="grid bg-white border-b border-[#e9e7f1]" style={{ gridTemplateColumns: `40px repeat(${days.length}, minmax(0, 1fr))` }}>
+    <div className="grid bg-[#f2f1f6] border-b border-[#e0deec]" style={{ gridTemplateColumns: `40px repeat(${days.length}, minmax(0, 1fr))` }}>
       <div />
       {days.map((d) => {
         const dt = parseKey(d);
@@ -61,21 +61,21 @@ export function WeekHeader({ days, itemsByDate, selectedDate, onSelectDate }: Pr
             >
               {dt.getDate()}
             </span>
-            <div className="w-full flex flex-col gap-1 px-[2px]">
+            <div className="w-full flex flex-col gap-1 px-[2px] mt-[2px]">
               {keys.map((k) => {
                 const meta = DAY_MARKER_META[k];
                 const Icon = BAR_ICONS[k];
                 return (
                   <span
                     key={k}
-                    className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-[3px] w-full min-w-0"
+                    className="flex items-center gap-1 rounded-full pl-1.5 pr-2 py-[4px] w-full min-w-0"
                     style={{ background: `${meta.color}1a` }}
                   >
                     {Icon && <span className="shrink-0 flex"><Icon color={meta.color} /></span>}
                     <MarqueeText
                       text={meta.label}
                       className="flex-1"
-                      textClassName="text-[11px] font-bold leading-none"
+                      textClassName="text-[12px] font-bold leading-none"
                       textStyle={{ color: meta.color }}
                     />
                   </span>

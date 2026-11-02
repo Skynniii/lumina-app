@@ -4,6 +4,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { formatEventTime, dateKey, MONTHS } from '../../hooks/useCalendarEvents';
 import { minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
 import { todayKey } from '../../hooks/useTimeTracker';
+import { AgendaArt } from './AgendaArt';
 
 interface Props {
   itemsByDate: Map<string, CalendarItem[]>;
@@ -13,13 +14,13 @@ interface Props {
   anchor: Date;
 }
 
-const WEEKDAYS_FULL = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const SHORT_WEEKDAY = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 /**
- * Vista de agenda: agrupa la información por meses y semanas, mostrando
- * el día de hoy y los días que tienen tareas o eventos.
+ * Vista de agenda: por meses, con una ilustración de cabecera, las semanas
+ * etiquetadas y cada día con su fecha a la izquierda y sus barritas a la derecha.
  */
-export function AgendaView({ itemsByDate, selectedDate, onSelectDate, onSelectItem, anchor }: Props) {
+export function AgendaView({ itemsByDate, onSelectDate, onSelectItem, anchor }: Props) {
   const { settings } = useSettings();
   const today = todayKey();
 
@@ -50,8 +51,8 @@ export function AgendaView({ itemsByDate, selectedDate, onSelectDate, onSelectIt
             const ws = currentWeek[0].date;
             const we = currentWeek[currentWeek.length - 1].date;
             const label = ws.getMonth() === we.getMonth()
-              ? `${ws.getDate()} – ${we.getDate()} ${MONTHS[we.getMonth()].slice(0, 3)}`
-              : `${ws.getDate()} ${MONTHS[ws.getMonth()].slice(0, 3)} – ${we.getDate()} ${MONTHS[we.getMonth()].slice(0, 3)}`;
+              ? `${ws.getDate()} – ${we.getDate()} ${MONTHS[we.getMonth()].slice(0, 3)} ${we.getFullYear()}`
+              : `${ws.getDate()} ${MONTHS[ws.getMonth()].slice(0, 3)} – ${we.getDate()} ${MONTHS[we.getMonth()].slice(0, 3)} ${we.getFullYear()}`;
             weeks.push({ label, days: [...currentWeek] });
           }
           currentWeek = [];
@@ -64,68 +65,74 @@ export function AgendaView({ itemsByDate, selectedDate, onSelectDate, onSelectIt
   }, [anchor, itemsByDate, today]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {months.map(({ year, month, weeks }) => (
         <div key={`${year}-${month}`}>
           {/* Encabezado de mes */}
-          <div className="sticky top-0 z-10 bg-[#f7f6f9] py-2 px-1">
-            <span className="text-[18px] font-bold text-[#333] capitalize">{MONTHS[month]} {year}</span>
+          <div className="sticky top-0 z-10 bg-[#f7f6f9] pt-1 pb-1">
+            <span className="block text-center text-[19px] font-bold text-[#333] capitalize">{MONTHS[month]} {year}</span>
           </div>
 
+          <AgendaArt />
+
           {weeks.map((week, wi) => (
-            <div key={wi} className="mb-4">
-              {/* Etiqueta de semana */}
-              <div className="flex items-center gap-2 mb-2 px-1">
-                <span className="text-[12px] font-semibold text-[#aaa]">{week.label}</span>
-                <div className="flex-1 h-px bg-[#eee]" />
-              </div>
+            <div key={wi} className="mt-4">
+              {/* Etiqueta de la semana */}
+              <p className="text-[11px] font-medium text-[#9a9aa8] m-0 mb-2">{week.label}</p>
 
               {/* Días con actividad */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {week.days
                   .filter((d) => d.items.length > 0 || d.key === today)
                   .map(({ key, date, items }) => {
                     const isToday = key === today;
-                    const weekday = WEEKDAYS_FULL[date.getDay()];
                     return (
                       <motion.div
                         key={key}
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="bg-white rounded-[20px] shadow-[4px_4px_10px_#ececec,-4px_-4px_10px_#ffffff] p-3"
+                        className="flex items-start gap-3"
                       >
                         <button
                           onClick={() => onSelectDate(key)}
-                          className="flex items-baseline gap-2 w-full p-0 border-none bg-transparent cursor-pointer text-left mb-2"
+                          className="w-9 shrink-0 flex flex-col items-center p-0 pt-0.5 border-none bg-transparent cursor-pointer"
                         >
-                          <span className={`text-[20px] font-bold leading-none tabular-nums ${isToday ? 'text-[#7f70ff]' : 'text-[#333]'}`}>{date.getDate()}</span>
-                          <span className={`text-[12px] font-semibold capitalize ${isToday ? 'text-[#7f70ff]' : 'text-[#999]'}`}>{weekday}</span>
-                          {isToday && <span className="text-[10px] font-bold text-white bg-[#7f70ff] rounded-full px-2 py-0.5">Hoy</span>}
+                          <span className={`text-[11px] font-medium leading-none ${isToday ? 'text-[#7f70ff]' : 'text-[#8b8b97]'}`}>
+                            {SHORT_WEEKDAY[date.getDay()]}
+                          </span>
+                          <span className={`text-[22px] font-bold leading-tight tabular-nums ${isToday ? 'text-[#7f70ff]' : 'text-[#333]'}`}>
+                            {date.getDate()}
+                          </span>
                         </button>
-                        {items.length > 0 ? (
-                          <div className="flex flex-col gap-1.5">
-                            {items.map((it) => (
-                              <button
-                                key={it.id}
-                                onClick={() => onSelectItem(it)}
-                                className="flex items-center gap-2.5 w-full p-0 border-none bg-transparent cursor-pointer text-left active:scale-[0.98] transition-transform"
-                              >
-                                <span className="w-[6px] h-[6px] rounded-full shrink-0" style={{ background: it.color }} />
-                                <div className="flex-1 min-w-0">
-                                  <p className={`text-[13px] font-medium m-0 truncate ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#444]'}`}>{it.title}</p>
-                                </div>
-                                {it.startMin !== undefined && (
-                                  <span className="text-[10px] font-semibold text-[#aaa] tabular-nums shrink-0">
-                                    {formatEventTime(minToHHMM(it.startMin), settings.timeFormat)}
+
+                        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                          {items.length === 0 ? (
+                            <p className="text-[12px] text-[#bbb] m-0 py-1">Día sin actividad</p>
+                          ) : (
+                            items.map((it) => {
+                              const time = it.startMin !== undefined
+                                ? `${formatEventTime(minToHHMM(it.startMin), settings.timeFormat)}${it.endMin !== undefined ? ` – ${formatEventTime(minToHHMM(it.endMin), settings.timeFormat)}` : ''}`
+                                : '';
+                              const second = time || it.subtitle || '';
+                              return (
+                                <button
+                                  key={it.id}
+                                  onClick={() => onSelectItem(it)}
+                                  className="w-full min-w-0 text-left rounded-[10px] px-3 py-2 border-none cursor-pointer active:scale-[0.99] transition-transform"
+                                  style={{ background: it.color }}
+                                >
+                                  <span className={`block text-[13px] font-semibold leading-tight truncate text-white ${it.kind === 'completed' ? 'line-through opacity-80' : ''}`}>
+                                    {it.title}
                                   </span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-[12px] text-[#ccc] m-0">Día sin actividad</p>
-                        )}
+                                  {second && (
+                                    <span className="block text-[11px] leading-tight truncate text-white/85 mt-0.5">{second}</span>
+                                  )}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
                       </motion.div>
                     );
                   })}

@@ -191,7 +191,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
         ) : mode === 'week' ? (
           // Vista de semana: días con barritas por familia + rejilla horaria, a ancho completo
           <div
-            className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-white pb-[110px]"
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-[#f2f1f6] pb-[110px]"
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
           >
@@ -210,7 +210,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
         ) : mode === 'day' ? (
           // Vista de día: info del día, rejilla horaria y detalles, todo a ancho completo
           <div
-            className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-white pb-[110px]"
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-[#f2f1f6] pb-[110px]"
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
           >
@@ -219,15 +219,15 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
               items={selectedItems}
               onSelectItem={openItem}
             />
-            <div className="h-px bg-[#e9e7f1]" />
+            <div className="h-px bg-[#e0deec]" />
             <TimeGrid
               days={[selectedDate]}
               itemsByDate={visibleByDate}
               onSelectItem={openItem}
               detailed
             />
-            <div className="h-px bg-[#e9e7f1]" />
-            <DayResumen
+            <div className="px-2 pt-3">
+              <DayResumen
                 date={selectedDate}
                 items={selectedItems}
                 allTasks={tasks}
@@ -235,12 +235,12 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                 lists={lists}
                 activities={activities}
                 onSelectItem={openItem}
-                flush
               />
+            </div>
           </div>
         ) : (
           // Agenda: información agrupada por meses y semanas
-          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-3">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pb-[110px] pt-2">
             <AgendaView
               itemsByDate={visibleByDate}
               selectedDate={selectedDate}

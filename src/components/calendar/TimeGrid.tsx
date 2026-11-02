@@ -84,7 +84,7 @@ export function TimeGrid({ days, itemsByDate, onSelectItem, detailed = false }: 
               {hourLabel(h)}
             </span>
             {days.map((d) => (
-              <div key={d} className="my-[2px] rounded-2xl bg-white" />
+              <div key={d} className="my-[2px] rounded-[6px] bg-white" />
             ))}
           </div>
         ))}
