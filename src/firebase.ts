@@ -1,5 +1,10 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  browserLocalPersistence,
+  setPersistence,
+} from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -16,6 +21,12 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// La sesión se guarda en localStorage (en vez de IndexedDB) para que persista
+// igual entre navegadores. Mismo login de Google y mismas reglas de Firestore.
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.warn('Firebase Auth persistence: no se pudo aplicar localStorage.', err);
+});
 
 // Persistencia offline nativa de Firestore: los cambios se reflejan al instante
 // y se sincronizan con la nube al recuperar la señal.
