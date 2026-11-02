@@ -14,6 +14,7 @@ import { SectionHeader } from '../ui/SectionHeader';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
 import { CalendarToolbar, type CalendarViewMode } from './CalendarToolbar';
 import { MonthGrid } from './MonthGrid';
+import { WeekHeader } from './WeekHeader';
 import { TimeGrid } from './TimeGrid';
 import { MonthDayInfo } from './MonthDayInfo';
 import { DayResumen } from './DayResumen';
@@ -187,46 +188,49 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
             </div>
           </div>
         ) : mode === 'week' ? (
+          // Vista de semana: días con barritas por familia + rejilla horaria, a ancho completo
           <div
-            className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-2"
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-white pb-[110px]"
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
           >
-            <TimeGrid
+            <WeekHeader
               days={weekDays}
               itemsByDate={visibleByDate}
               selectedDate={selectedDate}
               onSelectDate={selectDate}
+            />
+            <TimeGrid
+              days={weekDays}
+              itemsByDate={visibleByDate}
               onSelectItem={openItem}
               detailed={false}
             />
           </div>
         ) : mode === 'day' ? (
-          // Vista de día: info del día arriba, rejilla horaria, resumen colapsable abajo
+          // Vista de día: info del día, rejilla horaria y detalles, todo a ancho completo
           <div
-            className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-[110px] pt-2"
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-white pb-[110px]"
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
           >
-            <div className="mb-3">
-              <MonthDayInfo
-                date={selectedDate}
-                items={selectedItems}
-                onSelectItem={openItem}
-                onNewTask={() => setShowNewTask(true)}
-                onNewEvent={() => setEventForm({ mode: 'create' })}
-              />
-            </div>
+            <MonthDayInfo
+              date={selectedDate}
+              items={selectedItems}
+              onSelectItem={openItem}
+              onNewTask={() => setShowNewTask(true)}
+              onNewEvent={() => setEventForm({ mode: 'create' })}
+              flush
+            />
+            <div className="h-px bg-[#f0f0f5]" />
             <TimeGrid
               days={[selectedDate]}
               itemsByDate={visibleByDate}
-              selectedDate={selectedDate}
-              onSelectDate={selectDate}
               onSelectItem={openItem}
               detailed
+              showAllDay={false}
             />
-            <div className="pt-3">
-              <DayResumen
+            <DayResumen
                 date={selectedDate}
                 items={selectedItems}
                 allTasks={tasks}
@@ -234,8 +238,8 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                 lists={lists}
                 activities={activities}
                 onSelectItem={openItem}
+                flush
               />
-            </div>
           </div>
         ) : (
           // Agenda: información agrupada por meses y semanas

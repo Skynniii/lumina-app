@@ -8,6 +8,8 @@ interface Props {
   onSelectItem: (i: CalendarItem) => void;
   onNewTask: () => void;
   onNewEvent: () => void;
+  /** Sin tarjeta: fondo completo, para las vistas de semana y día. */
+  flush?: boolean;
 }
 
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -31,7 +33,7 @@ const EventSectionIcon = () => (
 /**
  * Tarjeta consolidada del día: fecha grande + Tasks + Events en una sola tarjeta.
  */
-export function MonthDayInfo({ date, items, onSelectItem, onNewTask, onNewEvent }: Props) {
+export function MonthDayInfo({ date, items, onSelectItem, onNewTask, onNewEvent, flush = false }: Props) {
   const { settings } = useSettings();
   const [y, m, d] = date.split('-').map(Number);
   const weekday = WEEKDAYS[new Date(y, m - 1, d).getDay()];
@@ -40,7 +42,7 @@ export function MonthDayInfo({ date, items, onSelectItem, onNewTask, onNewEvent 
   const eventItems = items.filter((i) => i.kind === 'event');
 
   return (
-    <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] p-5">
+    <div className={flush ? 'bg-white px-4 py-4' : 'bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] p-5'}>
       {/* Encabezado de fecha */}
       <div className="flex items-center gap-3 mb-4">
         <span className="text-[42px] font-bold text-[#333] leading-none tabular-nums">{d}</span>

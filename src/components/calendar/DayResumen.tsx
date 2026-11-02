@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSettings } from '../../context/SettingsContext';
 import { isoToDateKey, todayKey } from '../../hooks/useTimeTracker';
+import { formatEventTime } from '../../hooks/useCalendarEvents';
 import { LAYER_META, minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
 import type { Activity, CalendarEvent, Task, TaskList } from '../../types';
 
@@ -12,6 +14,8 @@ interface Props {
   lists: TaskList[];
   activities: Activity[];
   onSelectItem: (i: CalendarItem) => void;
+  /** Sin tarjeta: fondo completo, para las vistas de semana y día. */
+  flush?: boolean;
 }
 
 /** Hora en 24h (HH:MM) a partir de un ISO. */
@@ -51,8 +55,10 @@ type DetailRow = {
  * "Detalles del día": qué pasó ese día (agregado, completado y registros de
  * tiempo) con su hora. Solo se muestra para hoy y días pasados. Colapsable.
  */
-export function DayResumen({ date, items, allTasks, allEvents, lists, activities, onSelectItem }: Props) {
+export function DayResumen({ date, items, allTasks, allEvents, lists, activities, onSelectItem, flush = false }: Props) {
+  const { settings } = useSettings();
   const [expanded, setExpanded] = useState(true);
+  const fmt = (hhmm: string) => (hhmm ? formatEventTime(hhmm, settings.timeFormat) : '');
 
   // Los días futuros no tienen detalles que contar
   if (date > todayKey()) return null;
@@ -130,17 +136,18 @@ export function DayResumen({ date, items, allTasks, allEvents, lists, activities
       title: s?.description?.trim() || 'Sin descripción',
       label: activity?.name,
       dotColor: activity?.color,
-      range: startStr && endStr ? `${startStr} - ${endStr}` : startStr,
+      range: startStr && endStr ? `${fmt(startStr)} - ${fmt(endStr)}` : fmt(startStr),
       item: it,
     });
   }
 
-  rows.sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+  // Más reciente arriba, más antiguo abajo
+  rows.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
 
   const addedCount = addedTasks.length + addedEvents.length;
 
   return (
-    <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] p-4">
+    <div className={flush ? 'bg-white px-4 py-3 border-t border-[#f0f0f5]' : 'bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] p-4'}>
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center justify-between w-full p-0 border-none bg-transparent cursor-pointer"
@@ -179,7 +186,7 @@ export function DayResumen({ date, items, allTasks, allEvents, lists, activities
                 {rows.map((r) => {
                   const content = (
                     <>
-                      <span className="text-[11px] font-semibold text-[#aaa] tabular-nums shrink-0 w-[38px] pt-[1px]">{r.time}</span>
+                      <span className="text-[11px] font-semibold text-[#aaa] tabular-nums shrink-0 w-[54px] pt-[1px]">{fmt(r.time)}</span>
                       <span className="shrink-0 flex items-center justify-center w-[18px] h-[18px] mt-[1px]">{r.icon}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-medium text-[#333] m-0 truncate">{r.title}</p>

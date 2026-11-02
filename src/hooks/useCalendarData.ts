@@ -19,15 +19,15 @@ export const LAYER_META: Record<CalendarLayer, { label: string; short: string; c
 };
 
 /**
- * Colores de los puntos de la rejilla del mes: un solo punto por familia de
- * información (todas las tareas comparten uno, todos los eventos otro).
- * Para nuevas funciones (cumpleaños, festivos…) añade su familia aquí y a
- * `DAY_MARKER_ORDER`.
+ * Familias de información de un día: una sola barrita (semana) o un solo punto
+ * (mes) por familia, aunque ese día tenga 5 tareas o 3 eventos.
+ * Para nuevas funciones (cumpleaños, festivos…) añade su familia a este mapa y
+ * a `DAY_MARKER_ORDER`.
  */
-export const DAY_MARKER_COLORS: Record<string, string> = {
-  task: LAYER_META.pending.color,
-  event: LAYER_META.event.color,
-  session: LAYER_META.session.color,
+export const DAY_MARKER_META: Record<string, { label: string; color: string }> = {
+  task: { label: 'Tasks', color: LAYER_META.pending.color },
+  event: { label: 'Events', color: LAYER_META.event.color },
+  session: { label: 'Registros', color: LAYER_META.session.color },
 };
 
 export const DAY_MARKER_ORDER = ['task', 'event', 'session'];
@@ -55,18 +55,20 @@ export interface CalendarItem {
   event?: CalendarEvent;
 }
 
-/**
- * Puntos que muestra un día en la rejilla: uno por familia presente,
- * sin repetir aunque haya 5 tareas o 3 eventos.
- */
-export function dayMarkers(items: CalendarItem[]): string[] {
+/** Familias presentes ese día, en orden fijo (tareas, eventos, registros…). */
+export function dayMarkerKeys(items: CalendarItem[]): string[] {
   const present = new Set<string>();
   for (const it of items) {
     if (it.kind === 'event') present.add('event');
     else if (it.kind === 'session') present.add('session');
     else present.add('task');
   }
-  return DAY_MARKER_ORDER.filter((k) => present.has(k)).map((k) => DAY_MARKER_COLORS[k]);
+  return DAY_MARKER_ORDER.filter((k) => present.has(k));
+}
+
+/** Colores de los puntos de la rejilla del mes (uno por familia). */
+export function dayMarkers(items: CalendarItem[]): string[] {
+  return dayMarkerKeys(items).map((k) => DAY_MARKER_META[k].color);
 }
 
 // ─── Utilidades de fecha ───

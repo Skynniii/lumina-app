@@ -1,20 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { formatEventTime } from '../../hooks/useCalendarEvents';
-import { minToHHMM, parseKey, type CalendarItem } from '../../hooks/useCalendarData';
+import { minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
 
 const HOUR_H = 56;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const LETTER = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+const TIME_COL = 38;
 
 interface Props {
   days: string[];                     // 1 = vista de día, 7 = vista de semana
   itemsByDate: Map<string, CalendarItem[]>;
-  selectedDate: string;
-  onSelectDate: (d: string) => void;
   onSelectItem: (i: CalendarItem) => void;
   detailed?: boolean;
+  /** La fila "todo el día" se omite en la vista de día (ya está en la cabecera). */
+  showAllDay?: boolean;
 }
 
 /** Distribuye los ítems con hora en "carriles" para que los solapados no se tapen. */
@@ -44,18 +44,16 @@ function layout(items: CalendarItem[]) {
 }
 
 /**
- * Rejilla horaria del calendario. Con varios días funciona como vista de semana
- * (columnas compactas por color) y con un día como vista de día (con detalle).
+ * Rejilla horaria a ancho completo (sin tarjeta). Con varios días funciona como
+ * vista de semana (columnas compactas por color) y con un día como vista de día.
  */
-export function TimeGrid({ days, itemsByDate, selectedDate, onSelectDate, onSelectItem, detailed = false }: Props) {
+export function TimeGrid({ days, itemsByDate, onSelectItem, detailed = false, showAllDay = true }: Props) {
   const { settings } = useSettings();
   const today = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
   const [now, setNow] = useState(() => new Date());
-  const anchorRef = useRef<HTMLDivElement>(null);
-  const sig = days.join(',');
 
   // Cada minuto para la línea de "ahora"
   useEffect(() => {
@@ -63,63 +61,26 @@ export function TimeGrid({ days, itemsByDate, selectedDate, onSelectDate, onSele
     return () => window.clearInterval(id);
   }, []);
 
-  // Al abrir la semana o el día, deja a la vista la jornada actual
-  useEffect(() => {
-    anchorRef.current?.scrollIntoView({ block: 'start' });
-  }, [sig]);
-
-  const colTemplate = `40px repeat(${days.length}, minmax(0, 1fr))`;
+  const colTemplate = `${TIME_COL}px repeat(${days.length}, minmax(0, 1fr))`;
   const showsToday = days.includes(today);
   const nowTop = ((now.getHours() * 60 + now.getMinutes()) / 60) * HOUR_H;
 
   const allDayByDay = days.map((d) => (itemsByDate.get(d) ?? []).filter((i) => i.startMin === undefined));
-  const hasAllDay = allDayByDay.some((a) => a.length > 0);
+  const hasAllDay = showAllDay && allDayByDay.some((a) => a.length > 0);
   const allDayMax = detailed ? 3 : 4;
 
-  return (
-    <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] overflow-hidden">
-      {/* Cabecera de días */}
-      <div className="grid border-b border-[#f2f2f5]" style={{ gridTemplateColumns: colTemplate }}>
-        <div />
-        {days.map((d) => {
-          const dt = parseKey(d);
-          const isSel = d === selectedDate;
-          const isToday = d === today;
-          const dayItems = itemsByDate.get(d) ?? [];
-          const pendingCount = dayItems.filter((i) => i.kind === 'pending').length;
-          const eventCount = dayItems.filter((i) => i.kind === 'event').length;
-          const sessionCount = dayItems.filter((i) => i.kind === 'session').length;
-          return (
-            <button
-              key={d}
-              onClick={() => onSelectDate(d)}
-              className={`flex flex-col items-center gap-0.5 py-2 border-none cursor-pointer transition-colors ${isSel ? 'bg-[#f0edff]' : 'bg-transparent'}`}
-            >
-              <span className={`text-[10px] font-semibold ${isSel || isToday ? 'text-[#7f70ff]' : 'text-[#aaa]'}`}>{LETTER[dt.getDay()]}</span>
-              <span className={`text-[13px] leading-none tabular-nums ${isSel ? 'text-[#7f70ff] font-bold' : isToday ? 'text-[#7f70ff] font-semibold' : 'text-[#555] font-medium'}`}>{dt.getDate()}</span>
-              <div className="flex items-center gap-[3px] h-[14px]">
-                {pendingCount > 0 && (
-                  <span className="flex items-center gap-[1px]">
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /></svg>
-                    <span className="text-[8px] font-bold text-[#7f70ff] leading-none">{pendingCount}</span>
-                  </span>
-                )}
-                {eventCount > 0 && (
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#4d7cfe" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /></svg>
-                )}
-                {sessionCount > 0 && (
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#00b8a9" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+  /** Etiqueta de la hora según el formato elegido en ajustes (12h / 24h). */
+  const hourLabel = (h: number) =>
+    settings.timeFormat === '24h'
+      ? `${String(h).padStart(2, '0')}:00`
+      : `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
 
-      {/* Fila "todo el día": tareas sin hora, completadas y todo lo que no tiene hora */}
+  return (
+    <div className="bg-white">
+      {/* Fila "todo el día": lo que no tiene hora (tareas sin hora, completadas…) */}
       {hasAllDay && (
-        <div className="grid border-b border-[#f2f2f5] bg-[#fafafc]" style={{ gridTemplateColumns: colTemplate }}>
-          <div className="flex items-center justify-center text-[9px] font-semibold text-[#aaa] leading-tight text-center px-1">Todo el día</div>
+        <div className="grid border-b border-[#f0f0f5]" style={{ gridTemplateColumns: colTemplate }}>
+          <div className="flex items-center justify-end pr-1 text-[8px] font-semibold text-[#aaa] leading-tight text-right">Todo el día</div>
           {allDayByDay.map((arr, i) => (
             <div key={days[i]} className="border-l border-[#f2f2f5] p-1 flex flex-col gap-[3px] min-w-0">
               {arr.slice(0, allDayMax).map((it) =>
@@ -150,12 +111,10 @@ export function TimeGrid({ days, itemsByDate, selectedDate, onSelectDate, onSele
 
       {/* Rejilla horaria */}
       <div className="relative">
-        <div ref={anchorRef} className="absolute left-0 right-0 h-px" style={{ top: (showsToday ? Math.max(0, now.getHours() - 1) : 7) * HOUR_H }} />
-
         <div className="relative" style={{ height: HOUR_H * 24 }}>
           {HOURS.map((h) => (
             <div key={h} className="absolute left-0 right-0 flex items-start" style={{ top: h * HOUR_H, height: HOUR_H }}>
-              <span className="w-[40px] shrink-0 text-[10px] text-[#bbb] tabular-nums text-center -mt-[6px]">{String(h).padStart(2, '0')}:00</span>
+              <span className="w-[38px] shrink-0 text-[9px] text-[#bbb] tabular-nums text-right pr-1 -mt-[5px]">{hourLabel(h)}</span>
               <div className="flex-1 border-t border-[#f2f2f5]" />
             </div>
           ))}
@@ -205,7 +164,7 @@ export function TimeGrid({ days, itemsByDate, selectedDate, onSelectDate, onSele
 
           {/* Línea de la hora actual */}
           {showsToday && (
-            <div className="absolute left-[40px] right-0 pointer-events-none z-10" style={{ top: nowTop }}>
+            <div className="absolute right-0 pointer-events-none z-10" style={{ top: nowTop, left: TIME_COL }}>
               <div className="relative h-0 border-t-[1.5px] border-[#ff4d4d]">
                 <span className="absolute -left-[3px] -top-[3.5px] w-[7px] h-[7px] rounded-full bg-[#ff4d4d]" />
               </div>
