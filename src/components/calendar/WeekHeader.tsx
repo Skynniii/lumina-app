@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { motion } from 'framer-motion';
 import { dateKey } from '../../hooks/useCalendarEvents';
 import {
   DAY_MARKER_META, dayMarkerKeys, parseKey, type CalendarItem,
@@ -9,10 +10,12 @@ interface Props {
   days: string[]; // 7 fechas YYYY-MM-DD (lunes → domingo)
   itemsByDate: Map<string, CalendarItem[]>;
   selectedDate: string;
-  onSelectDate: (key: string) => void;
+  onOpenDay: (key: string) => void;
 }
 
 const LETTER = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
+const DAY_NUM_TRANSITION = { type: 'spring' as const, stiffness: 260, damping: 30 };
 
 const TaskBarIcon = ({ color }: { color: string }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></svg>
@@ -33,12 +36,13 @@ const BAR_ICONS: Record<string, (p: { color: string }) => ReactElement> = {
 /**
  * Cabecera de la semana: días con su fecha y, debajo, una sola "barrita" por
  * familia de información (Tasks, Events, Registros…) aunque haya varias.
+ * Tocar el número abre la vista de día con la transición animada.
  */
-export function WeekHeader({ days, itemsByDate, selectedDate, onSelectDate }: Props) {
+export function WeekHeader({ days, itemsByDate, selectedDate, onOpenDay }: Props) {
   const today = dateKey();
 
   return (
-    <div className="grid bg-[#f2f1f6] border-b border-[#e0deec]" style={{ gridTemplateColumns: `40px repeat(${days.length}, minmax(0, 1fr))` }}>
+    <div className="grid bg-[#f2f1f6]" style={{ gridTemplateColumns: `40px repeat(${days.length}, minmax(0, 1fr))` }}>
       <div />
       {days.map((d) => {
         const dt = parseKey(d);
@@ -46,21 +50,25 @@ export function WeekHeader({ days, itemsByDate, selectedDate, onSelectDate }: Pr
         const isSel = d === selectedDate;
         const keys = dayMarkerKeys(itemsByDate.get(d) ?? []);
         return (
-          <button
-            key={d}
-            onClick={() => onSelectDate(d)}
-            className="flex flex-col items-center gap-1 pt-1.5 pb-2 min-w-0 border-none bg-transparent cursor-pointer"
-          >
+          <div key={d} className="flex flex-col items-center gap-1 pt-1.5 pb-2 min-w-0">
             <span className={`text-[10px] font-semibold leading-none ${isToday || isSel ? 'text-[#7f70ff]' : 'text-[#aaa]'}`}>
               {LETTER[dt.getDay()]}
             </span>
-            <span
-              className={`flex items-center justify-center w-7 h-7 rounded-[9px] text-[13px] leading-none tabular-nums ${
-                isToday ? 'bg-[#7f70ff] text-white font-bold' : isSel ? 'bg-[#f0edff] text-[#7f70ff] font-bold' : 'text-[#555] font-medium'
-              }`}
+            <button
+              onClick={() => onOpenDay(d)}
+              className="flex items-center justify-center w-8 h-8 p-0 border-none bg-transparent cursor-pointer"
+              aria-label={`Ver el día ${dt.getDate()}`}
             >
-              {dt.getDate()}
-            </span>
+              <motion.span
+                layoutId={`day-num-${d}`}
+                transition={DAY_NUM_TRANSITION}
+                className={`flex items-center justify-center w-7 h-7 rounded-[9px] text-[13px] leading-none tabular-nums ${
+                  isToday ? 'bg-[#7f70ff] text-white font-bold' : isSel ? 'bg-[#f0edff] text-[#7f70ff] font-bold' : 'text-[#555] font-medium'
+                }`}
+              >
+                {dt.getDate()}
+              </motion.span>
+            </button>
             <div className="w-full flex flex-col gap-1 px-[2px] mt-[2px]">
               {keys.map((k) => {
                 const meta = DAY_MARKER_META[k];
@@ -82,7 +90,7 @@ export function WeekHeader({ days, itemsByDate, selectedDate, onSelectDate }: Pr
                 );
               })}
             </div>
-          </button>
+          </div>
         );
       })}
     </div>

@@ -48,7 +48,8 @@ export interface CalendarItem {
   endMin?: number;
   title: string;
   subtitle?: string;
-  color: string;
+  color: string;            // color de la familia (tarea pendiente, evento…)
+  accent?: string;          // color de la actividad del ítem, si tiene
   order?: number;
   task?: Task;
   session?: TimeSession;
@@ -182,7 +183,7 @@ export function useCalendarData() {
         out.push({
           id: `c-${t.id}`, kind: 'completed', date: isoToDateKey(t.completedAt),
           title: label, subtitle: listName(t.listId),
-          color: LAYER_META.completed.color, task: t,
+          color: LAYER_META.completed.color, accent: activity?.color, task: t,
         });
         continue;
       }
@@ -194,7 +195,7 @@ export function useCalendarData() {
         id: `p-${t.id}`, kind: 'pending', date, startMin,
         endMin: startMin !== undefined ? startMin + 30 : undefined,
         title: label, subtitle: listName(t.listId),
-        color: LAYER_META.pending.color, task: t,
+        color: LAYER_META.pending.color, accent: activity?.color, task: t,
       });
     }
 
@@ -216,7 +217,7 @@ export function useCalendarData() {
         out.push({
           id: `h-${t.id}`, kind: 'pending', date: todayStr,
           title: label, subtitle: listName(t.listId),
-          color: LAYER_META.pending.color, task: t, order: idx,
+          color: LAYER_META.pending.color, accent: activity?.color, task: t, order: idx,
         });
       });
     }
@@ -230,7 +231,7 @@ export function useCalendarData() {
         startMin, endMin: Math.max(startMin + 15, Math.round(startMin + s.duration / 60)),
         title: s.description?.trim() || activity?.name || 'Registro',
         subtitle: activity?.name,
-        color: activity?.color || LAYER_META.session.color, session: s,
+        color: activity?.color || LAYER_META.session.color, accent: activity?.color, session: s,
       });
     }
 
@@ -238,7 +239,7 @@ export function useCalendarData() {
       out.push({
         id: `e-${e.id}`, kind: 'event', date: e.date,
         startMin: timeToMinutes(e.start), endMin: timeToMinutes(e.end),
-        title: e.title, subtitle: e.location, color: e.color, event: e,
+        title: e.title, subtitle: e.location, color: e.color, accent: e.color, event: e,
       });
     }
 

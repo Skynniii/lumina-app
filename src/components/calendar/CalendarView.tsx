@@ -107,6 +107,13 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
     setAnchor(parseKey(key));
   }, []);
 
+  // Al tocar el número de un día de la semana se pasa a la vista de día
+  const openDay = useCallback((key: string) => {
+    setSelectedDate(key);
+    setAnchor(parseKey(key));
+    setMode('day');
+  }, []);
+
   const handleMonthSelect = useCallback((year: number, month: number) => {
     setAnchor(new Date(year, month, 1));
     if (mode === 'day' || mode === 'agenda') {
@@ -199,7 +206,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
               days={weekDays}
               itemsByDate={visibleByDate}
               selectedDate={selectedDate}
-              onSelectDate={selectDate}
+              onOpenDay={openDay}
             />
             <TimeGrid
               days={weekDays}
@@ -219,7 +226,6 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
               items={selectedItems}
               onSelectItem={openItem}
             />
-            <div className="h-px bg-[#e0deec]" />
             <TimeGrid
               days={[selectedDate]}
               itemsByDate={visibleByDate}
