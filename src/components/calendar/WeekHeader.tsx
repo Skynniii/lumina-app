@@ -3,6 +3,7 @@ import { dateKey } from '../../hooks/useCalendarEvents';
 import {
   DAY_MARKER_META, dayMarkerKeys, parseKey, type CalendarItem,
 } from '../../hooks/useCalendarData';
+import { MarqueeText } from './MarqueeText';
 
 interface Props {
   days: string[]; // 7 fechas YYYY-MM-DD (lunes → domingo)
@@ -14,13 +15,13 @@ interface Props {
 const LETTER = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 
 const TaskBarIcon = ({ color }: { color: string }) => (
-  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></svg>
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></svg>
 );
 const EventBarIcon = ({ color }: { color: string }) => (
-  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
 );
 const ClockBarIcon = ({ color }: { color: string }) => (
-  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
 );
 
 const BAR_ICONS: Record<string, (p: { color: string }) => ReactElement> = {
@@ -37,7 +38,7 @@ export function WeekHeader({ days, itemsByDate, selectedDate, onSelectDate }: Pr
   const today = dateKey();
 
   return (
-    <div className="grid bg-white border-b border-[#f0f0f5]" style={{ gridTemplateColumns: `38px repeat(${days.length}, minmax(0, 1fr))` }}>
+    <div className="grid bg-white border-b border-[#e9e7f1]" style={{ gridTemplateColumns: `40px repeat(${days.length}, minmax(0, 1fr))` }}>
       <div />
       {days.map((d) => {
         const dt = parseKey(d);
@@ -60,18 +61,23 @@ export function WeekHeader({ days, itemsByDate, selectedDate, onSelectDate }: Pr
             >
               {dt.getDate()}
             </span>
-            <div className="w-full flex flex-col gap-[2px] px-[2px]">
+            <div className="w-full flex flex-col gap-1 px-[2px]">
               {keys.map((k) => {
                 const meta = DAY_MARKER_META[k];
                 const Icon = BAR_ICONS[k];
                 return (
                   <span
                     key={k}
-                    className="flex items-center gap-[2px] rounded-[4px] pl-[2px] pr-[3px] py-[1px] w-full overflow-hidden"
-                    style={{ background: `${meta.color}1f` }}
+                    className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-[3px] w-full min-w-0"
+                    style={{ background: `${meta.color}1a` }}
                   >
                     {Icon && <span className="shrink-0 flex"><Icon color={meta.color} /></span>}
-                    <span className="text-[7px] font-bold truncate leading-none" style={{ color: meta.color }}>{meta.label}</span>
+                    <MarqueeText
+                      text={meta.label}
+                      className="flex-1"
+                      textClassName="text-[11px] font-bold leading-none"
+                      textStyle={{ color: meta.color }}
+                    />
                   </span>
                 );
               })}

@@ -147,7 +147,7 @@ export function DayResumen({ date, items, allTasks, allEvents, lists, activities
   const addedCount = addedTasks.length + addedEvents.length;
 
   return (
-    <div className={flush ? 'bg-white px-4 py-3 border-t border-[#f0f0f5]' : 'bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] p-4'}>
+    <div className={flush ? 'bg-white px-4 py-3' : 'bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] p-4'}>
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center justify-between w-full p-0 border-none bg-transparent cursor-pointer"

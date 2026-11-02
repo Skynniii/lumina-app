@@ -17,6 +17,7 @@ import { MonthGrid } from './MonthGrid';
 import { WeekHeader } from './WeekHeader';
 import { TimeGrid } from './TimeGrid';
 import { MonthDayInfo } from './MonthDayInfo';
+import { DayHeadline } from './DayHeadline';
 import { DayResumen } from './DayResumen';
 import { AgendaView } from './AgendaView';
 import { CalendarQuickAdd } from './CalendarQuickAdd';
@@ -204,7 +205,6 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
               days={weekDays}
               itemsByDate={visibleByDate}
               onSelectItem={openItem}
-              detailed={false}
             />
           </div>
         ) : mode === 'day' ? (
@@ -214,22 +214,19 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
           >
-            <MonthDayInfo
+            <DayHeadline
               date={selectedDate}
               items={selectedItems}
               onSelectItem={openItem}
-              onNewTask={() => setShowNewTask(true)}
-              onNewEvent={() => setEventForm({ mode: 'create' })}
-              flush
             />
-            <div className="h-px bg-[#f0f0f5]" />
+            <div className="h-px bg-[#e9e7f1]" />
             <TimeGrid
               days={[selectedDate]}
               itemsByDate={visibleByDate}
               onSelectItem={openItem}
               detailed
-              showAllDay={false}
             />
+            <div className="h-px bg-[#e9e7f1]" />
             <DayResumen
                 date={selectedDate}
                 items={selectedItems}
