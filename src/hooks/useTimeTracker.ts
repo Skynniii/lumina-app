@@ -18,18 +18,21 @@ export interface TrackerDraft {
   description: string;
   notes: string;
   taskId?: string;
+  /** Avance (referencia) desde el que se lanzó la sesión, para marcarlo al completar. */
+  avanceTaskId?: string;
   mode?: TimerMode;
 }
 
 const DEFAULT_ACTIVITIES: Activity[] = [
   { id: 'trabajo', name: 'Trabajo', color: '#4d7cfe' },
-  { id: 'estudio', name: 'Estudio', color: '#7f70ff' },
+  { id: 'estudio', name: 'Estudio', color: '#00b8a9' },
   { id: 'ejercicio', name: 'Ejercicio', color: '#34c77b' },
   { id: 'lectura', name: 'Lectura', color: '#ffa94d' },
   { id: 'personal', name: 'Personal', color: '#ff6b81' },
 ];
 
-export const ACTIVITY_COLORS = ['#4d7cfe', '#7f70ff', '#9d51ff', '#34c77b', '#00b8a9', '#ffa94d', '#ff6b81', '#f26f5b'];
+// Paleta de actividades: sin el morado de la app (#7f70ff) para no confundirlo con el acento.
+export const ACTIVITY_COLORS = ['#4d7cfe', '#00bcd4', '#00b8a9', '#34c77b', '#8bc34a', '#ffb300', '#ffa94d', '#f26f5b', '#ff6b81', '#e84393', '#78909c', '#37474f'];
 
 export function todayKey(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -48,8 +51,8 @@ export function formatElapsed(totalSeconds: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function formatClock(time: number | string): string {
-  return new Date(time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
+export function formatClock(time: number | string, timeFormat: '12h' | '24h' = '24h'): string {
+  return new Date(time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: timeFormat === '12h' });
 }
 
 export function dayLabel(dateKey: string): string {

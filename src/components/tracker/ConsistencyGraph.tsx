@@ -29,30 +29,30 @@ export function ConsistencyGraph({ sessions, activity }: Props) {
 
   const maxTotal = useMemo(() => Math.max(...data.map((d) => d.total), 1), [data]);
 
+  // La etiqueta de cada mes se ubica sobre la columna donde cae su día 1
   const monthLabels = useMemo(() => {
     const labels: { weekIdx: number; label: string }[] = [];
-    let lastMonth = -1;
     weeks.forEach((week, wIdx) => {
-      const firstDay = week[0];
-      if (firstDay) {
-        const month = new Date(firstDay.date).getMonth();
-        if (month !== lastMonth) {
-          labels.push({ weekIdx: wIdx, label: new Date(firstDay.date).toLocaleDateString('es-CO', { month: 'short' }) });
-          lastMonth = month;
-        }
+      const firstOfMonth = week.find((day) => new Date(day.date + 'T00:00:00').getDate() === 1);
+      if (firstOfMonth) {
+        labels.push({ weekIdx: wIdx, label: new Date(firstOfMonth.date + 'T00:00:00').toLocaleDateString('es-CO', { month: 'short' }) });
       }
     });
     return labels;
   }, [weeks]);
 
+  // 6 niveles de intensidad: del más claro (menos tiempo) al más fuerte (más tiempo)
+  const LEVEL_ALPHAS = [0.18, 0.34, 0.5, 0.66, 0.83, 1];
+
   function getColor(day: { total: number; isFuture: boolean }): string {
     if (day.total === 0) return '#f0f0f0';
     const intensity = Math.min(1, day.total / maxTotal);
-    return hexToRgba(activity.color, 0.3 + intensity * 0.7);
+    const level = Math.min(LEVEL_ALPHAS.length - 1, Math.floor(intensity * LEVEL_ALPHAS.length));
+    return hexToRgba(activity.color, LEVEL_ALPHAS[level]);
   }
 
   const cellSize = 22;
-  const gap = 4;
+  const gap = 3;
 
   return (
     <div className="bg-white p-4 rounded-[20px] shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff]">

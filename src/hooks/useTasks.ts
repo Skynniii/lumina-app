@@ -336,7 +336,8 @@ export function useTasks() {
   }, [lists.length, tasks, listsColl, taskBatchSet]);
 
   return {
-    lists, tasks, addList, deleteList, renameList, addTask, addTaskWithData,
+    lists, tasks, loading: listsLoading || tasksLoading,
+    addList, deleteList, renameList, addTask, addTaskWithData,
     toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteSeparators, deleteTask, deleteCompletedTasks,
     reorderLists, setListActivity, createActivityList,
     modalConfig: modal,

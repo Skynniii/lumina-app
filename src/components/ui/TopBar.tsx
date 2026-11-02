@@ -25,6 +25,8 @@ export function TopBar({ title, onMenuClick, onOpenAccount }: Props) {
   const photoURL = user?.photoURL || undefined;
   const name = user?.displayName || (user?.email ? user.email.split('@')[0] : 'Usuario');
   const email = user?.email || '';
+  const [photoError, setPhotoError] = useState(false);
+  const showPhoto = photoURL && !photoError;
 
   return (
     <div className="flex items-center justify-between px-4 py-2.5 relative" ref={ref}>
@@ -39,8 +41,8 @@ export function TopBar({ title, onMenuClick, onOpenAccount }: Props) {
       <h1 className="text-[#2b2b2b] font-bold text-2xl m-0">{title}</h1>
 
       <button onClick={() => setProfileOpen(!profileOpen)} className="w-9 h-9 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform overflow-hidden relative bg-gradient-to-br from-[#7f70ff] to-[#9d8aff]">
-        {photoURL ? (
-          <img src={photoURL} alt={name} className="w-full h-full object-cover" />
+        {showPhoto ? (
+          <img src={photoURL} alt={name} className="w-full h-full object-cover" onError={() => setPhotoError(true)} />
         ) : (
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -60,8 +62,8 @@ export function TopBar({ title, onMenuClick, onOpenAccount }: Props) {
           >
             <div className="flex items-center gap-3 px-4 py-3 border-b border-[#f0f0f0]">
               <div className="w-10 h-10 rounded-full flex-none overflow-hidden bg-gradient-to-br from-[#7f70ff] to-[#9d8aff] flex items-center justify-center">
-                {photoURL ? (
-                  <img src={photoURL} alt={name} className="w-full h-full object-cover" />
+                {showPhoto ? (
+                  <img src={photoURL} alt={name} className="w-full h-full object-cover" onError={() => setPhotoError(true)} />
                 ) : (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />

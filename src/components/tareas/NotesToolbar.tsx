@@ -89,23 +89,6 @@ export function NotesToolbar({ onCommand }: Props) {
           <text x="3" y="20" fill="currentColor" stroke="none" fontSize="7" fontWeight="700">3.</text>
         </svg>
       </Btn>
-      <Btn cmd="outdent">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="21" y1="6" x2="11" y2="6" />
-          <line x1="21" y1="12" x2="6" y2="12" />
-          <polyline points="9 9 6 12 9 15" />
-          <line x1="21" y1="18" x2="11" y2="18" />
-        </svg>
-      </Btn>
-      <Btn cmd="indent">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="3" y1="6" x2="13" y2="6" />
-          <line x1="3" y1="12" x2="18" y2="12" />
-          <polyline points="15 9 18 12 15 15" />
-          <line x1="3" y1="18" x2="13" y2="18" />
-        </svg>
-      </Btn>
-
       <Divider />
 
       {/* Sección 4: Deshacer */}

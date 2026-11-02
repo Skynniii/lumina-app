@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { RepeatConfig } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { TimePickerModal } from './TimePickerModal';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import { RepeatModal } from './RepeatModal';
 
 interface Props {
@@ -17,6 +18,7 @@ const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 export function CalendarModal({ initialDate, initialTime, initialRepeat, onClose, onSave }: Props) {
+  useBackHandler(true, onClose);
   const { settings } = useSettings();
   const [month, setMonth] = useState(() => (initialDate ? new Date(initialDate) : new Date()));
   const [date, setDate] = useState<string | undefined>(initialDate);

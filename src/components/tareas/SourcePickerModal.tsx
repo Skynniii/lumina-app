@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Activity, Task, TaskList } from '../../types';
+import { sortListsForDisplay } from '../../utils/listOrder';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   isOpen: boolean;
@@ -20,15 +22,19 @@ export function SourcePickerModal({
   selectedActivityId, selectedTaskId,
   onClose, onSelectActivity, onSelectTask,
 }: Props) {
+  useBackHandler(isOpen, onClose);
   const [tab, setTab] = useState<'actividades' | 'vincular'>('actividades');
 
   // Mostrar todas las actividades del usuario (misma lista que en los demás modales)
   const visibleActivities = activities;
 
+  // Mismo orden de listas que la sección de Tasks
+  const orderedLists = useMemo(() => sortListsForDisplay(lists), [lists]);
+
   // Tareas agrupadas por lista, en el orden de la lista
   const groupedTasks = useMemo(() => {
     const eligible = tasks.filter((t) => !t.completed && !t.isSeparator && !t.isActivityOnly && !t.linkedTaskId && t.listId !== targetListId);
-    return lists
+    return orderedLists
       .map((l) => {
         let items = eligible.filter((t) => t.listId === l.id);
         const sortMode = l.sortMode || 'custom';
@@ -59,7 +65,7 @@ export function SourcePickerModal({
         return { list: l, items };
       })
       .filter((g) => g.items.length > 0);
-  }, [tasks, lists, targetListId]);
+  }, [tasks, orderedLists, targetListId]);
 
   return (
     <AnimatePresence>
@@ -77,7 +83,7 @@ export function SourcePickerModal({
           >
             <div className="w-10 h-1.5 bg-[#e4e4ed] rounded-full mx-auto mb-3" />
 
-            {/* Toggle entre Actividades y Vincular tarea */}
+            {/* Toggle entre Actividad y Avance */}
             <div className="flex gap-1 bg-[#eeeaf6] rounded-full p-1 mb-3">
               <button
                 onClick={() => setTab('actividades')}
@@ -85,7 +91,7 @@ export function SourcePickerModal({
                   tab === 'actividades' ? 'bg-white text-[#333] shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]' : 'text-[#999] bg-transparent'
                 }`}
               >
-                Actividades
+                Actividad
               </button>
               <button
                 onClick={() => setTab('vincular')}
@@ -93,7 +99,7 @@ export function SourcePickerModal({
                   tab === 'vincular' ? 'bg-white text-[#333] shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]' : 'text-[#999] bg-transparent'
                 }`}
               >
-                Vincular tarea
+                Avance
               </button>
             </div>
 
@@ -144,9 +150,10 @@ export function SourcePickerModal({
                           onClick={() => { onSelectTask(task); onClose(); }}
                           className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#f4f4f6] transition-colors flex items-center gap-2"
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-none">
-                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="2" className="flex-none">
+                            <circle cx="12" cy="12" r="10" />
+                            <polygon points="8 8.5 12 12 8 15.5" fill="#7f70ff" stroke="none" />
+                            <polygon points="12 8.5 16 12 12 15.5" fill="#7f70ff" stroke="none" />
                           </svg>
                           <span className={`text-[14px] truncate ${selectedTaskId === task.id ? 'text-[#7f70ff] font-semibold' : 'text-[#333]'}`}>{task.title}</span>
                         </button>

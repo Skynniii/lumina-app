@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTimeTracker, ACTIVITY_COLORS } from '../../hooks/useTimeTracker';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
 import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   onBack: () => void;
 }
 
 export function ActivitiesPage({ onBack }: Props) {
+  useBackHandler(true, onBack);
   const { activities, addActivity, updateActivity, deleteActivity } = useTimeTracker();
   const cap = useDeviceCapability();
   const [editingId, setEditingId] = useState<string | null>(null);

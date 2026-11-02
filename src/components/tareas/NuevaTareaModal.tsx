@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
 import { SourcePickerModal } from './SourcePickerModal';
@@ -14,7 +15,8 @@ interface Props {
   availableLists?: TaskList[];
   allLists?: TaskList[];
   allTasks?: Task[];
-  listName?: string;
+  /** Fecha preseleccionada (usada al crear una tarea desde el calendario). */
+  initialDate?: string;
   onClose: () => void;
   onCreate: (data: { title: string; notes?: string; scheduledDate?: string; scheduledTime?: string; dueDate?: string; isImportant?: boolean; repeat?: RepeatConfig; activityId?: string; linkedTaskId?: string; isActivityOnly?: boolean }, listId: string) => void;
 }
@@ -39,7 +41,8 @@ function fmtFecha(scheduledDate: string | undefined, scheduledTime: string | und
   return s;
 }
 
-export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allLists, allTasks, listName, onClose, onCreate }: Props) {
+export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allLists, allTasks, initialDate, onClose, onCreate }: Props) {
+  useBackHandler(isOpen, onClose);
   const [title, setTitle] = useState('');
   const [notesHtml, setNotesHtml] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
@@ -51,10 +54,14 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const [important, setImportant] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [targetListId, setTargetListId] = useState(defaultListId);
-  const { activities, addActivity } = useActivities();
+  const { activities } = useActivities();
   const { settings } = useSettings();
   const [activityId, setActivityId] = useState<string | undefined>(undefined);
   const [linkedTaskId, setLinkedTaskId] = useState<string | undefined>(undefined);
+  // La actividad vinculada a la lista llega preseleccionada (tarea con actividad).
+  // Solo cuando el usuario la elige explícitamente (flecha o ícono) se crea una
+  // tarea-actividad, es decir, un ítem de actividad sin título.
+  const [activityOnly, setActivityOnly] = useState(false);
   const [showSourcePicker, setShowSourcePicker] = useState(false);
   const [activityPickerOpen, setActivityPickerOpen] = useState(false);
   const notesRef = useRef<HTMLDivElement>(null);
@@ -63,31 +70,29 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const selectedActivity = activities.find((a) => a.id === activityId);
   const isLinked = !!linkedTaskId;
 
-  const generateRefTitle = (task: Task): string => {
-    const taskList = allLists?.find((l) => l.id === task.listId);
-    if (taskList?.activityId) {
-      const activity = activities.find((a) => a.id === taskList.activityId);
-      return `${activity?.name ?? 'Actividad'}: ${task.title}`;
-    }
-    return `Avance en: ${task.title}`;
-  };
+  const generateRefTitle = (task: Task): string => `Avanzar en: ${task.title}`;
 
   useEffect(() => {
     if (isOpen) {
       setTitle(''); setNotesHtml(''); setNotesOpen(false); setNotesEditing(false);
-      setScheduledDate(undefined); setScheduledTime(undefined); setDueDate(undefined); setRepeat(undefined);
+      setScheduledDate(initialDate); setScheduledTime(undefined); setDueDate(undefined); setRepeat(undefined);
       setImportant(false); setShowPicker(false);
       setTargetListId(defaultListId);
-      setActivityId(undefined);
+      // Lista con actividad vinculada: llega ya seleccionada por defecto.
+      setActivityId(allLists?.find((l) => l.id === defaultListId)?.activityId);
+      setActivityOnly(false);
       setLinkedTaskId(undefined); setShowSourcePicker(false);
       setActivityPickerOpen(false);
     }
-  }, [isOpen, defaultListId]);
+  }, [isOpen, defaultListId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
+  // Al abrir las notas, el foco pasa al editor en el mismo frame: así el teclado
+  // no se cierra y se vuelve a abrir.
+  useLayoutEffect(() => {
     if (notesOpen && notesRef.current) {
-      notesRef.current.innerHTML = notesHtml;
-      setTimeout(() => notesRef.current?.focus(), 60);
+      const el = notesRef.current;
+      el.innerHTML = notesHtml;
+      el.focus({ preventScroll: true });
     }
   }, [notesOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -120,9 +125,9 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
       onClose();
       return;
     }
-    if (!trimmed && !activityId) return;
+    if (!trimmed && !(activityOnly && activityId)) return;
     const notesClean = notesHtml.replace(/<[^>]*>/g, '').trim() ? notesHtml : '';
-    const isActivityOnly = !trimmed && !!activityId;
+    const isActivityOnly = activityOnly && !trimmed && !!activityId;
     onCreate({ title: trimmed, notes: notesClean || undefined, scheduledDate, scheduledTime, dueDate, isImportant: important, repeat, activityId, isActivityOnly }, targetListId);
     onClose();
   };
@@ -130,9 +135,10 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   const fechaLabel = fmtFecha(scheduledDate, scheduledTime, repeat, settings.timeFormat);
   const hasNotes = !!notesHtml.replace(/<[^>]*>/g, '').trim();
 
-  const iconBtn = (active: boolean, onClick: () => void, title: string, children: React.ReactNode) => (
+  const iconBtn = (active: boolean, onClick: (e: React.MouseEvent) => void, title: string, children: React.ReactNode) => (
     <button
       type="button"
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       title={title}
       className={`w-11 h-11 flex-none flex items-center justify-center rounded-full border transition-colors ${active ? 'border-[#7f70ff]/30 bg-[#f0edff] text-[#7f70ff]' : 'border-[#e8e8ed] bg-[#fcfcfd] text-[#999]'}`}
@@ -154,12 +160,14 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
             />
             <motion.div
               className="fixed left-1/2 -translate-x-1/2 w-full max-w-[420px] z-[1002] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] px-5 pt-3 pb-6"
-              style={{ bottom: keyboardHeight, transition: 'bottom 0.25s ease-out' }}
+              style={{ bottom: keyboardHeight }}
+              // Tocar cualquier zona interior del modal cierra las notas si están vacías
+              onClick={() => { if (!hasNotes) { setNotesOpen(false); setNotesEditing(false); } }}
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 360, damping: 36 }}
             >
               <div className="w-10 h-1.5 bg-[#e4e4ed] rounded-full mx-auto mb-3" />
-              <p className="text-center text-[13px] text-[#a0a0a0] font-medium mb-3">Nueva tarea{listName ? ` · ${listName}` : ''}</p>
+              <p className="text-left text-[16px] font-bold text-[#2b2b2b] mb-3">Nueva tarea</p>
 
               {availableLists && (
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-3 -mx-1 px-1">
@@ -169,7 +177,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                       <button
                         key={l.id}
                         type="button"
-                        onClick={() => setTargetListId(l.id)}
+                        onClick={() => { setTargetListId(l.id); setActivityId(allLists?.find((x) => x.id === l.id)?.activityId); setActivityOnly(false); }}
                         className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors flex-none ${sel ? 'bg-[#7f70ff] text-white' : 'bg-[#f4f4f6] text-[#777]'}`}
                       >
                         {l.name}
@@ -185,7 +193,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                   value={title}
                   onChange={(e) => { if (!isLinked) setTitle(e.target.value); }}
                   onKeyDown={(e) => e.key === 'Enter' && submit()}
-                  placeholder={activityId ? (selectedActivity?.name ?? 'Actividad') : '¿Qué tarea quieres añadir?'}
+                  placeholder={activityOnly ? (selectedActivity?.name ?? 'Actividad') : '¿Qué tarea quieres añadir?'}
                   readOnly={isLinked}
                   autoFocus={!isLinked}
                   className={`w-full border rounded-xl py-3 pl-3.5 pr-10 text-[15px] outline-none transition-colors ${isLinked ? 'border-[#7f70ff]/30 bg-[#f0edff] text-[#7f70ff] font-medium cursor-default' : 'border-[#e4e4ed] text-[#333] bg-[#fafafc] focus:border-[#7f70ff] focus:bg-white'}`}
@@ -211,7 +219,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 {iconBtn(important, () => setImportant((v) => !v), 'Importante',
                   <svg width="20" height="20" viewBox="0 0 24 24" fill={important ? '#ffcc00' : 'none'} stroke={important ? '#ffcc00' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
                 )}
-                {iconBtn(notesOpen || hasNotes, () => setNotesOpen((v) => !v), 'Notas',
+                {iconBtn(notesOpen || hasNotes, (e) => { e.stopPropagation(); if (notesOpen) { setNotesOpen(false); setNotesEditing(false); } else setNotesOpen(true); }, 'Notas',
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
                 )}
                 <button
@@ -230,7 +238,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               {/* Editor de notas desplegable */}
               <AnimatePresence>
                 {notesOpen && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-2">
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-2" onClick={(e) => e.stopPropagation()}>
                     <div
                       ref={notesRef}
                       contentEditable
@@ -256,7 +264,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
 
               <div className="flex gap-3 mt-2">
                 <button onClick={onClose} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#f0f0f0] text-[#666] hover:bg-[#e4e4e4] transition-colors">Cancelar</button>
-                <button onClick={submit} disabled={!title.trim() && !activityId && !isLinked} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">{isLinked ? 'Crear referencia' : !title.trim() && activityId ? 'Crear actividad' : 'Crear tarea'}</button>
+                <button onClick={submit} disabled={!title.trim() && !(activityOnly && activityId) && !isLinked} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">{isLinked ? 'Crear referencia' : activityOnly && !title.trim() ? 'Crear actividad' : 'Crear tarea'}</button>
               </div>
             </motion.div>
 
@@ -276,16 +284,8 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               activities={activities}
               selectedId={activityId ?? ''}
               onSelect={(id) => {
+                // Solo asigna la actividad a la tarea; no crea una tarea-actividad.
                 setActivityId(id);
-                setLinkedTaskId(undefined);
-                if (id) setTitle('');
-                setActivityPickerOpen(false);
-              }}
-              onCreate={async (name, color) => {
-                const id = await addActivity({ name: name.trim(), color });
-                setActivityId(id);
-                setLinkedTaskId(undefined);
-                setTitle('');
                 setActivityPickerOpen(false);
               }}
             />
@@ -301,6 +301,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
               onClose={() => setShowSourcePicker(false)}
               onSelectActivity={(id) => {
                 setActivityId(id);
+                setActivityOnly(!!id);
                 setLinkedTaskId(undefined);
                 if (id) setTitle('');
               }}
@@ -308,6 +309,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 if (selected) {
                   setLinkedTaskId(selected.id);
                   setActivityId(undefined);
+                  setActivityOnly(false);
                   setTitle(generateRefTitle(selected));
                   setNotesHtml('');
                   setNotesOpen(false);
@@ -319,6 +321,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                   setLinkedTaskId(undefined);
                   setTitle('');
                   setActivityId(undefined);
+                  setActivityOnly(false);
                   setNotesHtml('');
                   setNotesOpen(false);
                   setScheduledDate(undefined);

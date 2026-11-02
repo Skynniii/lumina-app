@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { RepeatConfig } from '../../types';
 import { DatePickerModal } from './DatePickerModal';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   initialRepeat?: RepeatConfig;
@@ -34,6 +35,7 @@ function formatDateDisplay(ds: string) {
 }
 
 export function RepeatModal({ initialRepeat, startDate, onClose, onSave }: Props) {
+  useBackHandler(true, onClose);
   const [frequency, setFrequency] = useState<RepeatConfig['frequency']>(initialRepeat?.frequency || 'weekly');
   const [interval, setInterval] = useState(initialRepeat?.interval || 1);
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>(initialRepeat?.daysOfWeek || [new Date().getDay()]);

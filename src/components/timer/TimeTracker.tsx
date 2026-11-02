@@ -8,7 +8,8 @@ import { useFirestoreCollection, incrementTaskTime } from '../../hooks/useFirest
 import { useCountdownTimer, type TimerMode } from '../../hooks/useCountdownTimer';
 import { useUserStorage } from '../../hooks/useUserStorage';
 import { setPendingTimerTask, getPendingTimerTask, clearPendingTimerTask } from '../../shared/pendingTimerTask';
-import { TopBar } from '../ui/TopBar';
+import { sortListsForDisplay } from '../../utils/listOrder';
+import { SectionHeader } from '../ui/SectionHeader';
 import { TodaySummary } from './TodaySummary';
 import { FocusScreen } from './FocusScreen';
 import { EntryList } from './EntryList';
@@ -37,7 +38,8 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
 
   const listsColl = useFirestoreCollection<TaskList>(uid, 'taskLists');
   const tasksColl = useFirestoreCollection<Task>(uid, 'tasks');
-  const taskLists = listsColl.items;
+  // Mismo orden de listas que la sección de Tasks
+  const taskLists = useMemo(() => sortListsForDisplay(listsColl.items), [listsColl.items]);
   const tasks = tasksColl.items;
 
   const selectedEntry = selectedEntryId ? tracker.sessions.find((e) => e.id === selectedEntryId) ?? null : null;
@@ -52,30 +54,46 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     return () => window.removeEventListener('app-add', addHandler);
   }, [tracker.setDraft]);
 
-  // Manejar tarea pendiente (iniciar timer desde TaskDetailView)
+  // Manejar tarea pendiente (iniciar timer desde TaskDetailView o tarea-actividad)
   useEffect(() => {
-    const task = getPendingTimerTask();
-    if (task) {
+    const pending = getPendingTimerTask();
+    if (pending) {
       clearPendingTimerTask();
-      const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
-      tracker.setDraft({ activityId: task.activityId || '', description: task.title, notes: plainNotes, taskId: task.id });
+      const { task, avanceTaskId } = pending;
+      tracker.setDraft({
+        activityId: task.activityId || '', description: task.title, notes: task.notes ?? '',
+        taskId: task.id, avanceTaskId: avanceTaskId ?? undefined,
+      });
       setShowFocus(true);
     }
   }, [tracker.setDraft]);
 
-  const handleStop = async () => {
-    const taskId = tracker.draft.taskId;
-    const activityId = tracker.draft.activityId;
+  // Estado de la tarea al registrar su sesión:
+  // - tarea-actividad: se quita de la lista de tareas
+  // - tarea normal: sincroniza la actividad elegida y, si se completó, la marca
+  // - avance: al completar la sesión, también se marca el avance
+  const handleTaskAfterSession = (taskId: string | undefined, complete: boolean, avanceTaskId?: string) => {
+    if (taskId) {
+      const task = tasks.find((t) => t.id === taskId);
+      if (task?.isActivityOnly) {
+        tasksColl.remove(taskId);
+        return;
+      }
+      if (task && tracker.draft.activityId) tasksColl.update(taskId, { activityId: tracker.draft.activityId });
+      if (task && complete) tasksColl.update(taskId, { completed: true, completedAt: new Date().toISOString() });
+    }
+    if (complete && avanceTaskId) {
+      tasksColl.update(avanceTaskId, { completed: true, completedAt: new Date().toISOString() });
+    }
+  };
+
+  const handleStop = async (completeTask = false, taskIdOverride?: string) => {
+    const taskId = taskIdOverride ?? tracker.draft.taskId;
+    const avanceTaskId = tracker.draft.avanceTaskId;
     await tracker.stop();
     if (settings.sounds) playCompleteSound();
-    // Sincroniza la actividad de la sesión de vuelta a la tarea (excepto activity-only)
-    if (taskId && activityId) {
-      const task = tasks.find((t) => t.id === taskId);
-      if (task && !task.isActivityOnly) {
-        tasksColl.update(taskId, { activityId });
-      }
-    }
-    tracker.setDraft((d) => ({ ...d, taskId: undefined }));
+    handleTaskAfterSession(taskId, completeTask, avanceTaskId);
+    tracker.setDraft((d) => ({ ...d, taskId: undefined, avanceTaskId: undefined }));
   };
 
   const { setOnComplete, start: cdStart } = countdown;
@@ -104,35 +122,29 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
     if (mode === 'rastreador') tracker.discard();
     else countdown.reset();
     // Limpia taskId del draft para que no se herede en la próxima sesión
-    tracker.setDraft((d) => ({ ...d, taskId: undefined }));
+    tracker.setDraft((d) => ({ ...d, taskId: undefined, avanceTaskId: undefined }));
     setShowFocus(false);
   };
 
   const handleSaveSession = async (completeTask: boolean, taskId?: string) => {
     const actualTaskId = taskId ?? tracker.draft.taskId;
+    const avanceTaskId = tracker.draft.avanceTaskId;
     if (mode === 'rastreador') {
-      await handleStop();
-    } else {
-      const elapsed = countdown.targetSeconds - countdown.remaining;
-      if (elapsed >= 1) {
-        const timerMode: AppTimerMode = mode === 'pomodoro' ? 'pomodoro' : 'timer';
-        await tracker.saveSession(elapsed, timerMode);
-        if (settings.sounds) playCompleteSound();
-      }
-      countdown.reset();
+      // handleStop ya registra la sesión y resuelve el estado de la tarea
+      await handleStop(completeTask, actualTaskId);
+      setShowFocus(false);
+      return;
     }
-    // Sincroniza la actividad de la sesión de vuelta a la tarea (excepto activity-only)
-    if (actualTaskId && tracker.draft.activityId) {
-      const task = tasks.find((t) => t.id === actualTaskId);
-      if (task && !task.isActivityOnly) {
-        tasksColl.update(actualTaskId, { activityId: tracker.draft.activityId });
-      }
+    const elapsed = countdown.targetSeconds - countdown.remaining;
+    if (elapsed >= 1) {
+      const timerMode: AppTimerMode = mode === 'pomodoro' ? 'pomodoro' : 'timer';
+      await tracker.saveSession(elapsed, timerMode);
+      if (settings.sounds) playCompleteSound();
     }
-    if (completeTask && actualTaskId) {
-      tasksColl.update(actualTaskId, { completed: true, completedAt: new Date().toISOString() });
-    }
+    countdown.reset();
+    handleTaskAfterSession(actualTaskId, completeTask, avanceTaskId);
     // Limpia taskId del draft para que la próxima sesión no se asocie a esta tarea
-    tracker.setDraft((d) => ({ ...d, taskId: undefined }));
+    tracker.setDraft((d) => ({ ...d, taskId: undefined, avanceTaskId: undefined }));
     setShowFocus(false);
   };
 
@@ -169,9 +181,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
   return (
     <>
       <section className="absolute top-0 left-0 w-full h-full flex flex-col">
-        <div className="px-5 pb-2 shrink-0 z-50 bg-[#f7f6f9]" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
-          <TopBar title="Timer" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} />
-        </div>
+        <SectionHeader title="Timer" onMenuClick={onMenuClick} onOpenAccount={onOpenAccount} background="#f7f6f9" className="z-50" />
 
         <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-[110px]">
           <div className="flex flex-col gap-5 mt-3">
@@ -247,17 +257,14 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
             taskLists={taskLists}
             tasks={tasks}
             onNotesChange={(v) => tracker.setDraft((d) => ({ ...d, notes: v }))}
+            onSyncTaskNotes={(taskId, notes) => tasksColl.update(taskId, { notes })}
             onDiscard={handleDiscard}
             onSaveSession={handleSaveSession}
             onSaveManualSession={async (startMs, endMs) => {
+              const taskId = tracker.draft.taskId;
               await tracker.saveManualSession(startMs, endMs);
-              if (tracker.draft.taskId && tracker.draft.activityId) {
-                const task = tasks.find((t) => t.id === tracker.draft.taskId);
-                if (task && !task.isActivityOnly) {
-                  tasksColl.update(tracker.draft.taskId, { activityId: tracker.draft.activityId });
-                }
-              }
-              tracker.setDraft((d) => ({ ...d, taskId: undefined }));
+              handleTaskAfterSession(taskId, false);
+              tracker.setDraft((d) => ({ ...d, taskId: undefined, avanceTaskId: undefined }));
               setShowFocus(false);
             }}
           />

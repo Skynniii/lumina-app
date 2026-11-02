@@ -8,6 +8,7 @@ import { migrateToSubcollections } from './hooks/useFirestoreCollection';
 import { initSyncEngine, stopSyncEngine } from './hooks/syncEngine';
 import { NavegacionBar } from './components/navegacion/NavegacionBar';
 import { LoginScreen } from './components/ui/LoginScreen';
+import { initBackButton } from './utils/backButton';
 
 // Code-splitting: each view loads on first visit, reducing the initial bundle.
 const TimeTracker = lazy(() => import('./components/timer/TimeTracker').then(m => ({ default: m.TimeTracker })));
@@ -36,6 +37,10 @@ function AppContent() {
   const [showAccount, setShowAccount] = useState(false);
 
   const userNavigated = useRef(false);
+
+  // Botón atrás de Android: cierra la pantalla o modal abiertos en lugar de
+  // salir de la aplicación directamente.
+  useEffect(() => { initBackButton(); }, []);
 
   // Migración one-time + inicialización del motor de sincronización offline-first.
   useEffect(() => {
@@ -79,7 +84,7 @@ function AppContent() {
             {view === 'cronometro' && <TimeTracker onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} />}
             {view === 'habitos' && <TareasDashboard onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} onNavigate={handleViewChange} />}
             {view === 'tracker' && <Tracker onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} onNavigate={handleViewChange} />}
-            {view === 'calendar' && <CalendarView onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} />}
+            {view === 'calendar' && <CalendarView onMenuClick={() => setSidebarOpen(true)} onOpenAccount={() => setShowAccount(true)} onNavigate={handleViewChange} />}
           </Suspense>
         </motion.div>
       </AnimatePresence>

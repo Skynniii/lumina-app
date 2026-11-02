@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   isOpen: boolean;
@@ -55,6 +56,7 @@ function WheelPicker({ value, min, max, onChange }: { value: number; min: number
 }
 
 export function CustomDurationModal({ isOpen, onClose, onSave }: Props) {
+  useBackHandler(isOpen, onClose);
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(25);
 

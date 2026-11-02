@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   initialDate?: string;
@@ -11,6 +12,7 @@ const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 export function DatePickerModal({ initialDate, onClose, onSave }: Props) {
+  useBackHandler(true, onClose);
   const [month, setMonth] = useState(() => (initialDate ? new Date(initialDate) : new Date()));
   const [date, setDate] = useState<string | undefined>(initialDate);
   const [direction, setDirection] = useState(0);

@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Task, TaskList, SubTask, TimeSession, Activity, ViewType } from '../../types';
+import { useBackHandler } from '../../hooks/useBackHandler';
+import { useKeyboardVisible } from '../../hooks/useKeyboardVisible';
 import { useSettings } from '../../context/SettingsContext';
 import { playCompleteSound } from '../../utils/sound';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +15,7 @@ import { CalendarModal } from './CalendarModal';
 import { NotesToolbar } from './NotesToolbar';
 import { DatePickerModal } from './DatePickerModal';
 import { ActivityPicker } from '../timer/ActivityPicker';
+import { LinkPreview, normalizeUrl } from './LinkPreview';
 
 interface Props {
   task: Task;
@@ -24,13 +27,16 @@ interface Props {
   onDelete: (id: string) => void;
   onNavigate?: (v: ViewType) => void;
   onOpenTask?: (id: string) => void;
+  onCreateAdvance?: (listId: string, taskTitle: string) => void;
 }
 
-export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate, onOpenTask }: Props) {
+export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpdate, onDelete, onNavigate, onOpenTask, onCreateAdvance }: Props) {
+  useBackHandler(true, onBack);
+  const keyboardVisible = useKeyboardVisible();
   const { settings } = useSettings();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  const { activities, addActivity } = useActivities();
+  const { activities } = useActivities();
   const sessionsColl = useFirestoreCollection<TimeSession>(uid, 'timeSessions');
   const linkedTask = task.linkedTaskId ? allTasks?.find((t) => t.id === task.linkedTaskId) : null;
   const isLinked = !!linkedTask;
@@ -46,6 +52,9 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const [notesEditing, setNotesEditing] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
+  const [linksExpanded, setLinksExpanded] = useState(false);
+  const [linkInput, setLinkInput] = useState('');
+  const [showAdvanceModal, setShowAdvanceModal] = useState(false);
 
   const taskActivity = activities.find((a) => {
     if (linkedTask?.activityId) return a.id === linkedTask.activityId;
@@ -65,8 +74,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
     if (updates.title !== undefined) sessionUpdates.description = updates.title;
     if (updates.activityId !== undefined) sessionUpdates.activityId = updates.activityId;
     if (updates.notes !== undefined) {
-      const plainNotes = updates.notes ? updates.notes.replace(/<[^>]*>/g, '').trim() : '';
-      sessionUpdates.notes = plainNotes || undefined;
+      sessionUpdates.notes = updates.notes || undefined;
     }
     if (Object.keys(sessionUpdates).length > 0) {
       for (const s of taskSessions) {
@@ -90,7 +98,8 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
 
   const handleStartTimer = () => {
     if (isLinked && linkedTask) {
-      setPendingTimerTask(linkedTask);
+      // El avance lanzado viaja con la sesión para marcarse al completarla
+      setPendingTimerTask(linkedTask, task.id);
     } else {
       // Para activity-only, resolver la actividad desde la lista
       let taskForTimer = task;
@@ -135,24 +144,28 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
     return () => clearTimeout(t);
   }, [task.title, editingTitle, titleValue]);
 
-  // Inicializar contentEditable de notas al expandir
-  useEffect(() => {
-    if (notesExpanded && notesEditRef.current) {
-      notesEditRef.current.innerHTML = displayNotes || '';
+  // Enfoca el título en el mismo frame en que se activa la edición: pasar del
+  // título a las notas (y al revés) no cierra y reabre el teclado.
+  useLayoutEffect(() => {
+    if (editingTitle) titleRef.current?.focus();
+  }, [editingTitle]);
+
+  // Inicializar contentEditable de notas al expandir. El foco se aplica en el
+  // mismo frame (sin temporizador) para no cerrar y reabrir el teclado.
+  useLayoutEffect(() => {
+    const el = notesEditRef.current;
+    if (notesExpanded && el) {
+      el.innerHTML = displayNotes || '';
       const isUserToggle = !wasExpanded.current;
       wasExpanded.current = true;
       if (!isCompleted && isUserToggle) {
-        setTimeout(() => {
-          const el = notesEditRef.current;
-          if (!el) return;
-          el.focus();
-          const sel = window.getSelection();
-          const range = document.createRange();
-          range.selectNodeContents(el);
-          range.collapse(false);
-          sel?.removeAllRanges();
-          sel?.addRange(range);
-        }, 100);
+        el.focus();
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
       }
     } else if (!notesExpanded) {
       wasExpanded.current = false;
@@ -168,6 +181,27 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, [showListMenu]);
+
+  const handleAddLink = () => {
+    const trimmed = linkInput.trim();
+    if (!trimmed) return;
+    const normalized = normalizeUrl(trimmed);
+    const currentLinks = task.links ?? [];
+    if (currentLinks.includes(normalized)) { setLinkInput(''); return; }
+    handleSyncedUpdate(task.id, { links: [...currentLinks, normalized] });
+    setLinkInput('');
+  };
+
+  const handleDeleteLink = (index: number) => {
+    const currentLinks = task.links ?? [];
+    handleSyncedUpdate(task.id, { links: currentLinks.filter((_, i) => i !== index) });
+  };
+
+  const handleCreateAdvance = (listId: string) => {
+    setShowAdvanceModal(false);
+    onCreateAdvance?.(listId, task.title);
+    onBack();
+  };
 
   // Auto-focus en subtarea nueva
   useEffect(() => {
@@ -279,7 +313,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
       className="absolute left-0 right-0 top-0 bottom-0 z-[1000] bg-white flex flex-col origin-top"
     >
       {/* Header: back + star + list selector */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f0f5] shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f0f5] shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
         <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12" />
@@ -336,11 +370,12 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         {/* Banner de referencia */}
         {isLinked && (
           <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-[#f0edff] text-[#7f70ff]">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-none">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-none">
+              <circle cx="12" cy="12" r="10" />
+              <polygon points="8 8.5 12 12 8 15.5" fill="currentColor" stroke="none" />
+              <polygon points="12 8.5 16 12 12 15.5" fill="currentColor" stroke="none" />
             </svg>
-            <span className="text-[13px] font-medium">Referencia a tarea</span>
+            <span className="text-[13px] font-medium">Avance en tarea</span>
           </div>
         )}
 
@@ -361,7 +396,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
             value={editingTitle ? titleValue : task.title}
             onChange={(e) => setTitleValue(e.target.value)}
             readOnly={isCompleted || isLinked || !editingTitle}
-            onClick={() => { if (!isCompleted && !isLinked) { setEditingTitle(true); setTitleValue(task.title); setTimeout(() => titleRef.current?.focus(), 10); } }}
+            onClick={() => { if (!isCompleted && !isLinked) { setEditingTitle(true); setTitleValue(task.title); } }}
             onBlur={() => { if (titleValue !== task.title) handleSyncedUpdate(task.id, { title: titleValue }); setEditingTitle(false); }}
             rows={1}
             className={`w-full bg-transparent outline-none resize-none border-none text-[20px] font-bold leading-snug mb-4 ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#2b2b2b]'} ${editingTitle ? 'cursor-text' : 'cursor-pointer'}`}
@@ -371,7 +406,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         {/* Notas expandible */}
         {!isLinked && !task.isActivityOnly && ((!isCompleted) || hasNotes) && (
           <div className="border-b border-[#f0f0f5]">
-            <div onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
+            <div onMouseDown={(e) => e.preventDefault()} onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
               <span className={`transition-colors ${hasNotes ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
               </span>
@@ -392,6 +427,49 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
                     onBlur={() => setNotesEditing(false)}
                     className="w-full min-h-[100px] pb-4 pt-1 outline-none text-[15px] text-[#444] leading-relaxed [&_h1]:text-[18px] [&_h1]:font-bold [&_h1]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
                   />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Links */}
+        {!isLinked && !task.isActivityOnly && ((!isCompleted) || (task.links?.length ?? 0) > 0) && (
+          <div className="border-b border-[#f0f0f5]">
+            <div onClick={() => setLinksExpanded(!linksExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
+              <span className={`transition-colors ${(task.links?.length ?? 0) > 0 ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+              </span>
+              <span className={`flex-1 text-[15px] ${(task.links?.length ?? 0) > 0 ? 'text-[#7f70ff] font-bold' : 'text-[#555]'}`}>
+                {(task.links?.length ?? 0) > 0 ? 'Links' : 'Añadir links'}
+              </span>
+              <motion.svg animate={{ rotate: linksExpanded ? 180 : 0 }} className="text-[#a0a0a0] w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></motion.svg>
+            </div>
+            {/* Previews siempre visibles */}
+            {(task.links?.length ?? 0) > 0 && (
+              <div className="pb-1 flex flex-col gap-2">
+                {(task.links ?? []).map((link, i) => (
+                  <LinkPreview key={i} url={link} onDelete={!isCompleted ? () => handleDeleteLink(i) : undefined} readOnly={isCompleted} />
+                ))}
+              </div>
+            )}
+            {/* Campo para añadir links (solo al expandir) */}
+            <AnimatePresence>
+              {linksExpanded && !isCompleted && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                  <div className="pb-3 flex items-center gap-2">
+                    <input
+                      type="url"
+                      value={linkInput}
+                      onChange={(e) => setLinkInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddLink(); } }}
+                      placeholder="Pegar URL..."
+                      className="flex-1 bg-[#f8f8fa] border border-[#e8e8ed] rounded-xl px-3 py-2 text-[14px] text-[#333] outline-none focus:border-[#7f70ff] transition-colors"
+                    />
+                    <button onClick={handleAddLink} disabled={!linkInput.trim()} className="w-9 h-9 flex items-center justify-center rounded-full bg-[#f0edff] text-[#7f70ff] hover:bg-[#7f70ff] hover:text-white transition-colors disabled:opacity-40 border-none cursor-pointer shrink-0">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    </button>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -542,6 +620,21 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
           </div>
         )}
 
+        {/* Crear avance */}
+        {!isCompleted && !isLinked && !task.isActivityOnly && onCreateAdvance && (
+          <button onClick={() => setShowAdvanceModal(true)} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
+            <span className="text-[#a0a0a0]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="8 8.5 12 12 8 15.5" fill="currentColor" stroke="none" />
+                <polygon points="12 8.5 16 12 12 15.5" fill="currentColor" stroke="none" />
+              </svg>
+            </span>
+            <span className="flex-1 text-left text-[15px] text-[#555]">Crear avance</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+        )}
+
         {/* Añadir a Timer */}
         {!isCompleted && (
           <button onClick={handleStartTimer} className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer">
@@ -577,8 +670,8 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         )}
       </AnimatePresence>
 
-      {/* Barra inferior: eliminar + timer + completar */}
-      <div className="flex justify-between items-center px-5 py-4 border-t border-[#f0f0f5] shrink-0">
+      {/* Barra inferior: eliminar + completar (oculta con el teclado abierto) */}
+      <div className={`flex justify-between items-center px-5 py-4 border-t border-[#f0f0f5] shrink-0 ${keyboardVisible ? 'hidden' : ''}`} style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
         <button onClick={() => onDelete(task.id)} className="text-[#ff4d4d] p-2.5 rounded-full hover:bg-[#fff5f5] transition-colors border-none bg-transparent cursor-pointer">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
         </button>
@@ -614,11 +707,6 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         activities={activities}
         selectedId={task.activityId}
         onSelect={(id) => { handleSyncedUpdate(task.id, { activityId: id }); setActivityPickerOpen(false); }}
-        onCreate={async (name, color) => {
-          const id = await addActivity({ name: name.trim(), color });
-          handleSyncedUpdate(task.id, { activityId: id });
-          setActivityPickerOpen(false);
-        }}
       />
 
       {/* Modal flotante de calendario */}
@@ -631,6 +719,27 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
             onClose={() => setShowCalendar(false)}
             onSave={(date, time, repeat) => onUpdate(task.id, { scheduledDate: date, scheduledTime: time, repeat })}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Modal centrado para crear avance */}
+      <AnimatePresence>
+        {showAdvanceModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-[1100] flex items-center justify-center" onClick={() => setShowAdvanceModal(false)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-2xl p-3 max-w-[300px] w-[calc(100%-40px)]" onClick={(e) => e.stopPropagation()}>
+              <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto no-scrollbar">
+                {lists.map((list) => (
+                  <button
+                    key={list.id}
+                    onClick={() => handleCreateAdvance(list.id)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] text-[#555] hover:bg-[#f8f9fa] transition-colors border-none bg-transparent cursor-pointer"
+                  >
+                    <span>{list.name}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.div>

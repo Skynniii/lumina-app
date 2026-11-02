@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { TaskList, Activity, Task } from '../../types';
 import { useActivities } from '../../hooks/useActivities';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface DragState {
   startY: number;
@@ -28,6 +29,7 @@ export function ManageListsModal({
   isOpen, lists, tasks, onClose,
   onReorderLists, onSetListActivity, onCreateList, onDeleteList, onCreateActivityList,
 }: Props) {
+  useBackHandler(isOpen, onClose);
   const { activities } = useActivities();
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
   const [showActivityLists, setShowActivityLists] = useState(false);
@@ -60,10 +62,10 @@ export function ManageListsModal({
     return ids;
   }, [lists]);
 
-  // Actividades disponibles para crear listas (no vinculadas y que tengan tareas)
+  // Actividades disponibles para crear listas (no vinculadas a ninguna lista)
   const availableActivities = useMemo(() => {
-    return activities.filter((a) => !linkedActivityIds.has(a.id) && tasks.some((t) => t.activityId === a.id && !t.isSeparator));
-  }, [activities, linkedActivityIds, tasks]);
+    return activities.filter((a) => !linkedActivityIds.has(a.id));
+  }, [activities, linkedActivityIds]);
 
   const setDragOrderBoth = useCallback((v: string[] | null) => {
     dragOrderRef.current = v;
@@ -231,24 +233,27 @@ export function ManageListsModal({
                         <div className="px-4 pb-3 flex flex-col gap-3">
                           {/* Selector de actividad */}
                           <div>
-                            <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide m-0 mb-2">Actividad vinculada</p>
-                            <div className="flex flex-wrap gap-2">
-                              {list.activityId && (
-                                <button onClick={() => onSetListActivity(id, null)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border border-[#e0e0e0] bg-white text-[#666] cursor-pointer hover:bg-[#f5f5f5]">
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                                  Quitar
-                                </button>
-                              )}
-                              {activities.filter((a) => a.id !== list.activityId).map((a) => (
-                                <button key={a.id} onClick={() => onSetListActivity(id, a.id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border cursor-pointer transition-transform hover:scale-105" style={{ background: a.color + '12', borderColor: a.color + '40', color: a.color }}>
-                                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: a.color }} />
-                                  {a.name}
-                                </button>
-                              ))}
-                              {activities.length === 0 && (
-                                <p className="text-[13px] text-[#aaa] m-0">No hay actividades creadas.</p>
-                              )}
-                            </div>
+                            {list.activityId ? (
+                              <button onClick={() => onSetListActivity(id, null)} className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[14px] font-semibold text-[#666] bg-[#f0f0f0] border-none cursor-pointer hover:bg-[#e4e4e4] transition-colors w-full">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                                {`Quitar ${listActivity?.name ?? ''}`}
+                              </button>
+                            ) : (
+                              <>
+                                <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide m-0 mb-2">Vincular actividad</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {activities.filter((a) => !linkedActivityIds.has(a.id)).map((a) => (
+                                    <button key={a.id} onClick={() => onSetListActivity(id, a.id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border cursor-pointer transition-transform hover:scale-105" style={{ background: a.color + '12', borderColor: a.color + '40', color: a.color }}>
+                                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: a.color }} />
+                                      {a.name}
+                                    </button>
+                                  ))}
+                                  {activities.filter((a) => !linkedActivityIds.has(a.id)).length === 0 && (
+                                    <p className="text-[13px] text-[#aaa] m-0">{activities.length === 0 ? 'No hay actividades creadas.' : 'Todas las actividades ya están vinculadas.'}</p>
+                                  )}
+                                </div>
+                              </>
+                            )}
                           </div>
 
                           {/* Eliminar lista */}
@@ -285,7 +290,7 @@ export function ManageListsModal({
           {/* Mostrar listas de actividades */}
           <div>
             <button onClick={() => setShowActivityLists(!showActivityLists)} className="w-full flex items-center justify-between py-2 px-1 border-none bg-transparent cursor-pointer">
-              <span className="text-[14px] font-semibold text-[#333]">Mostrar lista de tareas de actividades</span>
+              <span className="text-[14px] font-semibold text-[#333]">Lista de tareas de actividades</span>
               <svg className={showActivityLists ? 'rotate-180 transition-transform duration-200' : 'transition-transform duration-200'} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
             </button>
             <AnimatePresence>

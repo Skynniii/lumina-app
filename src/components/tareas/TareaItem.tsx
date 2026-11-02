@@ -35,6 +35,8 @@ interface Props {
   onDragPointerEnd?: () => void;
   activityColor?: string;
   activityName?: string;
+  /** Tareas-actividad: lanza el Timer con esa actividad. */
+  onStartActivity?: (task: Task) => void;
 }
 
 const GOLD = '#eab308';
@@ -43,6 +45,7 @@ const IconNotes = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="n
 const IconSub = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>);
 const IconFlag = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>);
 const IconCal = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>);
+const IconLink = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>);
 
 function arePropsEqual(prev: Props, next: Props): boolean {
   const a = prev.task, b = next.task;
@@ -60,8 +63,10 @@ function arePropsEqual(prev: Props, next: Props): boolean {
     a.isActivityOnly === b.isActivityOnly &&
     a.activityId === b.activityId &&
     (a.subtasks?.length ?? 0) === (b.subtasks?.length ?? 0) &&
+    (a.links?.length ?? 0) === (b.links?.length ?? 0) &&
     prev.activityColor === next.activityColor &&
     prev.activityName === next.activityName &&
+    prev.onStartActivity === next.onStartActivity &&
     prev.listTag === next.listTag &&
     prev.sortMode === next.sortMode &&
     prev.reorderable === next.reorderable &&
@@ -76,7 +81,7 @@ function arePropsEqual(prev: Props, next: Props): boolean {
   );
 }
 
-export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, compact, hideListTag, hideDueDate, overdueDays, onDragPointerDown, onDragPointerEnd, activityColor, activityName }: Props) => {
+export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, compact, hideListTag, hideDueDate, overdueDays, onDragPointerDown, onDragPointerEnd, activityColor, activityName, onStartActivity }: Props) => {
   const { settings } = useSettings();
   const cap = useDeviceCapability();
   const activeTaskId = useActiveTaskId();
@@ -91,6 +96,10 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const isCompleted = task.completed;
   const isChecked = task.completed || optimistic;
   const isDragged = dragId === task.id;
+  // Color del botón de reanudar de las tareas-actividad.
+  const playColor = isCompleted ? '#b0b0b0' : (activityColor ?? '#7f70ff');
+  // Tareas-actividad: conservan la línea de color en el borde izquierdo de la tarjeta.
+  const barColor = task.isActivityOnly && activityColor && !isCompleted ? activityColor : undefined;
 
   // Información adicional para mostrar en la tarjeta
   const hasNotes = !!task.notes?.replace(/<[^>]*>/g, '').trim();
@@ -106,9 +115,10 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const showDue = !isActivityOnly && !isLinked && typeof task.scheduledDate === 'string' && !!task.scheduledDate && sortMode !== 'date' && !hideDueDate;
   const showNotes = !isActivityOnly && !isLinked && hasNotes && !inPrincipal;
   const showSub = !isActivityOnly && !isLinked && hasSub && !inPrincipal;
+  const showLinks = !isActivityOnly && !isLinked && (task.links?.length ?? 0) > 0 && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
   const showTimeSpent = (task.totalTimeSpent || 0) > 0;
-  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent;
+  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent || showLinks;
 
   const dueLabel = () => {
     if (typeof task.scheduledDate !== 'string' || !task.scheduledDate) return '';
@@ -171,6 +181,20 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         );
       })()}
 
+      <div className="flex items-center w-full min-h-[24px]">
+      {isActivityOnly ? (
+        <motion.button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onStartActivity?.(task); }}
+          title="Empezar en el Timer"
+          className="relative flex items-center justify-center w-[20px] h-[20px] flex-none mr-3 bg-transparent border-none p-0 cursor-pointer"
+          animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
+          transition={{ duration: 0.45, ease: 'easeInOut' }}
+        >
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[22px] h-[22px] rounded-full border-[1.5px]" style={{ borderColor: playColor, background: `${playColor}14` }} />
+          <svg width="11" height="11" viewBox="0 0 24 24" fill={playColor} className="relative ml-[1px]"><path d="M8 5v14l11-7z" /></svg>
+        </motion.button>
+      ) : (
       <motion.div
         className="relative flex items-center justify-center w-[20px] h-[20px] flex-none mr-3"
         onClick={handleComplete}
@@ -181,6 +205,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         <input type="checkbox" readOnly checked={isChecked} className="peer appearance-none min-w-[22px] h-[22px] border-[1.5px] border-[#d1d1d6] rounded-full cursor-pointer checked:bg-[#7f70ff] checked:border-[#7f70ff] transition-all group-hover:border-[#b0a5ff]" />
         <svg className={`absolute w-3.5 h-3.5 text-white pointer-events-none transition-opacity duration-200 ${isChecked ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
       </motion.div>
+      )}
 
       <div className="flex-grow min-w-0 flex flex-col relative">
         <motion.span
@@ -189,41 +214,11 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           className={`text-[15px] leading-snug ${isCompleted ? 'text-[#a0a0a0] line-through' : 'text-[#333333]'} ${task.isActivityOnly ? 'font-semibold' : ''}`}
         >
           {task.isActivityOnly ? (
-            <span style={{ color: isCompleted ? undefined : (activityColor ?? '#7f70ff') }} className="inline-flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: activityColor ?? '#7f70ff' }} />
+            <span style={{ color: isCompleted ? undefined : (activityColor ?? '#7f70ff') }}>
               {activityName || 'Actividad'}
             </span>
           ) : task.title}
         </motion.span>
-        {hasInfo && (
-          <motion.div
-            animate={{ opacity: completingImportant ? 0 : 1 }}
-            transition={{ duration: 0.45, ease: 'easeInOut' }}
-            className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 text-[#8a8a8a]"
-          >
-            {showListTag && (
-              <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
-            )}
-            {showOverdue && (
-              <span className="inline-flex items-center text-[11px] font-medium text-[#e53935]">{overdueDays === 1 ? 'hace 1 día' : `hace ${overdueDays} días`}</span>
-            )}
-            {showDue && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#efeaff] text-[#6b5cdb] text-[12px] font-semibold">
-                <IconCal /> {dueLabel()}
-              </span>
-            )}
-            {showDeadline && (
-              <span className="flex items-center text-[#d97706]"><IconFlag /></span>
-            )}
-            {showTimeSpent && (
-              <span className="flex items-center text-[#8a8a8a]">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-              </span>
-            )}
-            {showNotes && <span className="flex items-center"><IconNotes /></span>}
-            {showSub && <span className="flex items-center"><IconSub /></span>}
-          </motion.div>
-        )}
         {showCompletedText && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <Sparkles />
@@ -239,19 +234,12 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
         </div>
       )}
 
-      {isLinked && !reorderable && (
-        <span className="flex-none ml-2 self-center text-[#7f70ff]" title="Tarea vinculada">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-          </svg>
-        </span>
-      )}
+
 
       {reorderable ? (
         <div
           onPointerDown={!isCompleted && onDragPointerDown ? (e) => { e.stopPropagation(); onDragPointerDown?.(e, task.id); } : undefined}
-          className="flex-none p-2 ml-2 self-center text-[#c0c0c0] touch-none"
+          className="flex-none -my-2 p-2 ml-2 text-[#c0c0c0] touch-none"
           style={{ cursor: isDragged ? 'grabbing' : 'grab' }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -265,17 +253,49 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
           animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
           transition={{ duration: 0.45, ease: 'easeInOut' }}
           style={{ pointerEvents: completingImportant ? 'none' : undefined }}
-          className="flex-none p-2 ml-2 cursor-pointer rounded-full hover:bg-black/5 transition-colors self-center"
+          className="flex-none -my-2 p-2 ml-2 cursor-pointer rounded-full hover:bg-black/5 transition-colors"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill={task.isImportant ? '#ffcc00' : 'none'} stroke={task.isImportant ? '#ffcc00' : '#d1d1d6'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-200">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
         </motion.button>
       ) : null}
+      </div>
+
+      {hasInfo && (
+        <motion.div
+          animate={{ opacity: completingImportant ? 0 : 1 }}
+          transition={{ duration: 0.45, ease: 'easeInOut' }}
+          className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5 ml-[32px] text-[#8a8a8a]"
+        >
+          {showListTag && (
+            <span className="inline-flex items-center text-[11px] font-medium text-[#999] bg-[#f4f4f6] px-2 py-0.5 rounded-full">{listTag}</span>
+          )}
+          {showOverdue && (
+            <span className="inline-flex items-center text-[11px] font-medium text-[#e53935]">{overdueDays === 1 ? 'hace 1 día' : `hace ${overdueDays} días`}</span>
+          )}
+          {showDue && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#efeaff] text-[#6b5cdb] text-[12px] font-semibold">
+              <IconCal /> {dueLabel()}
+            </span>
+          )}
+          {showDeadline && (
+            <span className="flex items-center text-[#d97706]"><IconFlag /></span>
+          )}
+          {showTimeSpent && (
+            <span className="flex items-center text-[#8a8a8a]">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+            </span>
+          )}
+          {showLinks && <span className="flex items-center"><IconLink /></span>}
+          {showNotes && <span className="flex items-center"><IconNotes /></span>}
+          {showSub && <span className="flex items-center"><IconSub /></span>}
+        </motion.div>
+      )}
     </>
   );
 
-  const baseClass = `relative flex items-center py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] task-item-perf ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
+  const baseClass = `relative flex flex-col py-2.5 px-2 w-full select-none group min-h-[44px] rounded-[12px] task-item-perf ${overlay ? '' : 'my-0.5'} transition-colors ${task.isImportant && !isCompleted ? 'bg-[#fff9e6]' : ''}`;
 
   return (
     <motion.li
@@ -291,7 +311,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       onPointerLeave={!reorderable && onDragPointerEnd ? () => onDragPointerEnd?.() : undefined}
       onClick={() => onExpand(task.id)}
       className={`${baseClass} ${isDragged ? 'cursor-grabbing bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] z-50' : reorderable ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: activityColor && !isLinked ? `3px solid ${activityColor}` : '3px solid transparent', backgroundColor: task.isActivityOnly && activityColor && !isCompleted ? `${activityColor}12` : undefined }}
+      style={{ zIndex: isDragged ? 50 : 'auto', touchAction: reorderable ? 'pan-y' : (onDragPointerDown ? 'pan-x pan-y' : 'auto'), borderLeft: barColor ? `3px solid ${barColor}` : undefined, backgroundColor: task.isActivityOnly && activityColor && !isCompleted ? `${activityColor}12` : undefined }}
     >
       {inner}
     </motion.li>

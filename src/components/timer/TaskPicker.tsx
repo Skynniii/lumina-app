@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Task, TaskList, SortMode } from '../../types';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 function sortTasksForList(tasks: Task[], list: TaskList): Task[] {
   const filtered = tasks.filter((t) => t.listId === list.id && !t.completed && !t.isSeparator);
@@ -41,6 +42,7 @@ interface Props {
 }
 
 export function TaskPicker({ isOpen, onClose, lists, tasks, onSelect }: Props) {
+  useBackHandler(isOpen, onClose);
   // Filtrar la lista Principal y listas vacías
   const visibleLists = (lists ?? []).filter((l) => l.id !== 'principal');
 

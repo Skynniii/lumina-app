@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed } from '../../hooks/useTimeTracker';
+import { useBackHandler } from '../../hooks/useBackHandler';
+import { useKeyboardVisible } from '../../hooks/useKeyboardVisible';
 import type { TimerMode } from '../../hooks/useCountdownTimer';
 import type { ActiveTimerCardProps } from './ActiveTimerCard';
 import { ActivityPicker } from './ActivityPicker';
@@ -8,6 +10,7 @@ import { FocusRing } from './FocusRing';
 import { TaskPicker } from './TaskPicker';
 import { CustomDurationModal } from './CustomDurationModal';
 import { DatePickerModal } from '../tareas/DatePickerModal';
+import { NotesToolbar } from '../tareas/NotesToolbar';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { useSettings } from '../../context/SettingsContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
@@ -24,6 +27,7 @@ interface Props extends ActiveTimerCardProps {
   onSaveSession: (completeTask: boolean, taskId?: string) => void;
   onSaveManualSession?: (startMs: number, endMs: number) => void;
   onTaskIdChange?: (id: string | undefined) => void;
+  onSyncTaskNotes?: (taskId: string, notes: string) => void;
 }
 
 const MODE_LABELS: Record<TimerMode, string> = {
@@ -32,7 +36,9 @@ const MODE_LABELS: Record<TimerMode, string> = {
   pomodoro: 'Pomodoro',
 };
 
-export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard, onSaveSession, onSaveManualSession, ...props }: Props) {
+export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard, onSaveSession, onSaveManualSession, onSyncTaskNotes, ...props }: Props) {
+  useBackHandler(true, onBack);
+  const keyboardVisible = useKeyboardVisible();
   const { mode, onModeChange, countdown, pomodoroPhase, pomodoroCycle, onPomodoroSkip } = props;
   const { settings, update } = useSettings();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -76,7 +82,13 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const isHoldingRef = useRef(false);
   const [customDurations, setCustomDurations] = useUserStorage<number[]>('timer-custom-durations', [25, 45, 60]);
   const [showCustomDuration, setShowCustomDuration] = useState(false);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const notesRef = useRef<HTMLDivElement>(null);
+  const [notesEditing, setNotesEditing] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const wasNotesExpanded = useRef(false);
+
+  const linkedTask = props.draft.taskId ? tasks.find((t) => t.id === props.draft.taskId) : null;
+  const hasNotes = !!props.draft.notes?.replace(/<[^>]*>/g, '').trim();
 
   const formatDurationLabel = (min: number) => {
     const h = Math.floor(min / 60);
@@ -94,11 +106,26 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const isRunning = mode === 'rastreador' ? isTicking : countdown.running;
   const isActive = isRunning;
 
-  const progress = mode === 'rastreador' ? 0 : (countdown.targetSeconds > 0 ? countdown.remaining / countdown.targetSeconds : 0);
-  const ringColor = mode === 'pomodoro' ? (pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b') : '#7f70ff';
+  const activityColor = activity?.color ?? '#7f70ff';
+  // El temporizador se llena al iniciar (0→1); al pausar se mantiene lleno y al reiniciar vuelve a 0.
+  const timerFilled = isRunning || countdown.remaining < countdown.targetSeconds;
+  const progress = mode === 'pomodoro'
+    ? (countdown.targetSeconds > 0 ? countdown.remaining / countdown.targetSeconds : 0)
+    : mode === 'temporizador'
+      ? (timerFilled ? 1 : 0)
+      : (hasStarted ? 1 : 0);
+  const ringColor = mode === 'pomodoro' ? (pomodoroPhase === 'work' ? '#7f70ff' : '#34c77b') : activityColor;
+  // Haz de luz que recorre el anillo mientras hay una sesión activa
+  const ringShimmer = isActive;
   const elapsedCount = manualMode ? manualDurationSec : (mode === 'rastreador' ? props.elapsed : (countdown.targetSeconds - countdown.remaining));
   const timeDisplay = manualMode ? formatElapsed(manualDurationSec) : (mode === 'temporizador' ? formatElapsed(countdown.remaining) : formatElapsed(elapsedCount));
-  const statusLabel = !hasStarted ? 'Listo' : (isRunning ? 'En curso' : 'Pausado');
+
+  // Hora "HH:mm" (24h) mostrada según el formato elegido en ajustes (12h / 24h)
+  const fmtManualTime = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    if (settings.timeFormat === '12h') return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
 
   const handleCenterButton = () => {
     hapticMedium();
@@ -122,9 +149,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
     setSelectedTask(task);
     props.onDescriptionChange(task.title);
     if (task.activityId) props.onActivityChange(task.activityId);
-    const plainNotes = task.notes ? task.notes.replace(/<[^>]*>/g, '').trim() : '';
-    onNotesChange(plainNotes);
+    onNotesChange(task.notes ?? '');
     props.onTaskIdChange?.(task.id);
+    if (task.notes?.replace(/<[^>]*>/g, '').trim()) setNotesExpanded(true);
   };
 
   const handleSaveManual = () => {
@@ -151,7 +178,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
     isHoldingRef.current = false;
     let p = 0;
     holdIntervalRef.current = window.setInterval(() => {
-      p = Math.min(1, p + 0.022);
+      p = Math.min(1, p + 0.06);
       setHoldProgress(p);
       if (p >= 0.12) isHoldingRef.current = true;
       if (p >= 1) {
@@ -173,16 +200,74 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const checkRadius = (checkSize - 6) / 2;
   const checkCircumference = 2 * Math.PI * checkRadius;
 
-  // Auto-resize del textarea de notas
+  // Cargar las notas en el editor solo cuando cambian desde fuera (p. ej. al
+  // elegir una tarea), para no mover el cursor mientras se escribe.
+  const lastNotesRef = useRef<string | null>(null);
   useEffect(() => {
     const el = notesRef.current;
     if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
+    const incoming = props.draft.notes || '';
+    if (incoming !== lastNotesRef.current) {
+      el.innerHTML = incoming;
+      lastNotesRef.current = incoming;
+    }
   }, [props.draft.notes]);
+
+  const handleNotesInput = (e: React.FormEvent<HTMLDivElement>) => {
+    lastNotesRef.current = e.currentTarget.innerHTML;
+    onNotesChange(e.currentTarget.innerHTML);
+    if (props.draft.taskId && onSyncTaskNotes) {
+      onSyncTaskNotes(props.draft.taskId, e.currentTarget.innerHTML);
+    }
+  };
+
+  const execCommand = (cmd: string, value?: string) => {
+    notesRef.current?.focus();
+    document.execCommand(cmd, false, value);
+    if (notesRef.current) {
+      lastNotesRef.current = notesRef.current.innerHTML;
+      onNotesChange(notesRef.current.innerHTML);
+      if (props.draft.taskId && onSyncTaskNotes) {
+        onSyncTaskNotes(props.draft.taskId, notesRef.current.innerHTML);
+      }
+    }
+  };
+
+  // Inicializar contentEditable de notas al expandir
+  useLayoutEffect(() => {
+    const el = notesRef.current;
+    if (notesExpanded && el) {
+      el.innerHTML = props.draft.notes || '';
+      const isUserToggle = !wasNotesExpanded.current;
+      wasNotesExpanded.current = true;
+      if (isUserToggle) {
+        el.focus();
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    } else if (!notesExpanded) {
+      wasNotesExpanded.current = false;
+    }
+  }, [notesExpanded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sincronizar notas desde la tarea cuando cambian externamente
+  useEffect(() => {
+    if (linkedTask && linkedTask.notes !== undefined) {
+      const taskNotes = linkedTask.notes || '';
+      if (taskNotes !== lastNotesRef.current) {
+        lastNotesRef.current = taskNotes;
+        onNotesChange(taskNotes);
+      }
+    }
+  }, [linkedTask?.notes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} className="fixed inset-0 z-[9999] flex flex-col bg-white">
+      <style>{`[data-ph]:empty::before{content:attr(data-ph);color:#aaa;pointer-events:none}`}</style>
       {/* === Barra superior === */}
       <div className="flex items-center justify-between px-4 pb-3 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
         <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90">
@@ -250,18 +335,15 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
       {/* === Contenido scrolleable === */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-5">
         {/* Anillo */}
-        <div className="flex flex-col items-center py-4">
+        <div className="flex flex-col items-center pt-4 pb-8">
           <div className="relative flex items-center justify-center">
             <div className="absolute w-[260px] h-[260px] rounded-full bg-[#7f70ff]/5 blur-[50px] anim-glow-pulse" />
-            <div className={isActive ? 'anim-ring-breathe' : ''}>
-              <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" isStatic={mode === 'rastreador'}>
-                <div className="flex flex-col items-center gap-1">
-                  {isActive && <span className="w-2 h-2 rounded-full bg-[#34c77b] mb-1 anim-dot-pulse" />}
-                  <span key={timeDisplay} className={`text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none ${isActive ? 'anim-time-breathe' : ''}`}>{timeDisplay}</span>
-                  <span className="text-[11px] text-[#999] uppercase tracking-wide mt-0.5">{statusLabel}</span>
-                </div>
-              </FocusRing>
-            </div>
+            <FocusRing progress={progress} color={ringColor} size={200} stroke={7} trackColor="#e8e6f0" shimmer={ringShimmer}>
+              <div className="relative flex items-center justify-center">
+                {isActive && <span className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full anim-dot-pulse" style={{ background: activityColor, bottom: 'calc(100% + 8px)' }} />}
+                <span key={timeDisplay} className="text-[36px] font-bold text-[#333] tabular-nums tracking-tight leading-none">{timeDisplay}</span>
+              </div>
+            </FocusRing>
           </div>
 
           {mode === 'pomodoro' && (
@@ -276,7 +358,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           {manualMode && (
             <div className="flex gap-2 mt-4">
               {[{ label: '-10', val: -10 }, { label: '-5', val: -5 }, { label: '+5', val: 5 }, { label: '+10', val: 10 }].map((b) => (
-                <button key={b.label} onClick={() => adjustManualEnd(b.val)} className="px-4 py-2 rounded-full text-[14px] font-bold bg-[#f7f6f9] text-[#7f70ff] shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] border-none cursor-pointer transition-colors active:scale-90">
+                <button key={b.label} onClick={() => adjustManualEnd(b.val)} className={`px-4 py-2.5 rounded-2xl text-[15px] font-bold bg-[#f7f6f9] border-none cursor-pointer active:scale-95 transition-transform ${b.val < 0 ? 'text-[#333]' : 'text-[#7f70ff]'}`}>
                   {b.label}
                 </button>
               ))}
@@ -310,14 +392,22 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           </div>
 
           {/* Fecha y hora - solo visible en sesión activa o modo manual */}
-          {(hasStarted || manualMode) && (
-            <div className="border-b border-[#f0f0f5]">
+          <AnimatePresence initial={false}>
+            {(hasStarted || manualMode) && (
+              <motion.div
+                key="session-info"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }, opacity: { duration: 0.25, ease: 'easeInOut' } }}
+                className="overflow-hidden border-b border-[#f0f0f5]"
+              >
               <div className="flex items-center gap-3 py-3">
                 <span className="text-[#a0a0a0]">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                 </span>
                 {manualMode ? (
-                  <button onClick={() => setShowDatePicker(true)} className="text-[15px] font-medium text-[#7f70ff] capitalize bg-transparent border-none cursor-pointer">
+                  <button onClick={() => setShowDatePicker(true)} className="text-[15px] font-medium text-[#333] capitalize bg-transparent border-none cursor-pointer">
                     {new Date(manualDate + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
                   </button>
                 ) : (
@@ -331,9 +421,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
                 <div className="flex-1" />
                 {manualMode ? (
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#7f70ff] tabular-nums bg-transparent border-none cursor-pointer">{manualStart}</button>
+                    <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none cursor-pointer">{fmtManualTime(manualStart)}</button>
                     <span className="text-[#bbb]">–</span>
-                    <button onClick={() => setShowEndTimePicker(true)} className="text-[15px] font-medium text-[#7f70ff] tabular-nums bg-transparent border-none cursor-pointer">{manualEnd}</button>
+                    <button onClick={() => setShowEndTimePicker(true)} className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none cursor-pointer">{fmtManualTime(manualEnd)}</button>
                   </div>
                 ) : (
                   <button onClick={() => setShowStartTimePicker(true)} className="text-[15px] font-medium text-[#333] tabular-nums bg-transparent border-none cursor-pointer">
@@ -354,8 +444,9 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
                   </button>
                 )}
               </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Descripción */}
           <div className="border-b border-[#f0f0f5]">
@@ -383,24 +474,52 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
 
           {/* Notas */}
           <div className="border-b border-[#f0f0f5]">
-            <div className="flex items-start gap-3 py-3">
-              <span className="text-[#a0a0a0] mt-0.5">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+            <div onMouseDown={(e) => e.preventDefault()} onClick={() => setNotesExpanded(!notesExpanded)} className="flex items-center gap-3 py-3 cursor-pointer">
+              <span className={`transition-colors ${hasNotes ? 'text-[#7f70ff]' : 'text-[#a0a0a0]'}`}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
               </span>
-              <textarea ref={notesRef} value={props.draft.notes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Notas" rows={1} className="flex-1 bg-transparent outline-none border-none resize-none text-[15px] text-[#333] placeholder:text-[#aaa] min-h-[24px] overflow-hidden" />
+              <span className={`flex-1 text-[15px] ${hasNotes ? 'text-[#7f70ff] font-bold' : 'text-[#555]'}`}>
+                {hasNotes ? 'Notas' : 'Añadir notas'}
+              </span>
+              <motion.svg animate={{ rotate: notesExpanded ? 180 : 0 }} className="text-[#a0a0a0] w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></motion.svg>
             </div>
+            <AnimatePresence>
+              {notesExpanded && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                  <div
+                    ref={notesRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    data-ph="Escribe una nota..."
+                    onInput={handleNotesInput}
+                    onFocus={() => setNotesEditing(true)}
+                    onBlur={() => setNotesEditing(false)}
+                    className="w-full min-h-[80px] pb-4 pt-1 outline-none text-[15px] text-[#444] leading-relaxed [&_h1]:text-[17px] [&_h1]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
 
-      {/* === Botones flotantes inferiores === */}
-      <div className="flex items-center justify-center gap-10 pb-8 pt-2 shrink-0">
+      {/* Toolbar de formato cuando se editan las notas */}
+      <AnimatePresence>
+        {notesEditing && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden shrink-0">
+            <NotesToolbar onCommand={execCommand} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* === Botones flotantes inferiores (ocultos con el teclado abierto) === */}
+      <div className={`flex items-center justify-center gap-10 pt-2 shrink-0 ${keyboardVisible ? 'hidden' : ''}`} style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 32px)' }}>
         {manualMode ? (
-          <button onClick={() => setManualMode(false)} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
+          <button onClick={() => setManualMode(false)} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] active:scale-[0.88] transition-all">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
         ) : hasStarted ? (
-          <button onClick={handleXClick} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow active:scale-[0.88] transition-transform">
+          <button onClick={handleXClick} className="w-[52px] h-[52px] rounded-full bg-white border-none cursor-pointer flex items-center justify-center shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] active:scale-[0.88] transition-all">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b81" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
         ) : <div className="w-[52px]" />}
@@ -416,7 +535,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
         </button>
 
         {manualMode ? (
-          <div className="w-[56px]" />
+          <div className="w-[64px]" />
         ) : hasStarted ? (
           <div className="relative" style={{ width: checkSize, height: checkSize }}>
             <svg className="absolute inset-0 -rotate-90 pointer-events-none" width={checkSize} height={checkSize}>
@@ -508,7 +627,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
         />
       )}
 
-      <ActivityPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} activities={props.activities} selectedId={props.draft.activityId} onSelect={(id) => { props.onActivityChange(id); setPickerOpen(false); }} onCreate={(name, color) => { const id = props.onCreateActivity(name, color); props.onActivityChange(id); setPickerOpen(false); }} />
+      <ActivityPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} activities={props.activities} selectedId={props.draft.activityId} onSelect={(id) => { props.onActivityChange(id); setPickerOpen(false); }} />
       <TaskPicker isOpen={taskPickerOpen} onClose={() => setTaskPickerOpen(false)} lists={taskLists} tasks={tasks} onSelect={handleSelectTask} />
       <CustomDurationModal isOpen={showCustomDuration} onClose={() => setShowCustomDuration(false)} onSave={handleCustomDuration} />
     </motion.div>

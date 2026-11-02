@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ACTIVITY_COLORS } from '../../hooks/useTimeTracker';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function NewActivityModal({ isOpen, onClose, onCreate }: Props) {
+  useBackHandler(isOpen, onClose);
   const [name, setName] = useState('');
   const [color, setColor] = useState(ACTIVITY_COLORS[0]);
 

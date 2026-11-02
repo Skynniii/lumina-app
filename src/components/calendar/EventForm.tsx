@@ -4,6 +4,7 @@ import { EVENT_COLORS, MONTHS, addMinutes, dateKey, timeToMinutes } from '../../
 import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import type { CalendarEvent } from '../../types';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   isOpen: boolean;
@@ -18,6 +19,7 @@ type TimeField = 'start' | 'end';
 const inputCls = 'w-full bg-[#f7f6f9] rounded-2xl px-4 py-3 text-[15px] text-[#333] placeholder:text-[#aaa] outline-none shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff] transition-shadow';
 
 export function EventForm({ isOpen, onClose, onSave, initialDate, initialEvent }: Props) {
+  useBackHandler(isOpen, onClose);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [start, setStart] = useState('09:00');

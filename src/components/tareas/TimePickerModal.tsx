@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 interface Props {
   initialHour: number;
@@ -26,6 +27,7 @@ function getPos(value: number, total: number, radius: number) {
 }
 
 export function TimePickerModal({ initialHour, initialMinute, onClose, onSave }: Props) {
+  useBackHandler(true, onClose);
   const { settings } = useSettings();
   const is12h = settings.timeFormat === '12h';
 
