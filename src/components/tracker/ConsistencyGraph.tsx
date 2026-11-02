@@ -29,6 +29,13 @@ export function ConsistencyGraph({ sessions, activity }: Props) {
 
   const maxTotal = useMemo(() => Math.max(...data.map((d) => d.total), 1), [data]);
 
+  // Rango visible: siempre los últimos 12 meses
+  const rangeLabel = useMemo(() => {
+    if (data.length === 0) return '';
+    const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { month: 'short', year: 'numeric' });
+    return `${fmt(data[0].date)} – ${fmt(data[data.length - 1].date)}`;
+  }, [data]);
+
   // La etiqueta de cada mes se ubica sobre la columna donde cae su día 1
   const monthLabels = useMemo(() => {
     const labels: { weekIdx: number; label: string }[] = [];
@@ -57,7 +64,8 @@ export function ConsistencyGraph({ sessions, activity }: Props) {
   return (
     <div className="bg-white p-4 rounded-[20px] shadow-[4px_4px_10px_#e6e6e6,-4px_-4px_10px_#ffffff]">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide m-0">Consistencia {new Date().getFullYear()}</p>
+        <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide m-0">Consistencia</p>
+        <span className="text-[11px] text-[#bbb] capitalize">{rangeLabel}</span>
       </div>
 
       <div ref={scrollRef} className="overflow-x-auto no-scrollbar">

@@ -169,6 +169,8 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
       }
     } else if (!notesExpanded) {
       wasExpanded.current = false;
+      // Al contraer las notas se oculta también la barra de formato
+      setNotesEditing(false);
     }
   }, [notesExpanded]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -663,7 +665,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
 
       {/* Toolbar de formato cuando se editan notas */}
       <AnimatePresence>
-        {notesEditing && (
+        {notesEditing && notesExpanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <NotesToolbar onCommand={execCommand} />
           </motion.div>

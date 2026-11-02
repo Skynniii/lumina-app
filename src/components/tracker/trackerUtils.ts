@@ -236,13 +236,14 @@ export function getConsistencyData(sessions: TimeSession[], activityId: string):
   today.setHours(0, 0, 0, 0);
   const todayStr = todayKey();
 
-  // Desde el lunes de la semana del 1 de enero hasta hoy (sin días futuros)
-  // Así cada columna del grafo empieza en Lunes y termina en Domingo
-  const yearStart = new Date(today.getFullYear(), 0, 1);
-  const jan1Day = yearStart.getDay(); // 0=domingo, 1=lunes, ...
-  const mondayOffset = jan1Day === 0 ? -6 : 1 - jan1Day;
-  const firstMonday = new Date(yearStart);
-  firstMonday.setDate(yearStart.getDate() + mondayOffset);
+  // Ventana móvil de un año exacto hasta hoy (septiembre→septiembre, enero→enero…),
+  // alineada al lunes para que cada columna del grafo sea una semana completa.
+  const yearAgo = new Date(today);
+  yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+  const startDay = yearAgo.getDay(); // 0=domingo, 1=lunes, ...
+  const mondayOffset = startDay === 0 ? -6 : 1 - startDay;
+  const firstMonday = new Date(yearAgo);
+  firstMonday.setDate(yearAgo.getDate() + mondayOffset);
   const totalDays = Math.floor((today.getTime() - firstMonday.getTime()) / 86400000) + 1;
 
   const days: { date: string; total: number; isFuture: boolean }[] = [];

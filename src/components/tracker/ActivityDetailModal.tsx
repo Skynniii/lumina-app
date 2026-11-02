@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatElapsed, formatClock, isoToDateKey, dayLabel } from '../../hooks/useTimeTracker';
-import { ACTIVITY_COLORS } from '../../hooks/useTimeTracker';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import {
   formatDuration, getActivityTasks, getTimeByTasks, getStreak, getBestStreak, type ActivityStats,
@@ -9,6 +8,7 @@ import {
 import { useSettings } from '../../context/SettingsContext';
 import { ConsistencyGraph } from './ConsistencyGraph';
 import { ActivityTrendStats } from './ActivityTrendStats';
+import { ActivityEditModal } from './ActivityEditModal';
 import type { Activity, TimeSession, Task, TaskList, ViewType } from '../../types';
 import { setPendingTimerTask } from '../../shared/pendingTimerTask';
 
@@ -38,9 +38,7 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
   useBackHandler(true, onBack);
   const { settings } = useSettings();
   const [tab, setTab] = useState<Tab>('resumen');
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(activity.name);
-  const [editColor, setEditColor] = useState(activity.color);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const actSessions = useMemo(
@@ -117,13 +115,6 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
     onNavigate('cronometro');
   };
 
-  const handleSaveEdit = () => {
-    if (editName.trim()) {
-      onUpdateActivity(activity.id, { name: editName.trim(), color: editColor });
-    }
-    setIsEditing(false);
-  };
-
   return (
     <motion.div
       initial={{ x: '100%' }}
@@ -137,58 +128,19 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
         <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90 border-none bg-transparent cursor-pointer">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
         </button>
-        {isEditing ? (
-          <div className="flex-1 flex flex-col gap-3">
-            <input
-              type="text"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              autoFocus
-              className="flex-1 bg-[#f7f6f9] rounded-xl px-3 py-2 text-[16px] font-bold text-[#333] outline-none border-none shadow-[inset_2px_2px_5px_#e6e6e6,inset_-2px_-2px_5px_#ffffff]"
-            />
-            <div className="flex gap-2 flex-wrap">
-              {ACTIVITY_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setEditColor(c)}
-                  className="w-7 h-7 rounded-full border-none cursor-pointer transition-transform"
-                  style={{
-                    background: c,
-                    transform: editColor === c ? 'scale(1.15)' : undefined,
-                    boxShadow: editColor === c ? `0 0 0 2.5px #fff, 0 0 0 4.5px ${c}` : undefined,
-                  }}
-                />
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => { setIsEditing(false); setEditName(activity.name); setEditColor(activity.color); }} className="px-4 py-2 rounded-xl text-[14px] font-semibold text-[#777] bg-[#f0f0f0] border-none cursor-pointer">Cancelar</button>
-              <button onClick={handleSaveEdit} className="px-4 py-2 rounded-xl text-[14px] font-semibold text-white bg-[#7f70ff] border-none cursor-pointer">Guardar</button>
-            </div>
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="self-start mt-1 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#ff5252] bg-[#ff5252]/10 border-none cursor-pointer flex items-center gap-1.5"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-              Eliminar actividad
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: activity.color }} />
-              <h1 className="text-[20px] font-bold text-[#333] m-0 truncate">{activity.name}</h1>
-            </div>
-            <button
-              onClick={() => { setEditName(activity.name); setEditColor(activity.color); setIsEditing(true); }}
-              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90 border-none bg-transparent cursor-pointer shrink-0"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </button>
-          </>
-        )}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: activity.color }} />
+          <h1 className="text-[20px] font-bold text-[#333] m-0 truncate">{activity.name}</h1>
+        </div>
+        <button
+          onClick={() => setShowEditModal(true)}
+          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-90 border-none bg-transparent cursor-pointer shrink-0"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </button>
       </div>
 
       {/* Tabs */}
@@ -390,6 +342,18 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
           </motion.div>
         </AnimatePresence>
       </div>
+      {/* Edición de la actividad */}
+      <AnimatePresence>
+        {showEditModal && (
+          <ActivityEditModal
+            activity={activity}
+            onClose={() => setShowEditModal(false)}
+            onSave={(updates) => onUpdateActivity(activity.id, updates)}
+            onRequestDelete={() => { setShowEditModal(false); setShowDeleteConfirm(true); }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Confirmación de eliminación */}
       <AnimatePresence>
         {showDeleteConfirm && (

@@ -150,21 +150,17 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
   return (
     <>
       <style>{`[data-ph]:empty::before{content:attr(data-ph);color:#bbb;pointer-events:none}`}</style>
-      <AnimatePresence>
-        {isOpen && (
+      {isOpen && (
           <>
-            <motion.div
+            <div
               className="fixed inset-0 bg-black/40 z-[1001] backdrop-blur-sm"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={onClose}
             />
-            <motion.div
+            <div
               className="fixed left-1/2 -translate-x-1/2 w-full max-w-[420px] z-[1002] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] px-5 pt-3 pb-6"
               style={{ bottom: keyboardHeight }}
               // Tocar cualquier zona interior del modal cierra las notas si están vacías
               onClick={() => { if (!hasNotes) { setNotesOpen(false); setNotesEditing(false); } }}
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              transition={{ type: 'spring', stiffness: 360, damping: 36 }}
             >
               <div className="w-10 h-1.5 bg-[#e4e4ed] rounded-full mx-auto mb-3" />
               <p className="text-left text-[16px] font-bold text-[#2b2b2b] mb-3">Nueva tarea</p>
@@ -266,7 +262,7 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
                 <button onClick={onClose} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#f0f0f0] text-[#666] hover:bg-[#e4e4e4] transition-colors">Cancelar</button>
                 <button onClick={submit} disabled={!title.trim() && !(activityOnly && activityId) && !isLinked} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">{isLinked ? 'Crear referencia' : activityOnly && !title.trim() ? 'Crear actividad' : 'Crear tarea'}</button>
               </div>
-            </motion.div>
+            </div>
 
             {showPicker && (
               <CalendarModal
@@ -333,7 +329,6 @@ export function NuevaTareaModal({ isOpen, defaultListId, availableLists, allList
             />
           </>
         )}
-      </AnimatePresence>
     </>
   );
 }

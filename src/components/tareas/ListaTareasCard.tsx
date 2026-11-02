@@ -108,7 +108,10 @@ export function ListaTareasCard({
   const sortMode: SortMode = list.sortMode || 'custom';
   const active = tasks.filter((t) => !t.completed);
   const activeNonSep = active.filter((t) => !t.isSeparator);
-  const completed = tasks.filter((t) => t.completed);
+  // Completadas: la más reciente arriba
+  const completed = tasks
+    .filter((t) => t.completed)
+    .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
 
   const activeSorted = useMemo(() => {
     const arr = [...activeNonSep];
