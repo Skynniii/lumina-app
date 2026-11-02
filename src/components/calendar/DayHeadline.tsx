@@ -12,6 +12,9 @@ const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes
 /** Muelle compartido con el número de la cabecera de la semana. */
 const DAY_NUM_TRANSITION = { type: 'spring' as const, stiffness: 260, damping: 30 };
 
+/** Ancho de la columna de las horas en `TimeGrid` + su separación. */
+const DAY_COL_OFFSET = 47;
+
 const TaskIcon = ({ color }: { color: string }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></svg>
 );
@@ -32,15 +35,16 @@ function FamilyIcon({ item }: { item: CalendarItem }) {
 /**
  * Cabecera de la vista de día en dos filas: arriba el número del día (que llega
  * deslizándose desde la cabecera de la semana) con el día de la semana a su
- * derecha, y debajo las tareas y eventos del día a ancho completo.
+ * derecha, y debajo las tareas y eventos del día alineados con la columna de
+ * las cajas blancas (no con la de las horas).
  */
 export function DayHeadline({ date, items, onSelectItem }: Props) {
   const dt = parseKey(date);
 
   return (
-    <div className="flex flex-col gap-2.5 px-3 pt-3 pb-3">
+    <div className="flex flex-col gap-2.5 pt-3 pb-3">
       {/* Fila 1: número del día + día de la semana */}
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center gap-2.5 min-w-0 px-3">
         <motion.span
           layoutId={`day-num-${date}`}
           transition={DAY_NUM_TRANSITION}
@@ -58,30 +62,32 @@ export function DayHeadline({ date, items, onSelectItem }: Props) {
         </motion.span>
       </div>
 
-      {/* Fila 2: tareas y eventos del día, que se alargan hasta el ancho completo */}
+      {/* Fila 2: tareas y eventos del día, alineados con la columna del día */}
       {items.length > 0 && (
-        <motion.div
-          initial={{ width: '20%' }}
-          animate={{ width: '100%' }}
-          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col gap-1.5 overflow-hidden"
-        >
-          {items.map((it) => (
-            <motion.button
-              key={it.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              onClick={() => onSelectItem(it)}
-              className="flex items-center gap-2 w-full min-w-0 rounded-full pl-2 pr-3 py-[5px] border-none cursor-pointer text-left active:scale-[0.99] transition-transform"
-              style={{ background: `${it.color}26` }}
-            >
-              <span className="shrink-0 flex"><FamilyIcon item={it} /></span>
-              <span className={`flex-1 min-w-0 text-[13px] font-medium truncate ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>
-                {it.title}
-              </span>
-            </motion.button>
-          ))}
-        </motion.div>
+        <div className="pr-1" style={{ paddingLeft: DAY_COL_OFFSET }}>
+          <motion.div
+            initial={{ width: '20%' }}
+            animate={{ width: '100%' }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col gap-1.5 overflow-hidden"
+          >
+            {items.map((it) => (
+              <motion.button
+                key={it.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                onClick={() => onSelectItem(it)}
+                className="flex items-center gap-2 w-full min-w-0 rounded-full pl-2 pr-3 py-[5px] border-none cursor-pointer text-left active:scale-[0.99] transition-transform"
+                style={{ background: `${it.color}26` }}
+              >
+                <span className="shrink-0 flex"><FamilyIcon item={it} /></span>
+                <span className={`flex-1 min-w-0 text-[13px] font-medium truncate ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>
+                  {it.title}
+                </span>
+              </motion.button>
+            ))}
+          </motion.div>
+        </div>
       )}
     </div>
   );

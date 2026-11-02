@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
 import { MONTHS, dateKey } from '../../hooks/useCalendarEvents';
@@ -45,9 +45,11 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   const { taskApi, sessionApi, eventsApi, itemsByDate, lists: rawLists, tasks, sessions, activities, events } = data;
   const lists = useMemo(() => sortListsForDisplay(rawLists), [rawLists]);
 
-  const [mode, setMode] = useState<CalendarViewMode>('month');
+  const [mode, setMode] = useState<CalendarViewMode>('agenda');
   const [anchor, setAnchor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => todayKey());
+  // Se incrementa al pulsar "Hoy" para que la agenda baje hasta el mes actual
+  const [todayPulse, setTodayPulse] = useState(0);
   const [layers, setLayers] = useUserStorage<Record<CalendarLayer, boolean>>('calendar-layers', DEFAULT_LAYERS);
 
   const [quickAdd, setQuickAdd] = useState(false);
@@ -82,14 +84,22 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   const goToday = useCallback(() => {
     setAnchor(new Date());
     setSelectedDate(todayKey());
+    setTodayPulse((n) => n + 1);
   }, []);
 
+  // Orden de las vistas: agenda → mes → semana → día
   const cycleMode = useCallback(() => {
-    const order: CalendarViewMode[] = ['month', 'week', 'day', 'agenda'];
+    const order: CalendarViewMode[] = ['agenda', 'month', 'week', 'day'];
     const idx = order.indexOf(mode);
     const next = order[(idx + 1) % order.length];
     setMode(next);
-    if (next === 'day' || next === 'agenda') setAnchor(parseKey(selectedDate));
+    // La vista de día abre siempre en el día actual
+    if (next === 'day') {
+      setAnchor(new Date());
+      setSelectedDate(todayKey());
+    } else if (next === 'agenda') {
+      setAnchor(parseKey(selectedDate));
+    }
   }, [mode, selectedDate]);
 
   const toggleLayer = useCallback((l: CalendarLayer) => {
@@ -168,7 +178,13 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
       <div className="flex-1 flex flex-col overflow-hidden">
         {mode === 'month' ? (
           // Vista de mes: calendario arriba + info del día debajo, todo deslizable
-          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-2 pb-[110px] pt-2">
+          <motion.div
+            key="month"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.26, ease: 'easeOut' }}
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-2 pb-[110px] pt-2"
+          >
             <MonthGrid
               anchorMonth={anchor}
               onMonthChange={setAnchor}
@@ -194,10 +210,14 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                 onSelectItem={openItem}
               />
             </div>
-          </div>
+          </motion.div>
         ) : mode === 'week' ? (
           // Vista de semana: días con barritas por familia + rejilla horaria, a ancho completo
-          <div
+          <motion.div
+            key="week"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.26, ease: 'easeOut' }}
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-[#f2f1f6] pb-[110px]"
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
@@ -213,10 +233,11 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
               itemsByDate={visibleByDate}
               onSelectItem={openItem}
             />
-          </div>
+          </motion.div>
         ) : mode === 'day' ? (
           // Vista de día: info del día, rejilla horaria y detalles, todo a ancho completo
           <div
+            key="day"
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-[#f2f1f6] pb-[110px]"
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
@@ -246,15 +267,22 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
           </div>
         ) : (
           // Agenda: información agrupada por meses y semanas
-          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pb-[110px] pt-2">
+          <motion.div
+            key="agenda"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.26, ease: 'easeOut' }}
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pb-[110px] pt-2"
+          >
             <AgendaView
               itemsByDate={visibleByDate}
               selectedDate={selectedDate}
               onSelectDate={selectDate}
               onSelectItem={openItem}
               anchor={anchor}
+              todayPulse={todayPulse}
             />
-          </div>
+          </motion.div>
         )}
       </div>
 
