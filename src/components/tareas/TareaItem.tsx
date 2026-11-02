@@ -1,4 +1,4 @@
-import { useState, memo, useRef } from 'react';
+import { useState, memo, useRef, useCallback, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import type { Task, SortMode } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
@@ -81,7 +81,7 @@ function arePropsEqual(prev: Props, next: Props): boolean {
   );
 }
 
-export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, compact, hideListTag, hideDueDate, overdueDays, onDragPointerDown, onDragPointerEnd, activityColor, activityName, onStartActivity }: Props) => {
+export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, compact, hideListTag, hideDueDate, overdueDays, onDragPointerDown, onDragPointerEnd, activityColor, activityName, onStartActivity }: Props, ref) => {
   const { settings } = useSettings();
   const cap = useDeviceCapability();
   const activeTaskId = useActiveTaskId();
@@ -92,6 +92,12 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
   const [showCompletedText, setShowCompletedText] = useState(false);
   const [rectSize, setRectSize] = useState<{ w: number; h: number } | null>(null);
   const liRef = useRef<HTMLLIElement>(null);
+  // Combina la ref interna (medición) con la ref externa que exige AnimatePresence popLayout.
+  const setLiRef = useCallback((el: HTMLLIElement | null) => {
+    liRef.current = el;
+    if (typeof ref === 'function') ref(el);
+    else if (ref) (ref as React.MutableRefObject<HTMLLIElement | null>).current = el;
+  }, [ref]);
 
   const isCompleted = task.completed;
   const isChecked = task.completed || optimistic;
@@ -299,7 +305,7 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
 
   return (
     <motion.li
-      ref={liRef}
+      ref={setLiRef}
       layout={cap.enableLayout && !isDragged}
       data-task={task.id}
       initial={{ opacity: 0, y: -10 }}
@@ -316,4 +322,4 @@ export const TareaItem = memo(({ task, onToggle, onUpdate, onExpand, sortMode, r
       {inner}
     </motion.li>
   );
-}, arePropsEqual);
+}), arePropsEqual);
