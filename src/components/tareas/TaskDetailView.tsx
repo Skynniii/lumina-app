@@ -12,7 +12,8 @@ import { formatElapsed, dayLabel, isoToDateKey } from '../../hooks/useTimeTracke
 import { setPendingTimerTask } from '../../shared/pendingTimerTask';
 import { Sparkles } from './Sparkles';
 import { CalendarModal } from './CalendarModal';
-import { NotesToolbar } from './NotesToolbar';
+import { clampNotes, limitBeforeInput } from '../../utils/notesLimit';
+import { screenTransition } from '../../utils/motion';
 import { DatePickerModal } from './DatePickerModal';
 import { ActivityPicker } from '../timer/ActivityPicker';
 import { LinkPreview, normalizeUrl } from './LinkPreview';
@@ -49,7 +50,6 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [notesExpanded, setNotesExpanded] = useState(() => !!displayNotes?.replace(/<[^>]*>/g, '').trim());
-  const [notesEditing, setNotesEditing] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
   const [linksExpanded, setLinksExpanded] = useState(false);
@@ -169,8 +169,6 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
       }
     } else if (!notesExpanded) {
       wasExpanded.current = false;
-      // Al contraer las notas se oculta también la barra de formato
-      setNotesEditing(false);
     }
   }, [notesExpanded]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -233,15 +231,8 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
   };
 
   const handleNotesInput = (e: React.FormEvent<HTMLDivElement>) => {
+    clampNotes(e.currentTarget);
     handleSyncedUpdate(task.id, { notes: e.currentTarget.innerHTML });
-  };
-
-  const execCommand = (cmd: string, value?: string) => {
-    notesEditRef.current?.focus();
-    document.execCommand(cmd, false, value);
-    if (notesEditRef.current) {
-      handleSyncedUpdate(task.id, { notes: notesEditRef.current.innerHTML });
-    }
   };
 
   const handleAddSubtask = () => {
@@ -308,11 +299,12 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.92 }}
-      transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-      className="absolute left-0 right-0 top-0 bottom-0 z-[1000] bg-white flex flex-col origin-top"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={screenTransition}
+      style={{ willChange: 'opacity, transform' }}
+      className="absolute left-0 right-0 top-0 bottom-0 z-[1000] bg-white flex flex-col"
     >
       {/* Header: back + star + list selector */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f0f5] shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
@@ -425,8 +417,7 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
                     contentEditable={!isCompleted && !isLinked}
                     suppressContentEditableWarning
                     onInput={handleNotesInput}
-                    onFocus={() => { if (!isCompleted && !isLinked) setNotesEditing(true); }}
-                    onBlur={() => setNotesEditing(false)}
+                    onBeforeInput={limitBeforeInput}
                     className="w-full min-h-[100px] pb-4 pt-1 outline-none text-[15px] text-[#444] leading-relaxed [&_h1]:text-[18px] [&_h1]:font-bold [&_h1]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
                   />
                 </motion.div>
@@ -662,15 +653,6 @@ export function TaskDetailView({ task, lists, allTasks, onBack, onToggle, onUpda
         {/* Espacio en blanco */}
         <div className="min-h-[60px]" />
       </div>
-
-      {/* Toolbar de formato cuando se editan notas */}
-      <AnimatePresence>
-        {notesEditing && notesExpanded && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <NotesToolbar onCommand={execCommand} />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Barra inferior: eliminar + completar (oculta con el teclado abierto) */}
       <div className={`flex justify-between items-center px-5 py-4 border-t border-[#f0f0f5] shrink-0 ${keyboardVisible ? 'hidden' : ''}`} style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>

@@ -120,7 +120,7 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
       className="fixed inset-0 z-[1500] bg-[#f7f6f9] flex flex-col"
     >
       {/* Header con lápiz de edición */}
@@ -359,14 +359,14 @@ export function ActivityDetailModal({ activity, stat, sessions, tasks, lists, on
         {showDeleteConfirm && (
           <>
             <motion.div
-              className="fixed inset-0 bg-black/40 z-[1600] backdrop-blur-sm"
+              className="fixed inset-0 bg-black/40 z-[1600]"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowDeleteConfirm(false)}
             />
             <motion.div
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] max-w-[320px] z-[1601] bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.15)] p-5 flex flex-col items-center text-center"
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
             >
               <div className="w-12 h-12 rounded-full bg-[#ff5252]/10 flex items-center justify-center mb-3">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff5252" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>

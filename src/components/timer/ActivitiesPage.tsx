@@ -48,7 +48,7 @@ export function ActivitiesPage({ onBack }: Props) {
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
       className="fixed inset-0 z-[1500] bg-[#f7f6f9] flex flex-col"
     >
       {/* Header */}

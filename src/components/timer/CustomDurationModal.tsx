@@ -68,12 +68,12 @@ export function CustomDurationModal({ isOpen, onClose, onSave }: Props) {
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-[10001] backdrop-blur-sm flex items-center justify-center" onClick={onClose}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-[10001] flex items-center justify-center" onClick={onClose}>
             <motion.div
               initial={{ scale: 0.85, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.85, opacity: 0, y: 10 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
               className="bg-white rounded-3xl z-[10002] flex flex-col shadow-[0_12px_40px_rgba(0,0,0,0.15)] mx-5"
               style={{ width: 'min(340px, 90vw)' }}
               onClick={(e) => e.stopPropagation()}

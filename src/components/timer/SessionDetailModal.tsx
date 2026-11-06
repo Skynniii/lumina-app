@@ -9,6 +9,7 @@ import { DatePickerModal } from '../tareas/DatePickerModal';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { ActivityPicker } from './ActivityPicker';
 import { TaskPicker } from './TaskPicker';
+import { clampNotes, limitBeforeInput } from '../../utils/notesLimit';
 
 interface Props {
   entry: TimeSession;
@@ -157,7 +158,7 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
       initial={{ opacity: 0, scale: 0.92 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.92 }}
-      transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
       className="absolute left-0 right-0 top-0 bottom-0 z-[1000] bg-white flex flex-col origin-top"
     >
       <style>{`[data-ph]:empty::before{content:attr(data-ph);color:#bbb;pointer-events:none}`}</style>
@@ -277,7 +278,8 @@ export function SessionDetailModal({ entry, onUpdate, onDelete, onClose, tasks, 
               contentEditable
               suppressContentEditableWarning
               data-ph="Añadir notas..."
-              onInput={(e) => { lastNotesRef.current = e.currentTarget.innerHTML; handleNotesChange(e.currentTarget.innerHTML); }}
+              onBeforeInput={limitBeforeInput}
+              onInput={(e) => { clampNotes(e.currentTarget); lastNotesRef.current = e.currentTarget.innerHTML; handleNotesChange(e.currentTarget.innerHTML); }}
               className="flex-1 min-h-[44px] text-[15px] text-[#333] leading-relaxed outline-none [&_h1]:text-[17px] [&_h1]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
             />
           </div>

@@ -62,12 +62,12 @@ export function CalendarModal({ initialDate, initialTime, initialRepeat, onClose
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/40" />
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
         className="bg-white rounded-[24px] w-full max-w-[340px] shadow-2xl relative overflow-hidden"
       >
         {/* Header con navegación de mes */}

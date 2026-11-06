@@ -115,12 +115,12 @@ export function BirthdayForm({ isOpen, onClose, onSave, initialDate, initialEven
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/40 z-[2000] flex items-end justify-center backdrop-blur-sm" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/40 z-[2000] flex items-end justify-center" onClick={onClose}>
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 360, damping: 36 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-[420px] bg-white rounded-t-[28px] px-5 pt-3 pb-6 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] max-h-[85vh] overflow-y-auto no-scrollbar"
           >

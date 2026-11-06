@@ -30,12 +30,12 @@ export function NewActivityModal({ isOpen, onClose, onCreate }: Props) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end justify-center backdrop-blur-sm" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end justify-center" onClick={onClose}>
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-[420px] bg-white rounded-t-[28px] p-5 pb-7 shadow-[0_-10px_40px_rgba(0,0,0,0.15)]"
           >

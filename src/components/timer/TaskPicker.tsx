@@ -54,14 +54,14 @@ export function TaskPicker({ isOpen, onClose, lists, tasks, onSelect }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 z-[9999] backdrop-blur-sm"
+            className="fixed inset-0 bg-black/40 z-[9999]"
             onClick={onClose}
           />
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[28px] z-[10000] max-h-[75vh] flex flex-col shadow-[0_-4px_30px_rgba(0,0,0,0.1)]"
             onClick={(e) => e.stopPropagation()}
           >

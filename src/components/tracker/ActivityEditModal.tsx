@@ -26,7 +26,7 @@ export function ActivityEditModal({ activity, onClose, onSave, onRequestDelete }
   return (
     <div className="fixed inset-0 z-[1600] flex items-center justify-center p-5">
       <motion.div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={onClose}
       />
@@ -35,7 +35,7 @@ export function ActivityEditModal({ activity, onClose, onSave, onRequestDelete }
         initial={{ opacity: 0, scale: 0.94, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.94, y: 12 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
       >
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} />

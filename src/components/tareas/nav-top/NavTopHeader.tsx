@@ -14,9 +14,8 @@ interface Props {
 
 export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onMenuClick, onOpenAccount, onLongPressList }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const bubbleRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
-  const metrics = useRef<{ left: number; width: number; top: number; height: number }[]>([]);
+  const metrics = useRef<{ left: number; width: number }[]>([]);
   const lpTimer = useRef<number | null>(null);
   const didLongPress = useRef(false);
 
@@ -31,14 +30,14 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
       metrics.current = Array.from(tabs).map((t) => ({
         left: (t as HTMLElement).offsetLeft,
         width: (t as HTMLElement).offsetWidth,
-        top: (t as HTMLElement).offsetTop,
-        height: (t as HTMLElement).offsetHeight,
       }));
     };
 
+    // Solo se mueve la línea: nada de re-renders ni de fondos animados.
     const update = () => {
       const vw = visor.offsetWidth;
-      if (vw === 0 || metrics.current.length === 0) return;
+      const box = containerRef.current;
+      if (vw === 0 || !box || metrics.current.length === 0) return;
 
       let prog = visor.scrollLeft / vw;
       prog = Math.max(0, Math.min(prog, lists.length - 1));
@@ -48,28 +47,26 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
       const cur = metrics.current[base];
       const next = metrics.current[base + 1];
 
-      let left = 0, width = 0, top = 0, height = 0;
+      let left = 0, width = 0;
       if (cur && next) {
         left = cur.left + (next.left - cur.left) * frac;
         width = cur.width + (next.width - cur.width) * frac;
-        top = cur.top + (next.top - cur.top) * frac;
-        height = cur.height + (next.height - cur.height) * frac;
       } else if (cur) {
-        left = cur.left; width = cur.width; top = cur.top; height = cur.height;
+        left = cur.left; width = cur.width;
       }
 
-      if (bubbleRef.current) {
-        bubbleRef.current.style.transform = `translate3d(${left}px, ${top}px, 0)`;
-        bubbleRef.current.style.width = `${width}px`;
-        bubbleRef.current.style.height = `${height}px`;
-      }
       if (lineRef.current) {
         lineRef.current.style.transform = `translate3d(${left}px, 0, 0)`;
         lineRef.current.style.width = `${width}px`;
       }
 
-      const center = left + width / 2;
-      containerRef.current!.scrollLeft = center - containerRef.current!.offsetWidth / 2;
+      // La pestaña activa se mantiene visible, pero sin pelear con el scroll
+      // del usuario en cada frame: solo se recentra si sale de los bordes.
+      const visibleLeft = box.scrollLeft;
+      const visibleRight = visibleLeft + box.offsetWidth;
+      if (left < visibleLeft + 12 || left + width > visibleRight - 12) {
+        box.scrollLeft = left + width / 2 - box.offsetWidth / 2;
+      }
     };
 
     const onScroll = () => {
@@ -97,13 +94,12 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
 
       <div className="relative">
         <div ref={containerRef} className="flex gap-3 overflow-x-auto pt-1 px-4 pb-3 relative z-10 no-scrollbar">
-          <div ref={bubbleRef} className="absolute left-0 top-0 bg-[#7f70ff] rounded-[20px] shadow-[2px_4px_10px_rgba(127,112,255,0.2)] -z-10 pointer-events-none transform-gpu will-change-transform" />
-
           {lists.map((list) => (
             <button
               key={list.id}
-              className="tab-lista relative px-4 py-2 rounded-[20px] text-sm font-medium whitespace-nowrap cursor-pointer select-none z-10 transition-colors duration-200"
-              style={{ color: activeListId === list.id ? '#ffffff' : '#666666' }}
+              className={`tab-lista relative px-4 py-2 rounded-[20px] text-sm whitespace-nowrap cursor-pointer select-none z-10 ${
+                activeListId === list.id ? 'text-[#7f70ff] font-semibold' : 'text-[#8a8a95] font-medium'
+              }`}
               onClick={() => {
                 if (didLongPress.current) { didLongPress.current = false; return; }
                 onSelectList(list.id);

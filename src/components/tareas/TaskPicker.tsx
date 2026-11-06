@@ -22,14 +22,14 @@ export function TaskPicker({ isOpen, tasks, lists, onClose, onSelect }: Props) {
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 bg-black/40 z-[1003] backdrop-blur-sm"
+            className="fixed inset-0 bg-black/40 z-[1003]"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.div
             className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[420px] z-[1004] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] px-5 pt-3 pb-6 max-h-[70vh] flex flex-col"
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 360, damping: 36 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
           >
             <div className="w-10 h-1.5 bg-[#e4e4ed] rounded-full mx-auto mb-3" />
             <p className="text-center text-[13px] text-[#a0a0a0] font-medium mb-3">Vincular a tarea</p>
