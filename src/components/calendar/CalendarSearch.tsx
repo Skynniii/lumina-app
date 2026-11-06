@@ -142,7 +142,7 @@ export function CalendarSearch({ open, tasks, events, lists, onClose, onPick }: 
           {/* Cabecera con el campo de búsqueda (deja aire bajo la barra de estado) */}
           <div
             className="shrink-0 px-4 pb-3 flex items-center gap-2 border-b border-[#f0f0f5]"
-            style={{ paddingTop: 'max(env(safe-area-inset-top), 28px)' }}
+            style={{ paddingTop: 'max(env(safe-area-inset-top), 52px)' }}
           >
             <button
               onClick={onClose}

@@ -120,7 +120,7 @@ export function MonthGrid({ anchorMonth, selectedDate, onSelectDate, itemsByDate
                   >
                     {/* Festivo: barrita amarilla sobre el número (su color no cambia) */}
                     {holidayName(key) && (
-                      <span className="absolute top-[5px] left-1/2 -translate-x-1/2 w-[13px] h-[3px] rounded-full bg-[#f5c518]" />
+                      <span className="absolute top-[8px] left-1/2 -translate-x-1/2 w-[13px] h-[3px] rounded-full bg-[#f5c518]" />
                     )}
                     <span className={`text-[13px] leading-none ${isSelected ? 'text-white font-bold' : isToday ? 'text-[#7f70ff] font-bold' : 'text-[#444] font-medium'}`}>
                       {day}

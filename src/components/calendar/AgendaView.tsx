@@ -97,15 +97,14 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
     return result;
   }, [itemsByDate, today, weekStartDay]);
 
-  /** Deja el día de hoy centrado en la agenda. */
+  /** Deja el día de hoy al principio de la agenda (lo primero que se ve). */
   const scrollToToday = useCallback((smooth: boolean) => {
     const scroller = scrollRef.current;
     const target = todayRef.current;
     if (!scroller || !target) return;
     const offsetInScroller = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-    // Centro vertical del hueco visible menos la mitad de la fila de hoy
-    const centered = scroller.scrollTop + offsetInScroller - (scroller.clientHeight - target.offsetHeight) / 2;
-    const top = Math.max(0, centered);
+    // Hoy queda arriba del todo, con un pequeño margen
+    const top = Math.max(0, scroller.scrollTop + offsetInScroller - 8);
     if (smooth) smoothScrollTo(scroller, top, 700);
     else scroller.scrollTop = top;
   }, [scrollRef]);

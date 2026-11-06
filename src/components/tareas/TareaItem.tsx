@@ -127,8 +127,14 @@ export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle
   const showSub = !isActivityOnly && !isLinked && hasSub && !inPrincipal;
   const showLinks = !isActivityOnly && !isLinked && (task.links?.length ?? 0) > 0 && !inPrincipal;
   const showOverdue = overdueDays != null && overdueDays > 0;
+  // Orden personalizado: una tarea fechada en días pasados se marca "Atrasado".
+  const lateKey = typeof task.scheduledDate === 'string' && task.scheduledDate
+    ? task.scheduledDate
+    : typeof task.dueDate === 'string' && task.dueDate ? task.dueDate : '';
+  const isLateCustom = sortMode === 'custom' && !isCompleted && !!lateKey
+    && new Date(lateKey + 'T00:00:00') < new Date(new Date().setHours(0, 0, 0, 0));
   const showTimeSpent = (task.totalTimeSpent || 0) > 0;
-  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || showTimeSpent || showLinks;
+  const hasInfo = showNotes || showSub || showDeadline || showDue || showListTag || showOverdue || isLateCustom || showTimeSpent || showLinks;
 
   const dueLabel = () => {
     if (typeof task.scheduledDate !== 'string' || !task.scheduledDate) return '';
@@ -283,6 +289,9 @@ export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle
           )}
           {showOverdue && (
             <span className="inline-flex items-center text-[11px] font-medium text-[#e53935]">{overdueDays === 1 ? 'hace 1 día' : `hace ${overdueDays} días`}</span>
+          )}
+          {isLateCustom && (
+            <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wide text-[#e5484d]">Atrasado</span>
           )}
           {showDue && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#efeaff] text-[#6b5cdb] text-[12px] font-semibold">

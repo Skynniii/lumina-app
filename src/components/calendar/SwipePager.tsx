@@ -24,6 +24,10 @@ interface Props {
 export function SwipePager({ pageKey, onPrev, onNext, renderPage, className = '', canPrev = true, canNext = true }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
+  // Alto de la página visible: las tres están fuera de flujo, así que el alto
+  // del contenedor no lo impone la página vecina más larga (día con más filas).
+  const [height, setHeight] = useState(0);
+  const midRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const busy = useRef(false);
 
@@ -37,6 +41,17 @@ export function SwipePager({ pageKey, onPrev, onNext, renderPage, className = ''
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Alto de la página central (la visible) para que nada deje hueco debajo
+  useLayoutEffect(() => {
+    const el = midRef.current;
+    if (!el) return;
+    const measure = () => setHeight(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [pageKey, width]);
 
   // Al montar y en cada cambio de periodo, la página central ocupa la ventana
   useLayoutEffect(() => {
@@ -66,17 +81,22 @@ export function SwipePager({ pageKey, onPrev, onNext, renderPage, className = ''
         dragElastic={0.06}
         dragMomentum={false}
         dragDirectionLock
-        style={{ x, width: width * 3 || undefined }}
+        style={{ x, width: width * 3 || undefined, height: height || undefined }}
         onDragEnd={(_, info) => {
           const threshold = width * 0.22;
           if (info.offset.x < -threshold || info.velocity.x < -420) settle(1);
           else if (info.offset.x > threshold || info.velocity.x > 420) settle(-1);
           else settle(0);
         }}
-        className="flex items-start"
+        className="relative"
       >
         {([-1, 0, 1] as Offset[]).map((off) => (
-          <div key={off} className="shrink-0" style={{ width: width || '100%' }}>
+          <div
+            key={off}
+            ref={off === 0 ? midRef : undefined}
+            className="absolute top-0"
+            style={{ width: width || '100%', left: (off + 1) * width }}
+          >
             {renderPage(off)}
           </div>
         ))}

@@ -2,6 +2,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { formatEventTime } from '../../hooks/useCalendarEvents';
 import { minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
 import { todayKey } from '../../hooks/useTimeTracker';
+import { holidayName } from '../../utils/holidays';
 
 interface Props {
   date: string; // YYYY-MM-DD
@@ -95,6 +96,7 @@ export function MonthDayInfo({ date, items, overdueItems = [], onSelectItem, onN
   const weekday = WEEKDAYS[new Date(y, m - 1, d).getDay()];
   const today = todayKey();
   const isPast = date < today;
+  const holiday = holidayName(date);
 
   const pending = items.filter((i) => i.kind === 'pending');
   const completed = items.filter((i) => i.kind === 'completed');
@@ -105,9 +107,12 @@ export function MonthDayInfo({ date, items, overdueItems = [], onSelectItem, onN
   const header = (
     <div className="flex items-center gap-3">
       <span className={`font-bold text-[#333] leading-none tabular-nums ${isPast ? 'text-[32px]' : 'text-[42px]'}`}>{d}</span>
-      <div className="flex flex-col justify-center">
+      <div className="flex flex-col justify-center min-w-0">
         <span className={`text-[16px] font-semibold capitalize leading-tight ${isPast ? 'text-[#9a9aa8]' : 'text-[#7f70ff]'}`}>{weekday}</span>
         <span className="text-[14px] text-[#999] capitalize">{MONTHS[m - 1]} {y}</span>
+        {holiday && (
+          <span className="text-[12px] font-semibold text-[#c99a06] leading-tight truncate">Festivo · {holiday}</span>
+        )}
       </div>
     </div>
   );
