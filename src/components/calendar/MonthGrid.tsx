@@ -1,22 +1,36 @@
 import { monthWeeks, dateKey } from '../../hooks/useCalendarEvents';
-import { dayMarkers, type CalendarItem } from '../../hooks/useCalendarData';
+import { dayMarkers, LAYER_META, type CalendarItem } from '../../hooks/useCalendarData';
 
 interface Props {
   anchorMonth: Date;
   selectedDate: string;
   onSelectDate: (key: string) => void;
   itemsByDate: Map<string, CalendarItem[]>;
+  /** Días con tareas completadas: en el pasado el punto cambia de color. */
+  completedKeys: Set<string>;
 }
 
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
+/** Filas fijas: todos los meses miden lo mismo al deslizar entre ellos. */
+const ROWS = 6;
+
 /** Vista de mes: rejilla con la actividad de cada día (puntos por color y tipo). */
-export function MonthGrid({ anchorMonth, selectedDate, onSelectDate, itemsByDate }: Props) {
+export function MonthGrid({ anchorMonth, selectedDate, onSelectDate, itemsByDate, completedKeys }: Props) {
   const y = anchorMonth.getFullYear();
   const m = anchorMonth.getMonth();
   const today = dateKey();
 
   const weeks = monthWeeks(y, m);
+  while (weeks.length < ROWS) weeks.push(Array(7).fill(null));
+
+  // Día pasado: solo se marcan lo completado y los eventos de ese día
+  function pastMarkers(key: string, dayItems: CalendarItem[]): string[] {
+    const colors = new Set<string>();
+    if (completedKeys.has(key)) colors.add(LAYER_META.completed.color);
+    for (const it of dayItems) if (it.kind === 'event') colors.add(it.color);
+    return Array.from(colors);
+  }
 
   return (
     <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] p-4">
@@ -36,10 +50,12 @@ export function MonthGrid({ anchorMonth, selectedDate, onSelectDate, itemsByDate
               const dayItems = itemsByDate.get(key) ?? [];
               const isSelected = key === selectedDate;
               const isToday = key === today;
-              const dots = dayMarkers(dayItems);
+              const isPast = key < today;
+              const dots = isPast ? pastMarkers(key, dayItems) : dayMarkers(dayItems);
               return (
                 <button
                   key={key}
+                  data-cal-day={key}
                   onClick={() => onSelectDate(key)}
                   className={`h-[48px] w-full relative flex items-center justify-center rounded-[12px] border-none cursor-pointer transition-colors ${
                     isSelected
@@ -49,7 +65,7 @@ export function MonthGrid({ anchorMonth, selectedDate, onSelectDate, itemsByDate
                         : 'bg-transparent hover:bg-[#f7f6f9]'
                   }`}
                 >
-                  <span className={`text-[13px] leading-none ${isSelected ? 'text-white font-bold' : isToday ? 'text-[#7f70ff] font-bold' : 'text-[#444] font-medium'}`}>
+                  <span className={`text-[13px] leading-none ${isSelected ? 'text-white font-bold' : isToday ? 'text-[#7f70ff] font-bold' : isPast ? 'text-[#a9a9b4] font-medium' : 'text-[#444] font-medium'}`}>
                     {day}
                   </span>
                   {/* Puntos en posición absoluta: el número queda siempre centrado */}

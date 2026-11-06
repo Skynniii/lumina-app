@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { MONTHS, dateKey } from '../../hooks/useCalendarEvents';
@@ -8,7 +8,6 @@ import {
   useCalendarData, VIEW_LAYERS, parseKey, shiftKey, weekDaysOf,
   type CalendarItem,
 } from '../../hooks/useCalendarData';
-import { smoothScrollTo } from '../../utils/smoothScroll';
 import { sortListsForDisplay } from '../../utils/listOrder';
 import { SectionHeader } from '../ui/SectionHeader';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
@@ -22,6 +21,7 @@ import { DayResumen } from './DayResumen';
 import { AgendaView } from './AgendaView';
 import { SwipePager } from './SwipePager';
 import { CalendarQuickAdd } from './CalendarQuickAdd';
+import { CalendarSearch, type SearchPick } from './CalendarSearch';
 import { EventForm } from './EventForm';
 import { EventDetail } from './EventDetail';
 import { NuevaTareaModal } from '../tareas/NuevaTareaModal';
@@ -34,6 +34,9 @@ interface Props {
   onOpenAccount: () => void;
   onNavigate?: (v: ViewType) => void;
 }
+
+/** Años navegables en la vista de mes y en la franja de meses. */
+const MONTH_RANGE_YEARS = 10;
 
 /**
  * Sección Calendario: vistas de mes, semana, día y agenda sobre la información
@@ -53,17 +56,61 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   const [todayPulse, setTodayPulse] = useState(0);
   const topScrollRef = useRef<HTMLDivElement>(null);
   const agendaScrollRef = useRef<HTMLDivElement>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  // La agenda entra siempre centrada en el día de hoy, sin desplazamiento visible.
-  // Se hace aquí (padre) porque el ref del contenedor con scroll solo está listo
-  // después de que sus hijos terminen de montarse.
-  useLayoutEffect(() => {
+  // Rango navegable de la vista de mes (10 años a cada lado).
+  const monthLimit = useMemo(() => {
+    const now = new Date();
+    return {
+      min: new Date(now.getFullYear() - MONTH_RANGE_YEARS, now.getMonth(), 1),
+      max: new Date(now.getFullYear() + MONTH_RANGE_YEARS, now.getMonth(), 1),
+    };
+  }, []);
+
+  const canPrevMonth = new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1) >= monthLimit.min;
+  const canNextMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1) <= monthLimit.max;
+
+  // En la agenda, el mes del encabezado sigue al scroll (con animación al cambiar).
+  const agendaTopsRef = useRef<{ key: string; top: number }[] | null>(null);
+  useEffect(() => { agendaTopsRef.current = null; }, [data.items, mode]);
+
+  useEffect(() => {
     if (mode !== 'agenda') return;
     const scroller = agendaScrollRef.current;
-    const target = scroller?.querySelector<HTMLElement>('[data-agenda-today]');
-    if (!scroller || !target) return;
-    const delta = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-    scroller.scrollTop = Math.max(0, scroller.scrollTop + delta - scroller.clientHeight / 2 + target.offsetHeight / 2);
+    if (!scroller) return;
+    let raf = 0;
+
+    const measure = () => {
+      const base = scroller.getBoundingClientRect().top - scroller.scrollTop;
+      const blocks = Array.from(scroller.querySelectorAll<HTMLElement>('[data-agenda-month]'));
+      agendaTopsRef.current = blocks.map((b) => ({
+        key: b.dataset.agendaMonth || '',
+        top: b.getBoundingClientRect().top - base,
+      }));
+    };
+
+    const update = () => {
+      raf = 0;
+      if (!agendaTopsRef.current) measure();
+      const tops = agendaTopsRef.current;
+      if (!tops || tops.length === 0) return;
+      const y = scroller.scrollTop + 12;
+      let key = tops[0].key;
+      for (const t of tops) {
+        if (t.top <= y) key = t.key;
+        else break;
+      }
+      const [yy, mm] = key.split('-').map(Number);
+      setAnchor((prev) => (prev.getFullYear() === yy && prev.getMonth() === mm - 1 ? prev : new Date(yy, mm - 1, 1)));
+    };
+
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      scroller.removeEventListener('scroll', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, [mode, data.loading]);
 
   const [quickAdd, setQuickAdd] = useState(false);
@@ -104,21 +151,32 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
     return map;
   }, [data.items]);
 
-  const selectedItems = visibleByDate.get(selectedDate) ?? [];
-  // "Detalles del día" sí recibe todo lo del día (agregadas, completadas y registros)
+  // Días con tareas completadas: en la rejilla del mes, el pasado se marca distinto
+  const completedKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of data.items) if (it.kind === 'completed') set.add(it.date);
+    return set;
+  }, [data.items]);
+
+  // Tareas pendientes de días anteriores: se muestran en el día de hoy como "Atrasado"
+  const overdueItems = useMemo(() => {
+    const t = todayKey();
+    return data.items.filter((i) => i.kind === 'pending' && i.date < t);
+  }, [data.items]);
+
+  // "Detalles del día" recibe todo lo del día (pendientes, completadas y registros)
   const dayItems = itemsByDate.get(selectedDate) ?? [];
   const weekDays = useMemo(() => weekDaysOf(anchor), [anchor]);
 
   const title = useMemo(() => `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`, [anchor]);
 
+  // "Hoy" lleva siempre a la agenda, con el día de hoy de primero.
   const goToday = useCallback(() => {
     setAnchor(new Date());
     setSelectedDate(todayKey());
     setTodayPulse((n) => n + 1);
-    // En mes, semana y día se vuelve arriba con animación; la agenda se desliza
-    // hasta el mes actual desde dentro de AgendaView.
-    if (mode !== 'agenda') smoothScrollTo(topScrollRef.current, 0, 600);
-  }, [mode]);
+    setMode('agenda');
+  }, []);
 
   // Orden de las vistas: agenda → mes → semana → día
   const cycleMode = useCallback(() => {
@@ -155,12 +213,33 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
     setMode('day');
   }, []);
 
+  // Cambiar de mes deja seleccionado su día primero
   const handleMonthSelect = useCallback((year: number, month: number) => {
-    setAnchor(new Date(year, month, 1));
-    if (mode === 'day' || mode === 'agenda') {
-      setSelectedDate(dateKey(new Date(year, month, 1)));
+    const first = new Date(year, month, 1);
+    setAnchor(first);
+    setSelectedDate(dateKey(first));
+  }, []);
+
+  /** Deslizar la rejilla del mes (con límite de 10 años a cada lado). */
+  const shiftMonth = useCallback((delta: number) => {
+    const next = new Date(anchor.getFullYear(), anchor.getMonth() + delta, 1);
+    if (next < monthLimit.min || next > monthLimit.max) return;
+    setAnchor(next);
+    setSelectedDate(dateKey(next));
+  }, [anchor, monthLimit]);
+
+  // Resultado del buscador: lleva al día del ítem y abre su detalle
+  const handleSearchPick = useCallback((pick: SearchPick) => {
+    setSearchOpen(false);
+    const key = pick.event?.date ?? pick.date;
+    if (key) {
+      setSelectedDate(key);
+      setAnchor(parseKey(key));
+      setMode('day');
     }
-  }, [mode]);
+    if (pick.event) setEventDetail(pick.event);
+    else if (pick.task) setOpenTaskId(pick.task.id);
+  }, []);
 
   const openTask = openTaskId ? tasks.find((t) => t.id === openTaskId) ?? null : null;
   const openSession = openSessionId ? sessions.find((s) => s.id === openSessionId) ?? null : null;
@@ -185,6 +264,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
         onCycleMode={cycleMode}
         title={title}
         onToday={goToday}
+        onSearch={() => setSearchOpen(true)}
         anchor={anchor}
         onMonthSelect={handleMonthSelect}
       />
@@ -203,8 +283,10 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
             <div className="px-2">
               <SwipePager
                 pageKey={`${anchor.getFullYear()}-${anchor.getMonth()}`}
-                onPrev={() => setAnchor((a) => new Date(a.getFullYear(), a.getMonth() - 1, 1))}
-                onNext={() => setAnchor((a) => new Date(a.getFullYear(), a.getMonth() + 1, 1))}
+                canPrev={canPrevMonth}
+                canNext={canNextMonth}
+                onPrev={() => shiftMonth(-1)}
+                onNext={() => shiftMonth(1)}
                 renderPage={(off) => (
                   <div className="px-1">
                     <MonthGrid
@@ -212,6 +294,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                       selectedDate={selectedDate}
                       onSelectDate={selectDate}
                       itemsByDate={visibleByDate}
+                      completedKeys={completedKeys}
                     />
                   </div>
                 )}
@@ -220,7 +303,8 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
             <div className="px-2 pt-3 flex flex-col gap-3">
               <MonthDayInfo
                 date={selectedDate}
-                items={selectedItems}
+                items={dayItems}
+                overdueItems={overdueItems}
                 onSelectItem={openItem}
                 onNewTask={() => setShowNewTask(true)}
                 onNewEvent={() => setEventForm({ mode: 'create' })}
@@ -273,9 +357,12 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
           </motion.div>
         ) : mode === 'day' ? (
           // Vista de día: el día entero se desliza entre días
-          <div
+          <motion.div
             key="day"
             ref={topScrollRef}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.26, ease: 'easeOut' }}
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar bg-[#f2f1f6] pb-[110px]"
           >
             <SwipePager
@@ -313,7 +400,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                 );
               }}
             />
-          </div>
+          </motion.div>
         ) : (
           // Agenda: información agrupada por meses y semanas
           <motion.div
@@ -326,16 +413,23 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
           >
             <AgendaView
               itemsByDate={visibleByDate}
-              selectedDate={selectedDate}
-              onSelectDate={selectDate}
               onSelectItem={openItem}
-              anchor={anchor}
+              onOpenDay={openDay}
               todayPulse={todayPulse}
               scrollRef={agendaScrollRef}
             />
           </motion.div>
         )}
       </div>
+
+      <CalendarSearch
+        open={searchOpen}
+        tasks={tasks}
+        events={events}
+        lists={lists}
+        onClose={() => setSearchOpen(false)}
+        onPick={handleSearchPick}
+      />
 
       <CalendarQuickAdd
         isOpen={quickAdd}

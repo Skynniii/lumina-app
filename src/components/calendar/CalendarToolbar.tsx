@@ -30,12 +30,13 @@ interface Props {
   onCycleMode: () => void;
   title: string;
   onToday: () => void;
+  onSearch: () => void;
   anchor: Date;
   onMonthSelect: (year: number, month: number) => void;
 }
 
-/** Barra de herramientas del calendario: mes expandible + hoy + vista. */
-export function CalendarToolbar({ mode, onCycleMode, title, onToday, anchor, onMonthSelect }: Props) {
+/** Barra de herramientas del calendario: mes expandible + buscar + hoy + vista. */
+export function CalendarToolbar({ mode, onCycleMode, title, onToday, onSearch, anchor, onMonthSelect }: Props) {
   const [monthExpanded, setMonthExpanded] = useState(false);
 
   const todayDay = new Date().getDate();
@@ -46,20 +47,45 @@ export function CalendarToolbar({ mode, onCycleMode, title, onToday, anchor, onM
         {/* Izquierda: Mes + expandir */}
         <button
           onClick={() => setMonthExpanded(!monthExpanded)}
-          className="flex items-center gap-1.5 bg-transparent border-none cursor-pointer"
+          className="flex items-center gap-1.5 bg-transparent border-none cursor-pointer min-w-0"
         >
-          <span className="text-[18px] font-bold text-[#333]">{title}</span>
+          <span className="relative block overflow-hidden h-[24px]">
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={title}
+                initial={{ y: '100%', opacity: 0 }}
+                animate={{ y: '0%', opacity: 1 }}
+                exit={{ y: '-100%', opacity: 0 }}
+                transition={{ duration: 0.24, ease: 'easeOut' }}
+                className="block text-[18px] font-bold text-[#333] whitespace-nowrap leading-[24px]"
+              >
+                {title}
+              </motion.span>
+            </AnimatePresence>
+          </span>
           <motion.svg
             animate={{ rotate: monthExpanded ? 180 : 0 }}
             transition={{ duration: 0.2 }}
             width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            className="shrink-0"
           >
             <path d="M6 9l6 6 6-6" />
           </motion.svg>
         </button>
 
-        {/* Derecha: Hoy + Vista */}
+        {/* Derecha: Buscar + Hoy + Vista */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={onSearch}
+            aria-label="Buscar"
+            className="w-9 h-9 rounded-xl bg-[#f5f5f7] flex items-center justify-center cursor-pointer hover:bg-[#eee] transition-colors border-none text-[#666]"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="16.5" y1="16.5" x2="21" y2="21" />
+            </svg>
+          </button>
+
           {/* Botón Hoy con número de día */}
           <button
             onClick={onToday}

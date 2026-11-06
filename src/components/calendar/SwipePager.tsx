@@ -10,6 +10,9 @@ interface Props {
   onNext: () => void;
   renderPage: (offset: Offset) => ReactNode;
   className?: string;
+  /** Desactivar el deslizamiento hacia un lado (límites del rango). */
+  canPrev?: boolean;
+  canNext?: boolean;
 }
 
 /**
@@ -18,7 +21,7 @@ interface Props {
  * arrastra se ve entrar el periodo vecino y, al soltar, se asienta en el más
  * cercano y se avisa al padre para cambiar de mes/semana/día.
  */
-export function SwipePager({ pageKey, onPrev, onNext, renderPage, className = '' }: Props) {
+export function SwipePager({ pageKey, onPrev, onNext, renderPage, className = '', canPrev = true, canNext = true }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const x = useMotionValue(0);
@@ -42,7 +45,9 @@ export function SwipePager({ pageKey, onPrev, onNext, renderPage, className = ''
 
   const settle = useCallback((dir: Offset) => {
     if (!width || busy.current) return;
-    if (dir === 0) {
+    // Sin página en ese sentido (límite del rango): vuelve al centro
+    const blocked = (dir === -1 && !canPrev) || (dir === 1 && !canNext);
+    if (dir === 0 || blocked) {
       animate(x, -width, { type: 'spring', stiffness: 520, damping: 46 });
       return;
     }
@@ -51,7 +56,7 @@ export function SwipePager({ pageKey, onPrev, onNext, renderPage, className = ''
       if (dir > 0) onNext(); else onPrev();
       busy.current = false;
     });
-  }, [width, x, onNext, onPrev]);
+  }, [width, x, onNext, onPrev, canPrev, canNext]);
 
   return (
     <div ref={wrapRef} className={`overflow-hidden ${className}`}>

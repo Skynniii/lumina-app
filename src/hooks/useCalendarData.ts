@@ -237,10 +237,10 @@ export function useCalendarData() {
 
     const baseYear = new Date().getFullYear();
     for (const e of events) {
-      // Cumpleaños: mismo día y mes en los años cercanos (la agenda cubre ±12 meses)
+      // Cumpleaños: mismo día y mes en los años del rango visible del calendario (±5 años)
       if (e.birthday) {
         const [, mm, dd] = e.date.split('-');
-        for (let y = baseYear - 1; y <= baseYear + 2; y++) {
+        for (let y = baseYear - 5; y <= baseYear + 5; y++) {
           out.push({
             id: `b-${e.id}-${y}`, kind: 'event', date: `${y}-${mm}-${dd}`,
             title: e.title, subtitle: 'Cumpleaños', color: e.color, accent: e.color,
