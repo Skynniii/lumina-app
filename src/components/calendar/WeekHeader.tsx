@@ -31,7 +31,12 @@ const CakeBarIcon = ({ color }: { color: string }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" /><path d="M4 16h16" /><path d="M12 8V5" /><circle cx="12" cy="4" r="1" /></svg>
 );
 
+const HolidayBarIcon = ({ color }: { color: string }) => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z" /></svg>
+);
+
 const BAR_ICONS: Record<string, (p: { color: string }) => ReactElement> = {
+  holiday: HolidayBarIcon,
   task: TaskBarIcon,
   event: EventBarIcon,
   birthday: CakeBarIcon,

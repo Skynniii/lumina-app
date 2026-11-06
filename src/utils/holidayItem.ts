@@ -1,8 +1,5 @@
 import type { CalendarItem } from '../hooks/useCalendarData';
-import { holidayName } from './holidays';
-
-/** Amarillo de los festivos (el mismo del texto "Festivo" del calendario). */
-export const HOLIDAY_COLOR = '#c99a06';
+import { HOLIDAY_COLOR, holidayName } from './holidays';
 
 /**
  * Festivo como ítem de calendario: se pinta como un evento de todo el día para

@@ -11,6 +11,7 @@ import {
   type CalendarItem,
 } from '../../hooks/useCalendarData';
 import { sortListsForDisplay } from '../../utils/listOrder';
+import { holidayItem } from '../../utils/holidayItem';
 import { SectionHeader } from '../ui/SectionHeader';
 import { ModalNeuromorfico } from '../ui/ModalNeuromorfico';
 import { CalendarToolbar, type CalendarViewMode } from './CalendarToolbar';
@@ -357,11 +358,17 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
               onNext={() => setAnchor((a) => parseKey(shiftKey(dateKey(a), 7)))}
               renderPage={(off) => {
                 const days = off === 0 ? weekDays : weekDaysOf(parseKey(shiftKey(weekDays[0], off * 7)), weekStartDay);
+                // Festivos: se suman solo a la cabecera (no ocupan franja horaria)
+                const markerItemsByDate = new Map(visibleByDate);
+                for (const d of days) {
+                  const holiday = holidayItem(d);
+                  if (holiday) markerItemsByDate.set(d, [holiday, ...(markerItemsByDate.get(d) ?? [])]);
+                }
                 return (
                   <>
                     <WeekHeader
                       days={days}
-                      itemsByDate={visibleByDate}
+                      itemsByDate={markerItemsByDate}
                       selectedDate={selectedDate}
                       completedKeys={completedKeys}
                       onOpenDay={openDay}

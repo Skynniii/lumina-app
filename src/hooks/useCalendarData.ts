@@ -4,6 +4,7 @@ import { useTasks } from './useTasks';
 import { useCalendarEvents, dateKey, timeToMinutes, MONTHS } from './useCalendarEvents';
 import { useFirestoreCollection } from './useFirestoreCollection';
 import { isoToDateKey, todayKey } from './useTimeTracker';
+import { HOLIDAY_COLOR } from '../utils/holidays';
 import type { Activity, CalendarEvent, Task, TaskList, TimeSession } from '../types';
 
 /** Capas de información que el calendario puede mostrar. */
@@ -31,13 +32,14 @@ export const BIRTHDAY_COLOR = '#ff6b81';
  * a `DAY_MARKER_ORDER`.
  */
 export const DAY_MARKER_META: Record<string, { label: string; color: string }> = {
+  holiday: { label: 'Festivos', color: HOLIDAY_COLOR },
   task: { label: 'Tasks', color: LAYER_META.pending.color },
   event: { label: 'Events', color: LAYER_META.event.color },
   birthday: { label: 'Cumpleaños', color: BIRTHDAY_COLOR },
   session: { label: 'Registros', color: LAYER_META.session.color },
 };
 
-export const DAY_MARKER_ORDER = ['task', 'event', 'birthday', 'session'];
+export const DAY_MARKER_ORDER = ['holiday', 'task', 'event', 'birthday', 'session'];
 
 /**
  * Ítem unificado del calendario. Las tareas y los registros de tiempo se derivan
@@ -74,7 +76,8 @@ export function itemColor(it: CalendarItem): string {
 export function dayMarkerKeys(items: CalendarItem[]): string[] {
   const present = new Set<string>();
   for (const it of items) {
-    if (it.birthday) present.add('birthday');
+    if (it.holiday) present.add('holiday');
+    else if (it.birthday) present.add('birthday');
     else if (it.kind === 'event') present.add('event');
     else if (it.kind === 'session') present.add('session');
     else present.add('task');

@@ -82,13 +82,9 @@ export function DayHeadline({ date, items, completedItems = [], overdueItems = [
               const late = overdueItems.some((o) => o.id === it.id);
               const done = it.kind === 'completed';
               const color = itemColor(it);
-              return (
-                <button
-                  key={it.id}
-                  onClick={() => onSelectItem(it)}
-                  className="flex items-center gap-2 w-full min-w-0 rounded-full pl-2 pr-3 py-[5px] border-none cursor-pointer text-left active:scale-[0.99] transition-transform"
-                  style={{ background: late ? '#e5484d1a' : `${color}${done ? '14' : '26'}` }}
-                >
+              const pillStyle = { background: late ? '#e5484d1a' : `${color}${done ? '14' : '26'}` };
+              const content = (
+                <>
                   <span className="shrink-0 flex" style={done ? { opacity: 0.5 } : undefined}>
                     <FamilyIcon item={it} color={color} />
                   </span>
@@ -96,6 +92,26 @@ export function DayHeadline({ date, items, completedItems = [], overdueItems = [
                   <span className={`flex-1 min-w-0 text-[13px] truncate ${done ? 'text-[#aeadb8] line-through' : 'text-[#333] font-medium'}`}>
                     {it.title}
                   </span>
+                </>
+              );
+
+              // Los festivos no se pueden abrir ni editar
+              if (it.holiday) {
+                return (
+                  <div key={it.id} className="flex items-center gap-2 w-full min-w-0 rounded-full pl-2 pr-3 py-[5px]" style={pillStyle}>
+                    {content}
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  key={it.id}
+                  onClick={() => onSelectItem(it)}
+                  className="flex items-center gap-2 w-full min-w-0 rounded-full pl-2 pr-3 py-[5px] border-none cursor-pointer text-left active:scale-[0.99] transition-transform"
+                  style={pillStyle}
+                >
+                  {content}
                 </button>
               );
             })}

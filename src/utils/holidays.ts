@@ -6,6 +6,9 @@
  * Cuando los festivos vengan de otra fuente (ajustes o una API), basta con
  * reemplazar `holidaysOfYear` manteniendo el mismo mapa `YYYY-MM-DD → nombre`.
  */
+/** Amarillo de los festivos: lo usan las vistas del calendario y sus ítems. */
+export const HOLIDAY_COLOR = '#b8860b';
+
 const cache = new Map<number, Map<string, string>>();
 
 const pad = (n: number) => String(n).padStart(2, '0');

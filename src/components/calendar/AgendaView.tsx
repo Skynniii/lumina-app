@@ -176,38 +176,52 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                             const isTask = it.kind === 'pending' || it.kind === 'completed';
                             const accent = it.accent || LAYER_META.pending.color;
                             const Icon = it.holiday ? HolidayIcon : it.birthday ? CakeIcon : isTask ? TaskIcon : it.kind === 'event' ? EventIcon : ClockIcon;
-                            // Tareas y festivos: tarjeta suave con su color; eventos y cumpleaños: color pleno
-                            const soft = isTask || !!it.holiday;
+                            // Tareas: tarjeta suave con su color; eventos, cumpleaños y festivos: color pleno
+                            const soft = isTask;
                             const tint = isTask ? accent : it.color;
                             const iconColor = soft ? tint : '#ffffff';
                             // Tarea pendiente de un día ya pasado: se queda en su día, marcada
                             const late = it.kind === 'pending' && key < today;
+                            const cardStyle = soft
+                              ? { background: `${tint}26`, borderLeft: `3px solid ${tint}`, paddingLeft: 10 }
+                              : { background: it.color };
+
+                            const body = (
+                              <span className="flex items-center gap-2.5 min-w-0">
+                                <span className="shrink-0 flex items-center justify-center"><Icon color={iconColor} /></span>
+                                <span className="flex-1 min-w-0">
+                                  <span className="flex items-center gap-1.5 min-w-0">
+                                    <span className={`min-w-0 flex-1 text-[13px] font-semibold leading-tight truncate ${soft ? (it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#3a3a44]') : 'text-white'}`}>
+                                      {it.title}
+                                    </span>
+                                    {late && (
+                                      <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-[#e5484d]">Atrasado</span>
+                                    )}
+                                  </span>
+                                  {second && (
+                                    <span className={`block text-[11px] leading-tight truncate mt-0.5 ${soft ? 'text-[#8b8b97]' : 'text-white/85'}`}>{second}</span>
+                                  )}
+                                </span>
+                              </span>
+                            );
+
+                            // Los festivos no se pueden abrir ni editar
+                            if (it.holiday) {
+                              return (
+                                <div key={it.id} className="w-full min-w-0 rounded-[10px] px-3 py-2" style={cardStyle}>
+                                  {body}
+                                </div>
+                              );
+                            }
 
                             return (
                               <button
                                 key={it.id}
                                 onClick={() => onSelectItem(it)}
                                 className="w-full min-w-0 text-left rounded-[10px] px-3 py-2 border-none cursor-pointer active:scale-[0.99] transition-transform"
-                                style={soft
-                                  ? { background: `${tint}26`, borderLeft: `3px solid ${tint}`, paddingLeft: 10 }
-                                  : { background: it.color }}
+                                style={cardStyle}
                               >
-                                <span className="flex items-center gap-2.5 min-w-0">
-                                  <span className="shrink-0 flex items-center justify-center"><Icon color={iconColor} /></span>
-                                  <span className="flex-1 min-w-0">
-                                    <span className="flex items-center gap-1.5 min-w-0">
-                                      <span className={`min-w-0 flex-1 text-[13px] font-semibold leading-tight truncate ${soft ? (it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#3a3a44]') : 'text-white'}`}>
-                                        {it.title}
-                                      </span>
-                                      {late && (
-                                        <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-[#e5484d]">Atrasado</span>
-                                      )}
-                                    </span>
-                                    {second && (
-                                      <span className={`block text-[11px] leading-tight truncate mt-0.5 ${soft ? 'text-[#8b8b97]' : 'text-white/85'}`}>{second}</span>
-                                    )}
-                                  </span>
-                                </span>
+                                {body}
                               </button>
                             );
                           })
