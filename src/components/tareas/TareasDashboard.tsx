@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { Task, TaskList, ViewType } from '../../types';
 import { useTasks } from '../../hooks/useTasks';
+import { useActivities } from '../../hooks/useActivities';
 import { sortListsForDisplay } from '../../utils/listOrder';
 import { setPendingTimerTask } from '../../shared/pendingTimerTask';
 import { NavTopHeader } from './nav-top/NavTopHeader';
@@ -20,6 +21,7 @@ interface Props {
 
 export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Props) {
   const { lists: rawLists, tasks, loading, addList, deleteList, renameList, addTaskWithData, toggleTask, updateTask, updateList, reorderListTasks, addSeparator, deleteSeparators, deleteTask, deleteCompletedTasks, reorderLists, setListActivity, createActivityList, modalConfig } = useTasks();
+  const { loading: activitiesLoading } = useActivities();
   // Principal siempre aparece de primera
   const lists = useMemo(() => sortListsForDisplay(rawLists), [rawLists]);
   const [activeListId, setActiveListId] = useState(lists[0]?.id || '');
@@ -64,9 +66,10 @@ export function TareasDashboard({ onMenuClick, onOpenAccount, onNavigate }: Prop
     onNavigate?.('cronometro');
   }, [lists, onNavigate]);
 
-  // La sección espera a que listas y tareas estén cargadas (lectura local
-  // instantánea) para aparecer completa, sin mostrar el esquema vacío primero.
-  if (loading) {
+  // La sección espera a que listas, tareas y actividades estén cargadas
+  // (lectura local instantánea) para aparecer completa: así las tareas-actividad
+  // ya muestran su nombre y color reales, sin el esquema vacío primero.
+  if (loading || activitiesLoading) {
     return (
       <section className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-[#f7f6f9]">
         <span className="w-7 h-7 border-2 border-[#7f70ff] border-t-transparent rounded-full animate-spin" />

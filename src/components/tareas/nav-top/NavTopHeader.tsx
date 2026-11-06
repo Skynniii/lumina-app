@@ -16,6 +16,7 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const metrics = useRef<{ left: number; width: number }[]>([]);
+  const scrollTarget = useRef(0);
   const lpTimer = useRef<number | null>(null);
   const didLongPress = useRef(false);
 
@@ -61,11 +62,17 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
       }
 
       // La pestaña activa se mantiene visible, pero sin pelear con el scroll
-      // del usuario en cada frame: solo se recentra si sale de los bordes.
+      // del usuario: si sale de los bordes, la cinta se desliza hasta centrarla
+      // (scroll suave) en vez de saltar de golpe.
       const visibleLeft = box.scrollLeft;
       const visibleRight = visibleLeft + box.offsetWidth;
       if (left < visibleLeft + 12 || left + width > visibleRight - 12) {
-        box.scrollLeft = left + width / 2 - box.offsetWidth / 2;
+        const max = box.scrollWidth - box.offsetWidth;
+        const target = Math.max(0, Math.min(left + width / 2 - box.offsetWidth / 2, max));
+        if (Math.abs(target - scrollTarget.current) > 1) {
+          scrollTarget.current = target;
+          box.scrollTo({ left: target, behavior: 'smooth' });
+        }
       }
     };
 

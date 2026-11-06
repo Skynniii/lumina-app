@@ -315,10 +315,13 @@ export function getBiweeklyLabel(offset = 0): string {
 
 export function getTimeByTasks(sessions: TimeSession[], tasks: Task[], activityId: string): { taskName: string; totalSeconds: number; lastSessionDate: string }[] {
   const actSessions = sessions.filter((s) => s.activityId === activityId);
+  // Se agrupa por el nombre de la tarea: las sesiones de tareas ya eliminadas o
+  // sin título (tareas-actividad) se recogen en una sola fila "Sin tareas".
   const taskMap = new Map<string, { totalSeconds: number; lastSessionDate: string }>();
 
   for (const s of actSessions) {
-    const key = s.taskId ?? 'no-task';
+    const task = s.taskId ? tasks.find((t) => t.id === s.taskId) : undefined;
+    const key = task?.title?.trim() || 'Sin tareas';
     const existing = taskMap.get(key);
     if (existing) {
       existing.totalSeconds += s.duration;
@@ -330,14 +333,9 @@ export function getTimeByTasks(sessions: TimeSession[], tasks: Task[], activityI
     }
   }
 
-  const result = Array.from(taskMap.entries()).map(([key, data]) => {
-    let taskName = 'Sin tareas';
-    if (key !== 'no-task') {
-      const task = tasks.find((t) => t.id === key);
-      taskName = task?.title || 'Sin tareas';
-    }
-    return { taskName, totalSeconds: data.totalSeconds, lastSessionDate: data.lastSessionDate };
-  });
+  const result = Array.from(taskMap.entries()).map(([taskName, data]) => ({
+    taskName, totalSeconds: data.totalSeconds, lastSessionDate: data.lastSessionDate,
+  }));
 
   result.sort((a, b) => new Date(b.lastSessionDate).getTime() - new Date(a.lastSessionDate).getTime());
   return result;

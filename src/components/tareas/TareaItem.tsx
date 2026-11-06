@@ -1,6 +1,7 @@
 import { useState, memo, useRef, useCallback, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import type { Task, SortMode } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 import { playCompleteSound } from '../../utils/sound';
@@ -8,13 +9,13 @@ import { hapticMedium, hapticHeavy } from '../../utils/haptic';
 import { Sparkles } from './Sparkles';
 import { useUserStorage } from '../../hooks/useUserStorage';
 import type { RunningTimer, TrackerDraft } from '../../hooks/useTimeTracker';
+import { saveRunningSession, removeTrackedActivityTask } from '../../shared/runningSession';
 
-/** Devuelve el ID de la tarea con temporizador activamente corriendo, o null. */
-function useActiveTaskId(): string | null {
-  const [running] = useUserStorage<RunningTimer | null>('tracker-running', null);
-  const [draft] = useUserStorage<TrackerDraft>('tracker-draft', { activityId: '', description: '', notes: '' });
-  if (!running || running.startedAt === null) return null;
-  return draft.taskId ?? null;
+/** Estado del cronómetro en curso (compartido por todos los ítems). */
+function useRunningTracker() {
+  const [running, setRunning] = useUserStorage<RunningTimer | null>('tracker-running', null);
+  const [draft, setDraft] = useUserStorage<TrackerDraft>('tracker-draft', { activityId: '', description: '', notes: '' });
+  return { running, setRunning, draft, setDraft };
 }
 
 interface Props {
@@ -83,9 +84,12 @@ function arePropsEqual(prev: Props, next: Props): boolean {
 
 export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle, onUpdate, onExpand, sortMode, reorderable, dragId, overlay, listTag, compact, hideListTag, hideDueDate, overdueDays, onDragPointerDown, onDragPointerEnd, activityColor, activityName, onStartActivity }: Props, ref) => {
   const { settings } = useSettings();
+  const { user } = useAuth();
   const cap = useDeviceCapability();
-  const activeTaskId = useActiveTaskId();
-  const isTimerActive = activeTaskId === task.id;
+  const tracker = useRunningTracker();
+  const isTimerActive = !!tracker.running
+    && tracker.running.startedAt !== null
+    && tracker.draft.taskId === task.id;
   const [optimistic, setOptimistic] = useState(false);
   const [sparkle, setSparkle] = useState(false);
   const [completingImportant, setCompletingImportant] = useState(false);
@@ -181,6 +185,19 @@ export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle
     onUpdate(task.id, { isImportant: !task.isImportant });
   };
 
+  // Tarea-actividad en curso: el círculo detiene el cronómetro, guarda el
+  // registro y retira la tarea de la lista (misma regla que el Timer).
+  const handleStopActivityTimer = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { running, draft } = tracker;
+    if (!running || !user?.uid) return;
+    hapticMedium();
+    tracker.setRunning(null);
+    tracker.setDraft((d) => ({ ...d, taskId: undefined, avanceTaskId: undefined }));
+    await saveRunningSession(user.uid, running, draft);
+    await removeTrackedActivityTask(task.id);
+  };
+
   const inner = (
     <>
       {completingImportant && rectSize && (() => {
@@ -201,14 +218,23 @@ export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle
       {isActivityOnly ? (
         <motion.button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onStartActivity?.(task); }}
-          title="Empezar en el Timer"
+          onClick={isTimerActive ? handleStopActivityTimer : (e) => { e.stopPropagation(); onStartActivity?.(task); }}
+          title={isTimerActive ? 'Detener y guardar' : 'Empezar en el Timer'}
           className="relative flex items-center justify-center w-[20px] h-[20px] flex-none mr-3 bg-transparent border-none p-0 cursor-pointer"
           animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
           transition={{ duration: 0.45, ease: 'easeInOut' }}
         >
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[22px] h-[22px] rounded-full border-[1.5px]" style={{ borderColor: playColor, background: `${playColor}14` }} />
-          <svg width="11" height="11" viewBox="0 0 24 24" fill={playColor} className="relative ml-[1px]"><path d="M8 5v14l11-7z" /></svg>
+          {isTimerActive ? (
+            <>
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[20px] h-[20px] rounded-full anim-timer-ring" style={{ background: playColor }} />
+              <span className="relative w-[10px] h-[10px] rounded-full anim-timer-dot" style={{ background: playColor }} />
+            </>
+          ) : (
+            <>
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[22px] h-[22px] rounded-full border-[1.5px]" style={{ borderColor: playColor, background: `${playColor}14` }} />
+              <svg width="11" height="11" viewBox="0 0 24 24" fill={playColor} className="relative ml-[1px]"><path d="M8 5v14l11-7z" /></svg>
+            </>
+          )}
         </motion.button>
       ) : (
       <motion.div
@@ -243,7 +269,7 @@ export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle
         )}
       </div>
 
-      {isTimerActive && (
+      {isTimerActive && !isActivityOnly && (
         <div className="flex-none ml-1 relative flex items-center justify-center w-5 h-5">
           <span className="absolute w-4 h-4 rounded-full bg-[#34c77b]/30 anim-timer-ring" />
           <span className="w-2.5 h-2.5 rounded-full bg-[#34c77b] anim-timer-dot" />
@@ -321,7 +347,6 @@ export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle
       ref={setLiRef}
       layout={cap.enableLayout && !isDragged}
       data-task={task.id}
-      initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0, scale: isDragged ? 1.03 : 1 }}
       exit={{ opacity: 0, x: -30, height: 0, marginBottom: 0, overflow: 'hidden' }}
       transition={{ duration: 0.3 * cap.durationScale, ease: 'easeInOut', layout: cap.spring }}

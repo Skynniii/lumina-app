@@ -4,7 +4,9 @@ import type { Task, TaskList, SortMode } from '../../types';
 import { useBackHandler } from '../../hooks/useBackHandler';
 
 function sortTasksForList(tasks: Task[], list: TaskList): Task[] {
-  const filtered = tasks.filter((t) => t.listId === list.id && !t.completed && !t.isSeparator);
+  // Las tareas-actividad no se traen al Timer: no tienen título propio y solo
+  // aparecían como filas en blanco.
+  const filtered = tasks.filter((t) => t.listId === list.id && !t.completed && !t.isSeparator && !t.isActivityOnly && !!t.title.trim());
   const sortMode: SortMode = list.sortMode || 'custom';
   if (sortMode === 'recent') {
     return [...filtered].sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
