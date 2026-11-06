@@ -2,9 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import { longDateLabel } from '../../hooks/useCalendarData';
-import { MONTHS, dateKey } from '../../hooks/useCalendarEvents';
-import { DatePickerModal } from '../tareas/DatePickerModal';
 import { EventFormBody } from './EventForm';
+import { BirthdayFormBody, BIRTHDAY_COLOR } from './BirthdayForm';
 import type { CalendarEvent } from '../../types';
 
 interface Props {
@@ -16,10 +15,6 @@ interface Props {
 }
 
 type Step = 'choice' | 'event' | 'birthday';
-
-const BIRTHDAY_COLOR = '#ff6b81';
-
-const inputCls = 'w-full border border-[#e4e4ed] rounded-xl py-3 px-3.5 text-[15px] text-[#333] bg-[#fafafc] placeholder:text-[#bbb] outline-none focus:border-[#7f70ff] focus:bg-white transition-colors';
 
 const TaskGlyph = () => (
   <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -50,78 +45,6 @@ function OptionRow({ tint, label, onClick, children }: { tint: string; label: st
       </span>
       <span className="text-[15px] font-semibold text-[#333]">{label}</span>
     </button>
-  );
-}
-
-/** Formulario mínimo de cumpleaños: nombre + fecha (se repite cada año). */
-function BirthdayForm({ initialDate, onCancel, onSave }: { initialDate: string; onCancel: () => void; onSave: (e: Omit<CalendarEvent, 'id'>) => void }) {
-  const [name, setName] = useState('');
-  const [date, setDate] = useState(initialDate || dateKey());
-  const [pickerOpen, setPickerOpen] = useState(false);
-
-  const prettyDate = (() => {
-    const [y, m, d] = date.split('-').map(Number);
-    return `${d} ${MONTHS[m - 1].toLowerCase()} ${y}`;
-  })();
-
-  const submit = () => {
-    if (!name.trim()) return;
-    onSave({
-      title: name.trim(),
-      date,
-      start: '00:00',
-      end: '23:59',
-      color: BIRTHDAY_COLOR,
-      birthday: true,
-    });
-  };
-
-  return (
-    <>
-      <p className="text-left text-[16px] font-bold text-[#2b2b2b] m-0 mb-3">Nuevo cumpleaños</p>
-
-      <div className="flex flex-col gap-3">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder="¿Quién cumple años?"
-          autoFocus
-          className={inputCls}
-        />
-
-        <button
-          type="button"
-          onClick={() => setPickerOpen(true)}
-          className={`${inputCls} flex items-center gap-2.5 text-left cursor-pointer`}
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          <span className="text-[15px] text-[#333] truncate">{prettyDate}</span>
-        </button>
-
-        <div className="flex gap-3 mt-1">
-          <button onClick={onCancel} className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#f0f0f0] text-[#666] hover:bg-[#e4e4e4] transition-colors">Volver</button>
-          <button
-            onClick={submit}
-            disabled={!name.trim()}
-            className="flex-1 border-none py-3 rounded-xl text-sm font-semibold cursor-pointer bg-[#7f70ff] text-white shadow-[2px_4px_10px_rgba(127,112,255,0.3)] hover:bg-[#6c5dd4] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
-          >
-            Guardar
-          </button>
-        </div>
-      </div>
-
-      {pickerOpen && (
-        <DatePickerModal
-          initialDate={date}
-          onClose={() => setPickerOpen(false)}
-          onSave={(d) => setDate(d)}
-        />
-      )}
-    </>
   );
 }
 
@@ -178,7 +101,7 @@ export function CalendarQuickAdd({ isOpen, date, onClose, onNewTask, onCreateEve
                     onSave={(e) => { onCreateEvent(e); close(); }}
                   />
                 ) : (
-                  <BirthdayForm
+                  <BirthdayFormBody
                     initialDate={date}
                     onCancel={() => setStep('choice')}
                     onSave={(e) => { onCreateEvent(e); close(); }}

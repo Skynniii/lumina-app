@@ -25,6 +25,7 @@ import { SwipePager } from './SwipePager';
 import { CalendarQuickAdd } from './CalendarQuickAdd';
 import { CalendarSearch, type SearchPick } from './CalendarSearch';
 import { EventForm } from './EventForm';
+import { BirthdayForm } from './BirthdayForm';
 import { EventDetail } from './EventDetail';
 import { NuevaTareaModal } from '../tareas/NuevaTareaModal';
 import { TaskDetailView } from '../tareas/TaskDetailView';
@@ -121,6 +122,8 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   const [quickAdd, setQuickAdd] = useState(false);
   const [showNewTask, setShowNewTask] = useState(false);
   const [eventForm, setEventForm] = useState<{ mode: 'create' | 'edit'; event?: CalendarEvent } | null>(null);
+  // Los cumpleaños se editan con su propio formulario (nombre + fecha)
+  const [birthdayEdit, setBirthdayEdit] = useState<CalendarEvent | null>(null);
   const [eventDetail, setEventDetail] = useState<CalendarEvent | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(null);
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
@@ -480,10 +483,17 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
         }}
       />
 
+      <BirthdayForm
+        isOpen={birthdayEdit !== null}
+        initialEvent={birthdayEdit ?? undefined}
+        onClose={() => setBirthdayEdit(null)}
+        onSave={(e) => { if (birthdayEdit) eventsApi.updateEvent({ ...birthdayEdit, ...e, id: birthdayEdit.id }); }}
+      />
+
       <EventDetail
         event={eventDetail}
         onClose={() => setEventDetail(null)}
-        onEdit={(e) => { setEventDetail(null); setEventForm({ mode: 'edit', event: e }); }}
+        onEdit={(e) => { setEventDetail(null); if (e.birthday) setBirthdayEdit(e); else setEventForm({ mode: 'edit', event: e }); }}
         onDelete={(id) => {
           const ev = eventsApi.events.find((e) => e.id === id) ?? null;
           setEventDetail(null);

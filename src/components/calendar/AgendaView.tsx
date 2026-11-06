@@ -171,6 +171,8 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                             const accent = it.accent || LAYER_META.pending.color;
                             const Icon = it.birthday ? CakeIcon : isTask ? TaskIcon : it.kind === 'event' ? EventIcon : ClockIcon;
                             const iconColor = isTask ? accent : '#ffffff';
+                            // Tarea pendiente de un día ya pasado: se queda en su día, marcada
+                            const late = it.kind === 'pending' && key < today;
 
                             return (
                               <button
@@ -184,8 +186,13 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                                 <span className="flex items-center gap-2.5 min-w-0">
                                   <span className="shrink-0 flex items-center justify-center"><Icon color={iconColor} /></span>
                                   <span className="flex-1 min-w-0">
-                                    <span className={`block text-[13px] font-semibold leading-tight truncate ${isTask ? (it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#3a3a44]') : 'text-white'}`}>
-                                      {it.title}
+                                    <span className="flex items-center gap-1.5 min-w-0">
+                                      <span className={`min-w-0 flex-1 text-[13px] font-semibold leading-tight truncate ${isTask ? (it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#3a3a44]') : 'text-white'}`}>
+                                        {it.title}
+                                      </span>
+                                      {late && (
+                                        <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-[#e5484d]">Atrasado</span>
+                                      )}
                                     </span>
                                     {second && (
                                       <span className={`block text-[11px] leading-tight truncate mt-0.5 ${isTask ? 'text-[#8b8b97]' : 'text-white/85'}`}>{second}</span>
