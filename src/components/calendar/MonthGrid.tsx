@@ -1,7 +1,8 @@
 import { monthWeeks, dateKey } from '../../hooks/useCalendarEvents';
 import { useSettings } from '../../context/SettingsContext';
-import type { CalendarItem } from '../../hooks/useCalendarData';
+import { LAYER_META, type CalendarItem } from '../../hooks/useCalendarData';
 import { weekdayHeaders, weekNumber, weekStartIndex } from '../../utils/calendarDates';
+import { holidayName } from '../../utils/holidays';
 
 interface Props {
   anchorMonth: Date;
@@ -16,7 +17,9 @@ interface Props {
 const ROWS = 6;
 
 /** Morado de las tareas: punto del pasado y pequeño icono del futuro. */
-const TASK_COLOR = '#7f70ff';
+const TASK_COLOR = LAYER_META.pending.color;
+const EVENT_COLOR = LAYER_META.event.color;
+const BIRTHDAY_COLOR = '#ff6b9d';
 
 const TaskGlyph = ({ color }: { color: string }) => (
   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -25,10 +28,32 @@ const TaskGlyph = ({ color }: { color: string }) => (
   </svg>
 );
 
+const EventGlyph = ({ color }: { color: string }) => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <line x1="3" y1="10" x2="21" y2="10" />
+  </svg>
+);
+
+const BirthdayGlyph = ({ color }: { color: string }) => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" />
+    <path d="M4 16h16" />
+    <path d="M12 8V5" />
+    <circle cx="12" cy="4" r="1" />
+  </svg>
+);
+
+const Dot = ({ color }: { color: string }) => (
+  <span className="w-[4px] h-[4px] rounded-full" style={{ background: color }} />
+);
+
 /**
  * Vista de mes: rejilla a todo el ancho (sin esquinas redondeadas) para que al
- * deslizar solo se muevan los números. Los días futuros con tareas llevan un
- * pequeño icono de tarea y los pasados con tareas completadas, un punto morado.
+ * deslizar solo se muevan los números.
+ * Futuro y hoy: un icono por familia (tarea, evento, cumpleaños), como máximo tres.
+ * Pasado: solo un punto por familia.
+ * Festivos: barrita amarilla sobre el número (siempre del mismo color).
  */
 export function MonthGrid({ anchorMonth, selectedDate, onSelectDate, itemsByDate, completedKeys }: Props) {
   const { settings } = useSettings();
@@ -69,13 +94,21 @@ export function MonthGrid({ anchorMonth, selectedDate, onSelectDate, itemsByDate
                 const isSelected = key === selectedDate;
                 const isToday = key === today;
                 const isPast = key < today;
-                const eventColors = dayItems.filter((i) => i.kind === 'event').map((i) => i.color);
-                const hasPending = dayItems.some((i) => i.kind === 'pending');
+                const pending = dayItems.filter((i) => i.kind === 'pending');
+                const events = dayItems.filter((i) => i.kind === 'event' && !i.birthday);
+                const birthdays = dayItems.filter((i) => i.kind === 'event' && i.birthday);
                 const done = completedKeys.has(key);
+                const hasTask = pending.length > 0 || done;
+                const hasEvent = events.length > 0;
+                const hasBirthday = birthdays.length > 0;
+                const eventColor = events[0]?.color ?? EVENT_COLOR;
+                const birthdayColor = birthdays[0]?.color ?? BIRTHDAY_COLOR;
+                const muted = 'rgba(255,255,255,0.9)';
                 return (
                   <button
                     key={key}
                     data-cal-day={key}
+                    title={holidayName(key) ?? undefined}
                     onClick={() => onSelectDate(key)}
                     className={`h-[48px] w-full relative flex items-center justify-center rounded-[12px] border-none cursor-pointer transition-colors ${
                       isSelected
@@ -85,26 +118,28 @@ export function MonthGrid({ anchorMonth, selectedDate, onSelectDate, itemsByDate
                           : 'bg-transparent hover:bg-[#f7f6f9]'
                     }`}
                   >
+                    {/* Festivo: barrita amarilla sobre el número (su color no cambia) */}
+                    {holidayName(key) && (
+                      <span className="absolute top-[5px] left-1/2 -translate-x-1/2 w-[13px] h-[3px] rounded-full bg-[#f5c518]" />
+                    )}
                     <span className={`text-[13px] leading-none ${isSelected ? 'text-white font-bold' : isToday ? 'text-[#7f70ff] font-bold' : 'text-[#444] font-medium'}`}>
                       {day}
                     </span>
                     {/* Marcadores en posición absoluta: el número queda siempre centrado */}
                     {isPast ? (
-                      (done || eventColors.length > 0) && (
+                      (hasTask || hasEvent || hasBirthday) && (
                         <span className="absolute bottom-[6px] left-0 right-0 flex items-center justify-center gap-[3px]">
-                          {done && <span className="w-[4px] h-[4px] rounded-full" style={{ background: isSelected ? 'rgba(255,255,255,0.9)' : TASK_COLOR }} />}
-                          {eventColors.map((c, i) => (
-                            <span key={i} className="w-[4px] h-[4px] rounded-full" style={{ background: isSelected ? 'rgba(255,255,255,0.9)' : c }} />
-                          ))}
+                          {hasTask && <Dot color={isSelected ? muted : TASK_COLOR} />}
+                          {hasEvent && <Dot color={isSelected ? muted : eventColor} />}
+                          {hasBirthday && <Dot color={isSelected ? muted : birthdayColor} />}
                         </span>
                       )
                     ) : (
-                      (hasPending || eventColors.length > 0) && (
+                      (hasTask || hasEvent || hasBirthday) && (
                         <span className="absolute bottom-[5px] left-0 right-0 flex items-center justify-center gap-[3px]">
-                          {hasPending && <TaskGlyph color={isSelected ? '#ffffff' : TASK_COLOR} />}
-                          {eventColors.map((c, i) => (
-                            <span key={i} className="w-[4px] h-[4px] rounded-full" style={{ background: isSelected ? 'rgba(255,255,255,0.9)' : c }} />
-                          ))}
+                          {hasTask && <TaskGlyph color={isSelected ? '#ffffff' : TASK_COLOR} />}
+                          {hasEvent && <EventGlyph color={isSelected ? '#ffffff' : eventColor} />}
+                          {hasBirthday && <BirthdayGlyph color={isSelected ? '#ffffff' : birthdayColor} />}
                         </span>
                       )
                     )}

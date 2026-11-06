@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { formatEventTime } from '../../hooks/useCalendarEvents';
 import { minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
 
-const HOUR_H = 56;
+const HOUR_H = 42;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const TIME_COL = 40;
 
@@ -112,10 +111,8 @@ export function TimeGrid({ days, itemsByDate, sessionItemsByDate, onSelectItem, 
                   const height = Math.max(detailed ? 28 : 18, ((end - start) / 60) * HOUR_H);
                   const isSession = it.kind === 'session';
                   return (
-                    <motion.button
+                    <button
                       key={it.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
                       onClick={() => onSelectItem(it)}
                       className="absolute rounded-lg overflow-hidden text-left px-1.5 py-0.5 border-none cursor-pointer"
                       style={{
@@ -139,7 +136,7 @@ export function TimeGrid({ days, itemsByDate, sessionItemsByDate, onSelectItem, 
                           </span>
                         )}
                       </span>
-                    </motion.button>
+                    </button>
                   );
                 })}
 

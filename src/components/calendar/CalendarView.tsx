@@ -97,7 +97,9 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
       if (!agendaTopsRef.current) measure();
       const tops = agendaTopsRef.current;
       if (!tops || tops.length === 0) return;
-      const y = scroller.scrollTop + 12;
+      // El encabezado muestra el mes que ocupa el centro de la ventana, que es
+      // donde queda el día de hoy al abrir la agenda.
+      const y = scroller.scrollTop + scroller.clientHeight / 2;
       let key = tops[0].key;
       for (const t of tops) {
         if (t.top <= y) key = t.key;
@@ -185,8 +187,9 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
     return data.items.filter((i) => i.kind === 'pending' && i.date < t);
   }, [data.items]);
 
-  // "Detalles del día" recibe todo lo del día (pendientes, completadas y registros)
-  const dayItems = calendarItemsByDate.get(selectedDate) ?? [];
+  // Las tarjetas del día ("Orden del día" y "Detalles del día") muestran siempre
+  // todo lo del día: los ajustes de visibilidad solo afectan a las vistas.
+  const dayItems = itemsByDate.get(selectedDate) ?? [];
   const weekStartDay = weekStartIndex(settings.weekStart);
   const weekDays = useMemo(() => weekDaysOf(anchor, weekStartDay), [anchor, weekStartDay]);
 
@@ -205,12 +208,8 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
     const idx = order.indexOf(mode);
     const next = order[(idx + 1) % order.length];
     setMode(next);
-    // La vista de día abre siempre en el día actual
-    if (next === 'day') {
-      setAnchor(new Date());
-      setSelectedDate(todayKey());
-    } else if (next === 'agenda') {
-      // La agenda entra siempre situada en la fecha actual
+    // Día, semana y agenda abren siempre en la fecha actual
+    if (next === 'day' || next === 'week' || next === 'agenda') {
       setAnchor(new Date());
       setSelectedDate(todayKey());
     }
@@ -408,7 +407,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                     <div className="px-2 pt-3">
                       <DayResumen
                         date={key}
-                        items={calendarItemsByDate.get(key) ?? []}
+                        items={itemsByDate.get(key) ?? []}
                         allTasks={tasks}
                         allEvents={events}
                         lists={lists}

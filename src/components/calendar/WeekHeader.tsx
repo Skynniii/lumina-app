@@ -1,5 +1,4 @@
 import type { ReactElement } from 'react';
-import { motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { dateKey } from '../../hooks/useCalendarEvents';
 import {
@@ -17,7 +16,8 @@ interface Props {
   onOpenDay: (key: string) => void;
 }
 
-const DAY_NUM_TRANSITION = { type: 'spring' as const, stiffness: 260, damping: 30 };
+/** Rojo de las tareas atrasadas (días ya pasados). */
+const OVERDUE_COLOR = '#e5484d';
 
 const TaskBarIcon = ({ color }: { color: string }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></svg>
@@ -51,6 +51,7 @@ export function WeekHeader({ days, itemsByDate, selectedDate, completedKeys, onO
         const dt = parseKey(d);
         const isToday = d === today;
         const isSel = d === selectedDate;
+        const isOverdueDay = d < today;
         const keys = dayMarkerKeys(itemsByDate.get(d) ?? []);
         return (
           <div key={d} className="flex flex-col items-center gap-1 pt-1.5 pb-2 min-w-0">
@@ -62,15 +63,13 @@ export function WeekHeader({ days, itemsByDate, selectedDate, completedKeys, onO
               className="flex items-center justify-center w-8 h-8 p-0 border-none bg-transparent cursor-pointer"
               aria-label={`Ver el día ${dt.getDate()}`}
             >
-              <motion.span
-                layoutId={`day-num-${d}`}
-                transition={DAY_NUM_TRANSITION}
+              <span
                 className={`flex items-center justify-center w-7 h-7 rounded-[9px] text-[13px] leading-none tabular-nums ${
                   isToday ? 'bg-[#7f70ff] text-white font-bold' : isSel ? 'bg-[#f0edff] text-[#7f70ff] font-bold' : 'text-[#555] font-medium'
                 }`}
               >
                 {dt.getDate()}
-              </motion.span>
+              </span>
             </button>
             {/* Tareas completadas: punto morado bajo el número */}
             <span
@@ -81,18 +80,20 @@ export function WeekHeader({ days, itemsByDate, selectedDate, completedKeys, onO
               {keys.map((k) => {
                 const meta = DAY_MARKER_META[k];
                 const Icon = BAR_ICONS[k];
+                // Tareas de un día ya pasado: atrasadas, en rojo
+                const color = k === 'task' && isOverdueDay ? OVERDUE_COLOR : meta.color;
                 return (
                   <span
                     key={k}
                     className="flex items-center gap-1 rounded-full pl-1.5 pr-2 py-[4px] w-full min-w-0"
-                    style={{ background: `${meta.color}1a` }}
+                    style={{ background: `${color}1a` }}
                   >
-                    {Icon && <span className="shrink-0 flex"><Icon color={meta.color} /></span>}
+                    {Icon && <span className="shrink-0 flex"><Icon color={color} /></span>}
                     <MarqueeText
                       text={meta.label}
                       className="flex-1"
                       textClassName="text-[12px] font-bold leading-none"
-                      textStyle={{ color: meta.color }}
+                      textStyle={{ color }}
                     />
                   </span>
                 );

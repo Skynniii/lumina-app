@@ -1,5 +1,4 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
-import { motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { formatEventTime, dateKey, MONTHS } from '../../hooks/useCalendarEvents';
 import { LAYER_META, minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
@@ -98,14 +97,17 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
     return result;
   }, [itemsByDate, today, weekStartDay]);
 
-  /** Deja el día de hoy como primero de la agenda. */
+  /** Deja el día de hoy centrado en la agenda. */
   const scrollToToday = useCallback((smooth: boolean) => {
     const scroller = scrollRef.current;
     const target = todayRef.current;
     if (!scroller || !target) return;
-    const top = scroller.scrollTop + target.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 6;
+    const offsetInScroller = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    // Centro vertical del hueco visible menos la mitad de la fila de hoy
+    const centered = scroller.scrollTop + offsetInScroller - (scroller.clientHeight - target.offsetHeight) / 2;
+    const top = Math.max(0, centered);
     if (smooth) smoothScrollTo(scroller, top, 700);
-    else scroller.scrollTop = Math.max(0, top);
+    else scroller.scrollTop = top;
   }, [scrollRef]);
 
   // Al entrar en la agenda, hoy queda de primero (tenga o no ítems)
@@ -139,13 +141,10 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                 {week.days.map(({ key, date, items }) => {
                   const isToday = key === today;
                   return (
-                    <motion.div
+                    <div
                       key={key}
                       ref={isToday ? todayRef : undefined}
                       data-agenda-today={isToday ? '' : undefined}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
                       className="flex items-start gap-3"
                     >
                       <button
@@ -199,7 +198,7 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                           })
                         )}
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>

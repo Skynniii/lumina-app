@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { parseKey, type CalendarItem } from '../../hooks/useCalendarData';
 
 interface Props {
@@ -10,9 +9,6 @@ interface Props {
 }
 
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-
-/** Muelle compartido con el número de la cabecera de la semana. */
-const DAY_NUM_TRANSITION = { type: 'spring' as const, stiffness: 260, damping: 30 };
 
 /** Ancho de la columna de las horas en `TimeGrid` + su separación. */
 const DAY_COL_OFFSET = 47;
@@ -52,39 +48,23 @@ export function DayHeadline({ date, items, overdueItems = [], onSelectItem }: Pr
     <div className="flex flex-col gap-2.5 pt-3 pb-3">
       {/* Fila 1: número del día + día de la semana */}
       <div className="flex items-center gap-2.5 min-w-0 px-3">
-        <motion.span
-          layoutId={`day-num-${date}`}
-          transition={DAY_NUM_TRANSITION}
-          className="text-[34px] font-bold text-[#333] leading-none tabular-nums"
-        >
+        <span className="text-[34px] font-bold text-[#333] leading-none tabular-nums">
           {dt.getDate()}
-        </motion.span>
-        <motion.span
-          initial={{ opacity: 0, x: -8 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.25, delay: 0.06, ease: 'easeOut' }}
-          className="text-[17px] font-semibold text-[#7f70ff] capitalize leading-none pb-[3px]"
-        >
+        </span>
+        <span className="text-[17px] font-semibold text-[#7f70ff] capitalize leading-none pb-[3px]">
           {WEEKDAYS[dt.getDay()]}
-        </motion.span>
+        </span>
       </div>
 
       {/* Fila 2: tareas y eventos del día, alineados con la columna del día */}
       {rows.length > 0 && (
         <div className="pr-1" style={{ paddingLeft: DAY_COL_OFFSET }}>
-          <motion.div
-            initial={{ width: '20%' }}
-            animate={{ width: '100%' }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col gap-1.5 overflow-hidden"
-          >
+          <div className="flex flex-col gap-1.5 overflow-hidden">
             {rows.map((it) => {
               const late = overdueItems.some((o) => o.id === it.id);
               return (
-                <motion.button
+                <button
                   key={it.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
                   onClick={() => onSelectItem(it)}
                   className="flex items-center gap-2 w-full min-w-0 rounded-full pl-2 pr-3 py-[5px] border-none cursor-pointer text-left active:scale-[0.99] transition-transform"
                   style={{ background: late ? '#e5484d1a' : `${it.color}26` }}
@@ -94,10 +74,10 @@ export function DayHeadline({ date, items, overdueItems = [], onSelectItem }: Pr
                   <span className={`flex-1 min-w-0 text-[13px] font-medium truncate ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>
                     {it.title}
                   </span>
-                </motion.button>
+                </button>
               );
             })}
-          </motion.div>
+          </div>
         </div>
       )}
     </div>
