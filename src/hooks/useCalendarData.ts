@@ -39,7 +39,7 @@ export const DAY_MARKER_META: Record<string, { label: string; color: string }> =
   session: { label: 'Registros', color: LAYER_META.session.color },
 };
 
-export const DAY_MARKER_ORDER = ['holiday', 'task', 'event', 'birthday', 'session'];
+export const DAY_MARKER_ORDER = ['holiday', 'birthday', 'task', 'event', 'session'];
 
 /**
  * Ítem unificado del calendario. Las tareas y los registros de tiempo se derivan

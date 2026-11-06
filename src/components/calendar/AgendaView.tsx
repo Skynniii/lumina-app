@@ -6,6 +6,8 @@ import { todayKey } from '../../hooks/useTimeTracker';
 import { smoothScrollTo } from '../../utils/smoothScroll';
 import { weekStartIndex, weekdayShort } from '../../utils/calendarDates';
 import { holidayItem } from '../../utils/holidayItem';
+import { HOLIDAY_INK, HOLIDAY_SURFACE } from '../../utils/holidays';
+import { sortByFamily } from '../../utils/itemOrder';
 import { MonthArt } from './MonthArt';
 
 interface Props {
@@ -79,7 +81,8 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
         if (!weekStart) weekStart = date;
         // Festivos y cumpleaños: la agenda los muestra todos, tengan o no tareas
         const holiday = holidayItem(key);
-        const items = holiday ? [holiday, ...(itemsByDate.get(key) ?? [])] : itemsByDate.get(key) ?? [];
+        // Orden del día: festivo, cumpleaños, tareas, eventos y completadas
+        const items = sortByFamily(holiday ? [holiday, ...(itemsByDate.get(key) ?? [])] : itemsByDate.get(key) ?? []);
         // Solo se listan los días con algo y el día de hoy (aunque esté vacío)
         if (items.length > 0 || key === today) currentWeek.push({ key, date, items });
 
@@ -176,22 +179,27 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                             const isTask = it.kind === 'pending' || it.kind === 'completed';
                             const accent = it.accent || LAYER_META.pending.color;
                             const Icon = it.holiday ? HolidayIcon : it.birthday ? CakeIcon : isTask ? TaskIcon : it.kind === 'event' ? EventIcon : ClockIcon;
-                            // Tareas: tarjeta suave con su color; eventos, cumpleaños y festivos: color pleno
+                            // Tareas: tarjeta suave con su color; eventos y cumpleaños: color pleno; festivos: amarillo claro
+                            const isHoliday = !!it.holiday;
                             const soft = isTask;
                             const tint = isTask ? accent : it.color;
-                            const iconColor = soft ? tint : '#ffffff';
+                            const iconColor = isHoliday ? HOLIDAY_INK : soft ? tint : '#ffffff';
+                            const titleColor = soft
+                              ? (it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#3a3a44]')
+                              : isHoliday ? 'text-[#6b5200]' : 'text-white';
+                            const subColor = soft ? 'text-[#8b8b97]' : isHoliday ? 'text-[#6b5200]/75' : 'text-white/85';
                             // Tarea pendiente de un día ya pasado: se queda en su día, marcada
                             const late = it.kind === 'pending' && key < today;
                             const cardStyle = soft
                               ? { background: `${tint}26`, borderLeft: `3px solid ${tint}`, paddingLeft: 10 }
-                              : { background: it.color };
+                              : { background: isHoliday ? HOLIDAY_SURFACE : it.color };
 
                             const body = (
                               <span className="flex items-center gap-2.5 min-w-0">
                                 <span className="shrink-0 flex items-center justify-center"><Icon color={iconColor} /></span>
                                 <span className="flex-1 min-w-0">
                                   <span className="flex items-center gap-1.5 min-w-0">
-                                    <span className={`min-w-0 flex-1 text-[13px] font-semibold leading-tight truncate ${soft ? (it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#3a3a44]') : 'text-white'}`}>
+                                    <span className={`min-w-0 flex-1 text-[13px] font-semibold leading-tight truncate ${titleColor}`}>
                                       {it.title}
                                     </span>
                                     {late && (
@@ -199,7 +207,7 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                                     )}
                                   </span>
                                   {second && (
-                                    <span className={`block text-[11px] leading-tight truncate mt-0.5 ${soft ? 'text-[#8b8b97]' : 'text-white/85'}`}>{second}</span>
+                                    <span className={`block text-[11px] leading-tight truncate mt-0.5 ${subColor}`}>{second}</span>
                                   )}
                                 </span>
                               </span>

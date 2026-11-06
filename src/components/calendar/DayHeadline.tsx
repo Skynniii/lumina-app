@@ -1,5 +1,6 @@
 import { itemColor, parseKey, type CalendarItem } from '../../hooks/useCalendarData';
 import { holidayItem } from '../../utils/holidayItem';
+import { sortByFamily } from '../../utils/itemOrder';
 
 interface Props {
   date: string; // YYYY-MM-DD
@@ -51,16 +52,13 @@ function FamilyIcon({ item, color }: { item: CalendarItem; color: string }) {
 export function DayHeadline({ date, items, completedItems = [], overdueItems = [], onSelectItem }: Props) {
   const dt = parseKey(date);
   const holiday = holidayItem(date);
-  const birthdays = items.filter((i) => i.birthday);
-  const rest = items.filter((i) => !i.birthday);
-  // Orden: atrasadas, festivo, cumpleaños, completadas (tachadas) y el resto del día
-  const rows = [
-    ...overdueItems,
+  // Orden: festivo, cumpleaños, tareas (atrasadas incluidas), eventos y completadas
+  const rows = sortByFamily([
     ...(holiday ? [holiday] : []),
-    ...birthdays,
+    ...overdueItems,
+    ...items,
     ...completedItems,
-    ...rest,
-  ];
+  ]);
 
   return (
     <div className="flex flex-col gap-2.5 pt-3 pb-3">
