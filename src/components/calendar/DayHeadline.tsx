@@ -1,8 +1,11 @@
 import { itemColor, parseKey, type CalendarItem } from '../../hooks/useCalendarData';
+import { holidayItem } from '../../utils/holidayItem';
 
 interface Props {
   date: string; // YYYY-MM-DD
   items: CalendarItem[];
+  /** Tareas completadas del día: solo si el ajuste las muestra. */
+  completedItems?: CalendarItem[];
   /** Tareas atrasadas: solo en el día de hoy, marcadas como "Atrasado". */
   overdueItems?: CalendarItem[];
   onSelectItem: (i: CalendarItem) => void;
@@ -26,8 +29,13 @@ const CakeIcon = ({ color }: { color: string }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" /><path d="M4 16h16" /><path d="M12 8V5" /><circle cx="12" cy="4" r="1" /></svg>
 );
 
-/** Icono de la familia del ítem: tarea, evento, cumpleaños o registro. */
+const HolidayIcon = ({ color }: { color: string }) => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z" /></svg>
+);
+
+/** Icono de la familia del ítem: festivo, cumpleaños, evento, registro o tarea. */
 function FamilyIcon({ item, color }: { item: CalendarItem; color: string }) {
+  if (item.holiday) return <HolidayIcon color={color} />;
   if (item.birthday) return <CakeIcon color={color} />;
   if (item.kind === 'event') return <EventIcon color={color} />;
   if (item.kind === 'session') return <SessionIcon color={color} />;
@@ -40,9 +48,19 @@ function FamilyIcon({ item, color }: { item: CalendarItem; color: string }) {
  * derecha, y debajo las tareas y eventos del día alineados con la columna de
  * las cajas blancas (no con la de las horas).
  */
-export function DayHeadline({ date, items, overdueItems = [], onSelectItem }: Props) {
+export function DayHeadline({ date, items, completedItems = [], overdueItems = [], onSelectItem }: Props) {
   const dt = parseKey(date);
-  const rows = [...overdueItems, ...items];
+  const holiday = holidayItem(date);
+  const birthdays = items.filter((i) => i.birthday);
+  const rest = items.filter((i) => !i.birthday);
+  // Orden: atrasadas, festivo, cumpleaños, completadas (tachadas) y el resto del día
+  const rows = [
+    ...overdueItems,
+    ...(holiday ? [holiday] : []),
+    ...birthdays,
+    ...completedItems,
+    ...rest,
+  ];
 
   return (
     <div className="flex flex-col gap-2.5 pt-3 pb-3">
@@ -62,17 +80,20 @@ export function DayHeadline({ date, items, overdueItems = [], onSelectItem }: Pr
           <div className="flex flex-col gap-1.5 overflow-hidden">
             {rows.map((it) => {
               const late = overdueItems.some((o) => o.id === it.id);
+              const done = it.kind === 'completed';
               const color = itemColor(it);
               return (
                 <button
                   key={it.id}
                   onClick={() => onSelectItem(it)}
                   className="flex items-center gap-2 w-full min-w-0 rounded-full pl-2 pr-3 py-[5px] border-none cursor-pointer text-left active:scale-[0.99] transition-transform"
-                  style={{ background: late ? '#e5484d1a' : `${color}26` }}
+                  style={{ background: late ? '#e5484d1a' : `${color}${done ? '14' : '26'}` }}
                 >
-                  <span className="shrink-0 flex"><FamilyIcon item={it} color={color} /></span>
+                  <span className="shrink-0 flex" style={done ? { opacity: 0.5 } : undefined}>
+                    <FamilyIcon item={it} color={color} />
+                  </span>
                   {late && <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-[#e5484d]">Atrasado</span>}
-                  <span className={`flex-1 min-w-0 text-[13px] font-medium truncate ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>
+                  <span className={`flex-1 min-w-0 text-[13px] truncate ${done ? 'text-[#aeadb8] line-through' : 'text-[#333] font-medium'}`}>
                     {it.title}
                   </span>
                 </button>

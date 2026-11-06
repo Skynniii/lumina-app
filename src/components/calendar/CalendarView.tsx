@@ -144,7 +144,8 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
     for (const [d, arr] of itemsByDate) {
       const kept = arr.filter((i) => {
         if (i.kind === 'completed' && !settings.showCompletedTasks) return false;
-        if (i.kind === 'event' && !settings.showPastEvents && d < t) return false;
+        // Los cumpleaños se repiten cada año: no son eventos "pasados"
+        if (i.kind === 'event' && !i.birthday && !settings.showPastEvents && d < t) return false;
         return true;
       });
       if (kept.length > 0) map.set(d, kept);
@@ -397,6 +398,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                     <DayHeadline
                       date={key}
                       items={visibleByDate.get(key) ?? []}
+                      completedItems={(calendarItemsByDate.get(key) ?? []).filter((i) => i.kind === 'completed')}
                       overdueItems={key === todayKey() ? overdueItems : []}
                       onSelectItem={openItem}
                     />

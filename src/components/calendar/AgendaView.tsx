@@ -5,6 +5,7 @@ import { LAYER_META, minToHHMM, type CalendarItem } from '../../hooks/useCalenda
 import { todayKey } from '../../hooks/useTimeTracker';
 import { smoothScrollTo } from '../../utils/smoothScroll';
 import { weekStartIndex, weekdayShort } from '../../utils/calendarDates';
+import { holidayItem } from '../../utils/holidayItem';
 import { MonthArt } from './MonthArt';
 
 interface Props {
@@ -38,6 +39,9 @@ const ClockIcon = ({ color }: { color: string }) => (
 );
 const CakeIcon = ({ color }: { color: string }) => (
   <svg {...ICON} stroke={color}><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" /><path d="M4 16h16" /><path d="M12 8V5" /><circle cx="12" cy="4" r="1" /></svg>
+);
+const HolidayIcon = ({ color }: { color: string }) => (
+  <svg {...ICON} stroke={color}><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z" /></svg>
 );
 
 /**
@@ -73,7 +77,9 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
         const date = new Date(year, month, day);
         const key = dateKey(date);
         if (!weekStart) weekStart = date;
-        const items = itemsByDate.get(key) ?? [];
+        // Festivos y cumpleaños: la agenda los muestra todos, tengan o no tareas
+        const holiday = holidayItem(key);
+        const items = holiday ? [holiday, ...(itemsByDate.get(key) ?? [])] : itemsByDate.get(key) ?? [];
         // Solo se listan los días con algo y el día de hoy (aunque esté vacío)
         if (items.length > 0 || key === today) currentWeek.push({ key, date, items });
 
@@ -169,8 +175,11 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                             const second = time || it.subtitle || '';
                             const isTask = it.kind === 'pending' || it.kind === 'completed';
                             const accent = it.accent || LAYER_META.pending.color;
-                            const Icon = it.birthday ? CakeIcon : isTask ? TaskIcon : it.kind === 'event' ? EventIcon : ClockIcon;
-                            const iconColor = isTask ? accent : '#ffffff';
+                            const Icon = it.holiday ? HolidayIcon : it.birthday ? CakeIcon : isTask ? TaskIcon : it.kind === 'event' ? EventIcon : ClockIcon;
+                            // Tareas y festivos: tarjeta suave con su color; eventos y cumpleaños: color pleno
+                            const soft = isTask || !!it.holiday;
+                            const tint = isTask ? accent : it.color;
+                            const iconColor = soft ? tint : '#ffffff';
                             // Tarea pendiente de un día ya pasado: se queda en su día, marcada
                             const late = it.kind === 'pending' && key < today;
 
@@ -179,15 +188,15 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                                 key={it.id}
                                 onClick={() => onSelectItem(it)}
                                 className="w-full min-w-0 text-left rounded-[10px] px-3 py-2 border-none cursor-pointer active:scale-[0.99] transition-transform"
-                                style={isTask
-                                  ? { background: `${accent}26`, borderLeft: `3px solid ${accent}`, paddingLeft: 10 }
+                                style={soft
+                                  ? { background: `${tint}26`, borderLeft: `3px solid ${tint}`, paddingLeft: 10 }
                                   : { background: it.color }}
                               >
                                 <span className="flex items-center gap-2.5 min-w-0">
                                   <span className="shrink-0 flex items-center justify-center"><Icon color={iconColor} /></span>
                                   <span className="flex-1 min-w-0">
                                     <span className="flex items-center gap-1.5 min-w-0">
-                                      <span className={`min-w-0 flex-1 text-[13px] font-semibold leading-tight truncate ${isTask ? (it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#3a3a44]') : 'text-white'}`}>
+                                      <span className={`min-w-0 flex-1 text-[13px] font-semibold leading-tight truncate ${soft ? (it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#3a3a44]') : 'text-white'}`}>
                                         {it.title}
                                       </span>
                                       {late && (
@@ -195,7 +204,7 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                                       )}
                                     </span>
                                     {second && (
-                                      <span className={`block text-[11px] leading-tight truncate mt-0.5 ${isTask ? 'text-[#8b8b97]' : 'text-white/85'}`}>{second}</span>
+                                      <span className={`block text-[11px] leading-tight truncate mt-0.5 ${soft ? 'text-[#8b8b97]' : 'text-white/85'}`}>{second}</span>
                                     )}
                                   </span>
                                 </span>

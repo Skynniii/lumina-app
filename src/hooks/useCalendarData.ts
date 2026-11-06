@@ -21,6 +21,9 @@ export const LAYER_META: Record<CalendarLayer, { label: string; short: string; c
   event: { label: 'Eventos', short: 'Evento', color: '#4d7cfe' },
 };
 
+/** Rosa de los cumpleaños (el mismo con el que se crean en `BirthdayForm`). */
+export const BIRTHDAY_COLOR = '#ff6b81';
+
 /**
  * Familias de información de un día: una sola barrita (semana) o un solo punto
  * (mes) por familia, aunque ese día tenga 5 tareas o 3 eventos.
@@ -30,10 +33,11 @@ export const LAYER_META: Record<CalendarLayer, { label: string; short: string; c
 export const DAY_MARKER_META: Record<string, { label: string; color: string }> = {
   task: { label: 'Tasks', color: LAYER_META.pending.color },
   event: { label: 'Events', color: LAYER_META.event.color },
+  birthday: { label: 'Cumpleaños', color: BIRTHDAY_COLOR },
   session: { label: 'Registros', color: LAYER_META.session.color },
 };
 
-export const DAY_MARKER_ORDER = ['task', 'event', 'session'];
+export const DAY_MARKER_ORDER = ['task', 'event', 'birthday', 'session'];
 
 /**
  * Ítem unificado del calendario. Las tareas y los registros de tiempo se derivan
@@ -51,6 +55,7 @@ export interface CalendarItem {
   accent?: string;          // color de la actividad del ítem, si tiene
   order?: number;
   birthday?: boolean;       // cumpleaños: se repite cada año
+  holiday?: boolean;        // festivo: se calcula en `utils/holidayItem`
   task?: Task;
   session?: TimeSession;
   event?: CalendarEvent;
@@ -61,14 +66,16 @@ export interface CalendarItem {
  * actividad (tarea-actividad), y si no tiene, el de su familia.
  */
 export function itemColor(it: CalendarItem): string {
-  return it.kind === 'pending' && it.accent ? it.accent : it.color;
+  const withAccent = it.kind === 'pending' || it.kind === 'completed';
+  return withAccent && it.accent ? it.accent : it.color;
 }
 
-/** Familias presentes ese día, en orden fijo (tareas, eventos, registros…). */
+/** Familias presentes ese día, en orden fijo (tareas, eventos, cumpleaños…). */
 export function dayMarkerKeys(items: CalendarItem[]): string[] {
   const present = new Set<string>();
   for (const it of items) {
-    if (it.kind === 'event') present.add('event');
+    if (it.birthday) present.add('birthday');
+    else if (it.kind === 'event') present.add('event');
     else if (it.kind === 'session') present.add('session');
     else present.add('task');
   }
