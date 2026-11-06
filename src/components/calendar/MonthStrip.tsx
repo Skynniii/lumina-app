@@ -8,16 +8,20 @@ interface Props {
   onCollapse: () => void;
 }
 
+/** Años navegables hacia atrás y hacia adelante desde el año actual. */
+const YEARS_AROUND = 10;
+
 /** Franja horizontal expandible con meses agrupados por año. */
 export function MonthStrip({ anchor, onMonthSelect, onCollapse }: Props) {
   const y = anchor.getFullYear();
   const m = anchor.getMonth();
+  const currentYear = new Date().getFullYear();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
 
   const years: { year: number; months: number[] }[] = [];
-  for (let year = y - 2; year <= y + 1; year++) {
+  for (let year = currentYear - YEARS_AROUND; year <= currentYear + YEARS_AROUND; year++) {
     years.push({ year, months: Array.from({ length: 12 }, (_, i) => i) });
   }
 

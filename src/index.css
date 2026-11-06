@@ -57,6 +57,17 @@ button:active, [role="button"]:active {
 /* === CSS keyframe animations for infinite loops === */
 /* Replaces Framer Motion JS-driven loops with compositor-thread CSS animations */
 
+/* Texto que se desplaza en bucle cuando no cabe en su hueco (barritas de semana) */
+@keyframes marquee-shift {
+  0%, 12% { transform: translateX(0); }
+  50%, 62% { transform: translateX(var(--marquee-shift, 0)); }
+  100% { transform: translateX(0); }
+}
+
+.marquee-text {
+  animation: marquee-shift 5s ease-in-out infinite;
+}
+
 @keyframes glow-pulse {
   0%, 100% { opacity: 0.3; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(1.05); }

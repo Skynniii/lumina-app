@@ -87,7 +87,7 @@ export function RepeatModal({ initialRepeat, startDate, onClose, onSave }: Props
         initial={{ opacity: 0, scale: 0.92, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 20 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
         className="bg-white rounded-[24px] w-full max-w-[340px] max-h-[85vh] shadow-2xl relative overflow-y-auto no-scrollbar"
       >
         <div className="px-5 pt-5 pb-3 sticky top-0 bg-white z-10">

@@ -72,6 +72,7 @@ export interface CalendarEvent {
   color: string;
   location?: string;
   notes?: string;
+  birthday?: boolean;               // se repite cada año (cumpleaños)
   updatedAt?: string;
 }
 

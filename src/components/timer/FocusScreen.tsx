@@ -10,7 +10,8 @@ import { FocusRing } from './FocusRing';
 import { TaskPicker } from './TaskPicker';
 import { CustomDurationModal } from './CustomDurationModal';
 import { DatePickerModal } from '../tareas/DatePickerModal';
-import { NotesToolbar } from '../tareas/NotesToolbar';
+import { clampNotes, limitBeforeInput } from '../../utils/notesLimit';
+import { sheetTransition } from '../../utils/motion';
 import { TimePickerModal } from '../tareas/TimePickerModal';
 import { useSettings } from '../../context/SettingsContext';
 import { useUserStorage } from '../../hooks/useUserStorage';
@@ -83,7 +84,6 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   const [customDurations, setCustomDurations] = useUserStorage<number[]>('timer-custom-durations', [25, 45, 60]);
   const [showCustomDuration, setShowCustomDuration] = useState(false);
   const notesRef = useRef<HTMLDivElement>(null);
-  const [notesEditing, setNotesEditing] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
   const wasNotesExpanded = useRef(false);
 
@@ -214,22 +214,11 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   }, [props.draft.notes]);
 
   const handleNotesInput = (e: React.FormEvent<HTMLDivElement>) => {
+    clampNotes(e.currentTarget);
     lastNotesRef.current = e.currentTarget.innerHTML;
     onNotesChange(e.currentTarget.innerHTML);
     if (props.draft.taskId && onSyncTaskNotes) {
       onSyncTaskNotes(props.draft.taskId, e.currentTarget.innerHTML);
-    }
-  };
-
-  const execCommand = (cmd: string, value?: string) => {
-    notesRef.current?.focus();
-    document.execCommand(cmd, false, value);
-    if (notesRef.current) {
-      lastNotesRef.current = notesRef.current.innerHTML;
-      onNotesChange(notesRef.current.innerHTML);
-      if (props.draft.taskId && onSyncTaskNotes) {
-        onSyncTaskNotes(props.draft.taskId, notesRef.current.innerHTML);
-      }
     }
   };
 
@@ -266,7 +255,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
   }, [linkedTask?.notes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} className="fixed inset-0 z-[9999] flex flex-col bg-white">
+    <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={sheetTransition} className="fixed inset-0 z-[9999] flex flex-col bg-white">
       <style>{`[data-ph]:empty::before{content:attr(data-ph);color:#aaa;pointer-events:none}`}</style>
       {/* === Barra superior === */}
       <div className="flex items-center justify-between px-4 pb-3 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
@@ -492,8 +481,7 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
                     suppressContentEditableWarning
                     data-ph="Escribe una nota..."
                     onInput={handleNotesInput}
-                    onFocus={() => setNotesEditing(true)}
-                    onBlur={() => setNotesEditing(false)}
+                    onBeforeInput={limitBeforeInput}
                     className="w-full min-h-[80px] pb-4 pt-1 outline-none text-[15px] text-[#444] leading-relaxed [&_h1]:text-[17px] [&_h1]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
                   />
                 </motion.div>
@@ -502,15 +490,6 @@ export function FocusScreen({ onBack, taskLists, tasks, onNotesChange, onDiscard
           </div>
         </div>
       </div>
-
-      {/* Toolbar de formato cuando se editan las notas */}
-      <AnimatePresence>
-        {notesEditing && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden shrink-0">
-            <NotesToolbar onCommand={execCommand} />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* === Botones flotantes inferiores (ocultos con el teclado abierto) === */}
       <div className={`flex items-center justify-center gap-10 pt-2 shrink-0 ${keyboardVisible ? 'hidden' : ''}`} style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 32px)' }}>

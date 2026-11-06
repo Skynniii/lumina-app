@@ -87,7 +87,7 @@ export function SettingsPage({ onBack }: Props) {
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
       className="absolute top-0 left-0 w-full h-full bg-white z-[1100] flex flex-col overflow-y-auto no-scrollbar"
     >
       {/* Header */}
@@ -194,6 +194,39 @@ export function SettingsPage({ onBack }: Props) {
               })}
             </div>
           </div>
+        </div>
+
+        {/* CALENDARIO */}
+        <SectionHeader
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="16" y1="2" x2="16" y2="6" /></svg>}
+          title="Calendario"
+        />
+        <div className="space-y-3">
+          <PillRow
+            title="Día de inicio de semana"
+            subtitle="Primer día de la semana"
+            options={[{ value: 'monday', label: 'Lunes' }, { value: 'sunday', label: 'Domingo' }]}
+            value={settings.weekStart}
+            onChange={(v) => update('weekStart', v as Settings['weekStart'])}
+          />
+          <ToggleRow
+            title="Mostrar número de semana"
+            subtitle="Columna con el número de semana del mes"
+            on={settings.showWeekNumbers}
+            onChange={(v) => update('showWeekNumbers', v)}
+          />
+          <ToggleRow
+            title="Mostrar tareas completadas"
+            subtitle="Ver lo completado en el calendario"
+            on={settings.showCompletedTasks}
+            onChange={(v) => update('showCompletedTasks', v)}
+          />
+          <ToggleRow
+            title="Mostrar eventos pasados"
+            subtitle="Ver eventos de días anteriores"
+            on={settings.showPastEvents}
+            onChange={(v) => update('showPastEvents', v)}
+          />
         </div>
 
         {/* TASKS */}

@@ -24,7 +24,7 @@ export function ModalNeuromorfico({ isOpen, type, title, placeholder, defaultVal
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 bg-black/40 flex justify-center items-center z-[9999] backdrop-blur-sm"
+          className="fixed inset-0 bg-black/40 flex justify-center items-center z-[9999]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

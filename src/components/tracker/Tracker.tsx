@@ -82,7 +82,6 @@ export function Tracker({ onMenuClick, onOpenAccount, onNavigate }: Props) {
   }, [activityStats, noActivityStats]);
 
   const totalSeconds = weekSessions.reduce((sum, s) => sum + s.duration, 0);
-  const hasData = totalSeconds > 0;
   const selectedActivity = selectedActivityIdx != null ? allStats[selectedActivityIdx] : null;
   const isGhost = selectedActivity?.activity.id === GHOST_ACTIVITY.id;
 
@@ -131,8 +130,8 @@ export function Tracker({ onMenuClick, onOpenAccount, onNavigate }: Props) {
             <div className="flex-1 h-px bg-[#eceaf3]" />
           </div>
 
-          {/* Barras de actividades */}
-          {hasData ? (
+          {/* Barras de actividades (siempre visibles, aun sin registros) */}
+          {allStats.length > 0 ? (
             <div className="flex flex-col gap-3">
               {allStats.map((stat, idx) => (
                 <ActivityStatCard
@@ -143,7 +142,7 @@ export function Tracker({ onMenuClick, onOpenAccount, onNavigate }: Props) {
               ))}
             </div>
           ) : (
-            <p className="text-center text-[14px] text-[#999] py-6 m-0">Sin registros esta semana</p>
+            <p className="text-center text-[14px] text-[#999] py-6 m-0">Aún no tienes actividades</p>
           )}
         </div>
       </div>

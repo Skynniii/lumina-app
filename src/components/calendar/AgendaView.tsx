@@ -1,134 +1,243 @@
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { formatEventTime, dateKey, MONTHS } from '../../hooks/useCalendarEvents';
-import { minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
+import { LAYER_META, minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
 import { todayKey } from '../../hooks/useTimeTracker';
+import { smoothScrollTo } from '../../utils/smoothScroll';
+import { weekStartIndex, weekdayShort } from '../../utils/calendarDates';
+import { holidayItem } from '../../utils/holidayItem';
+import { HOLIDAY_INK, HOLIDAY_SURFACE } from '../../utils/holidays';
+import { sortByFamily } from '../../utils/itemOrder';
+import { MonthArt } from './MonthArt';
 
 interface Props {
   itemsByDate: Map<string, CalendarItem[]>;
-  selectedDate: string;
-  onSelectDate: (d: string) => void;
   onSelectItem: (i: CalendarItem) => void;
-  anchor: Date;
+  /** Tocar el número de un día abre su vista diaria. */
+  onOpenDay: (key: string) => void;
+  todayPulse?: number;
+  /** Contenedor con scroll de la agenda (para situar el día de hoy). */
+  scrollRef: RefObject<HTMLDivElement | null>;
 }
 
-const WEEKDAYS_FULL = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+/** Años de agenda hacia atrás y hacia adelante desde el mes actual. */
+const YEARS_AROUND = 5;
+const MONTHS_TOTAL = YEARS_AROUND * 12;
+
+type AgendaDay = { key: string; date: Date; items: CalendarItem[] };
+type AgendaWeek = { label: string; days: AgendaDay[] };
+type AgendaMonth = { year: number; month: number; weeks: AgendaWeek[] };
+
+const ICON = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', strokeWidth: 2.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+
+const TaskIcon = ({ color }: { color: string }) => (
+  <svg {...ICON} stroke={color}><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></svg>
+);
+const EventIcon = ({ color }: { color: string }) => (
+  <svg {...ICON} stroke={color}><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+);
+const ClockIcon = ({ color }: { color: string }) => (
+  <svg {...ICON} stroke={color}><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+);
+const CakeIcon = ({ color }: { color: string }) => (
+  <svg {...ICON} stroke={color}><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" /><path d="M4 16h16" /><path d="M12 8V5" /><circle cx="12" cy="4" r="1" /></svg>
+);
+const HolidayIcon = ({ color }: { color: string }) => (
+  <svg {...ICON} stroke={color}><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z" /></svg>
+);
 
 /**
- * Vista de agenda: agrupa la información por meses y semanas, mostrando
- * el día de hoy y los días que tienen tareas o eventos.
+ * Vista de agenda: cinco años atrás y cinco adelante, con una ilustración por
+ * mes y las semanas de cada mes (solo las que tienen algo). Las tareas se pintan
+ * con el color de su actividad (barrita a la izquierda + tarjeta suave + icono)
+ * y los eventos a color pleno con su icono.
  */
-export function AgendaView({ itemsByDate, selectedDate, onSelectDate, onSelectItem, anchor }: Props) {
+function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, scrollRef }: Props) {
   const { settings } = useSettings();
   const today = todayKey();
+  /** 0 = domingo, 1 = lunes (ajuste "Día de inicio de semana"). */
+  const weekStartDay = weekStartIndex(settings.weekStart);
+  const todayRef = useRef<HTMLDivElement>(null);
 
-  const months = useMemo(() => {
-    const result: { year: number; month: number; weeks: { label: string; days: { key: string; date: Date; items: CalendarItem[] }[] }[] }[] = [];
+  const months = useMemo<AgendaMonth[]>(() => {
+    const base = new Date();
+    const result: AgendaMonth[] = [];
 
-    for (let offset = -3; offset <= 3; offset++) {
-      const d = new Date(anchor.getFullYear(), anchor.getMonth() + offset, 1);
+    for (let offset = -MONTHS_TOTAL; offset <= MONTHS_TOTAL; offset++) {
+      const d = new Date(base.getFullYear(), base.getMonth() + offset, 1);
       const year = d.getFullYear();
       const month = d.getMonth();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-      // Agrupar días por semana (lunes-domingo)
-      const weeks: { label: string; days: { key: string; date: Date; items: CalendarItem[] }[] }[] = [];
-      let currentWeek: { key: string; date: Date; items: CalendarItem[] }[] = [];
+      const weeks: AgendaWeek[] = [];
+      let currentWeek: AgendaDay[] = [];
+      let weekStart: Date | null = null;
+      // Último día de la semana, según el ajuste de inicio de semana
+      const weekEnd = (weekStartDay + 6) % 7;
 
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(year, month, day);
         const key = dateKey(date);
-        const items = itemsByDate.get(key) ?? [];
-        currentWeek.push({ key, date, items });
+        if (!weekStart) weekStart = date;
+        // Festivos y cumpleaños: la agenda los muestra todos, tengan o no tareas
+        const holiday = holidayItem(key);
+        // Orden del día: festivo, cumpleaños, tareas, eventos y completadas
+        const items = sortByFamily(holiday ? [holiday, ...(itemsByDate.get(key) ?? [])] : itemsByDate.get(key) ?? []);
+        // Solo se listan los días con algo y el día de hoy (aunque esté vacío)
+        if (items.length > 0 || key === today) currentWeek.push({ key, date, items });
 
-        // Cerrar semana en domingo o último día del mes
-        if (date.getDay() === 0 || day === daysInMonth) {
-          const hasItems = currentWeek.some((w) => w.items.length > 0);
-          const hasToday = currentWeek.some((w) => w.key === today);
-          if (hasItems || hasToday) {
-            const ws = currentWeek[0].date;
-            const we = currentWeek[currentWeek.length - 1].date;
+        // Cerrar semana en el último día de la semana o el último del mes
+        if (date.getDay() === weekEnd || day === daysInMonth) {
+          if (weekStart) {
+            const ws: Date = weekStart;
+            const we = date;
             const label = ws.getMonth() === we.getMonth()
-              ? `${ws.getDate()} – ${we.getDate()} ${MONTHS[we.getMonth()].slice(0, 3)}`
-              : `${ws.getDate()} ${MONTHS[ws.getMonth()].slice(0, 3)} – ${we.getDate()} ${MONTHS[we.getMonth()].slice(0, 3)}`;
-            weeks.push({ label, days: [...currentWeek] });
+              ? `${ws.getDate()} – ${we.getDate()} ${MONTHS[we.getMonth()].slice(0, 3)} ${we.getFullYear()}`
+              : `${ws.getDate()} ${MONTHS[ws.getMonth()].slice(0, 3)} – ${we.getDate()} ${MONTHS[we.getMonth()].slice(0, 3)} ${we.getFullYear()}`;
+            weeks.push({ label, days: currentWeek });
           }
           currentWeek = [];
+          weekStart = null;
         }
       }
 
-      if (weeks.length > 0) result.push({ year, month, weeks });
+      result.push({ year, month, weeks });
     }
     return result;
-  }, [anchor, itemsByDate, today]);
+  }, [itemsByDate, today, weekStartDay]);
+
+  /** Deja el día de hoy al principio de la agenda (lo primero que se ve). */
+  const scrollToToday = useCallback((smooth: boolean) => {
+    const scroller = scrollRef.current;
+    const target = todayRef.current;
+    if (!scroller || !target) return;
+    const offsetInScroller = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    // Hoy queda arriba del todo, con un pequeño margen
+    const top = Math.max(0, scroller.scrollTop + offsetInScroller - 8);
+    if (smooth) smoothScrollTo(scroller, top, 700);
+    else scroller.scrollTop = top;
+  }, [scrollRef]);
+
+  // Al entrar en la agenda, hoy queda de primero (tenga o no ítems)
+  useLayoutEffect(() => {
+    scrollToToday(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // El botón "Hoy" se desliza hasta la fecha actual (no salta de golpe)
+  useEffect(() => {
+    if (todayPulse) scrollToToday(true);
+  }, [todayPulse, scrollToToday]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {months.map(({ year, month, weeks }) => (
-        <div key={`${year}-${month}`}>
-          {/* Encabezado de mes */}
-          <div className="sticky top-0 z-10 bg-[#f7f6f9] py-2 px-1">
-            <span className="text-[18px] font-bold text-[#333] capitalize">{MONTHS[month]} {year}</span>
+        <div key={`${year}-${month}`} data-agenda-month={`${year}-${String(month + 1).padStart(2, '0')}`}>
+          {/* Ilustración del mes con su nombre encima */}
+          <div className="relative">
+            <MonthArt month={month} />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-11 rounded-b-[18px] bg-gradient-to-t from-white via-white/60 to-transparent" />
+            <span className="absolute left-3 bottom-2 text-[17px] font-bold text-[#333] capitalize">{MONTHS[month]} {year}</span>
           </div>
 
           {weeks.map((week, wi) => (
-            <div key={wi} className="mb-4">
-              {/* Etiqueta de semana */}
-              <div className="flex items-center gap-2 mb-2 px-1">
-                <span className="text-[12px] font-semibold text-[#aaa]">{week.label}</span>
-                <div className="flex-1 h-px bg-[#eee]" />
-              </div>
+            <div key={wi} className="mt-4">
+              {/* Etiqueta de la semana */}
+              <p className="text-[11px] font-medium text-[#9a9aa8] m-0 mb-2">{week.label}</p>
 
-              {/* Días con actividad */}
-              <div className="flex flex-col gap-2">
-                {week.days
-                  .filter((d) => d.items.length > 0 || d.key === today)
-                  .map(({ key, date, items }) => {
-                    const isToday = key === today;
-                    const weekday = WEEKDAYS_FULL[date.getDay()];
-                    return (
-                      <motion.div
-                        key={key}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="bg-white rounded-[20px] shadow-[4px_4px_10px_#ececec,-4px_-4px_10px_#ffffff] p-3"
+              <div className="flex flex-col gap-3">
+                {week.days.map(({ key, date, items }) => {
+                  const isToday = key === today;
+                  return (
+                    <div
+                      key={key}
+                      ref={isToday ? todayRef : undefined}
+                      data-agenda-today={isToday ? '' : undefined}
+                      className="flex items-start gap-3"
+                    >
+                      <button
+                        onClick={() => onOpenDay(key)}
+                        className="w-9 shrink-0 flex flex-col items-center p-0 pt-0.5 border-none bg-transparent cursor-pointer active:scale-95 transition-transform"
                       >
-                        <button
-                          onClick={() => onSelectDate(key)}
-                          className="flex items-baseline gap-2 w-full p-0 border-none bg-transparent cursor-pointer text-left mb-2"
-                        >
-                          <span className={`text-[20px] font-bold leading-none tabular-nums ${isToday ? 'text-[#7f70ff]' : 'text-[#333]'}`}>{date.getDate()}</span>
-                          <span className={`text-[12px] font-semibold capitalize ${isToday ? 'text-[#7f70ff]' : 'text-[#999]'}`}>{weekday}</span>
-                          {isToday && <span className="text-[10px] font-bold text-white bg-[#7f70ff] rounded-full px-2 py-0.5">Hoy</span>}
-                        </button>
-                        {items.length > 0 ? (
-                          <div className="flex flex-col gap-1.5">
-                            {items.map((it) => (
+                        <span className={`text-[11px] font-medium leading-none ${isToday ? 'text-[#7f70ff]' : 'text-[#8b8b97]'}`}>
+                          {weekdayShort(settings.language, date.getDay())}
+                        </span>
+                        <span className={`text-[22px] font-bold leading-tight tabular-nums ${isToday ? 'text-[#7f70ff]' : 'text-[#333]'}`}>
+                          {date.getDate()}
+                        </span>
+                      </button>
+
+                      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                        {items.length === 0 ? (
+                          <p className="text-[12px] text-[#bbb] m-0 py-1">Día sin actividad</p>
+                        ) : (
+                          items.map((it) => {
+                            const time = it.startMin !== undefined
+                              ? `${formatEventTime(minToHHMM(it.startMin), settings.timeFormat)}${it.endMin !== undefined ? ` – ${formatEventTime(minToHHMM(it.endMin), settings.timeFormat)}` : ''}`
+                              : '';
+                            const second = time || it.subtitle || '';
+                            const isTask = it.kind === 'pending' || it.kind === 'completed';
+                            const accent = it.accent || LAYER_META.pending.color;
+                            const Icon = it.holiday ? HolidayIcon : it.birthday ? CakeIcon : isTask ? TaskIcon : it.kind === 'event' ? EventIcon : ClockIcon;
+                            // Tareas: tarjeta suave con su color; eventos y cumpleaños: color pleno; festivos: amarillo claro
+                            const isHoliday = !!it.holiday;
+                            const soft = isTask;
+                            const tint = isTask ? accent : it.color;
+                            const iconColor = isHoliday ? HOLIDAY_INK : soft ? tint : '#ffffff';
+                            const titleColor = soft
+                              ? (it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#3a3a44]')
+                              : isHoliday ? 'text-[#6b5200]' : 'text-white';
+                            const subColor = soft ? 'text-[#8b8b97]' : isHoliday ? 'text-[#6b5200]/75' : 'text-white/85';
+                            // Tarea pendiente de un día ya pasado: se queda en su día, marcada
+                            const late = it.kind === 'pending' && key < today;
+                            const cardStyle = soft
+                              ? { background: `${tint}26`, borderLeft: `3px solid ${tint}`, paddingLeft: 10 }
+                              : { background: isHoliday ? HOLIDAY_SURFACE : it.color };
+
+                            const body = (
+                              <span className="flex items-center gap-2.5 min-w-0">
+                                <span className="shrink-0 flex items-center justify-center"><Icon color={iconColor} /></span>
+                                <span className="flex-1 min-w-0">
+                                  <span className="flex items-center gap-1.5 min-w-0">
+                                    <span className={`min-w-0 flex-1 text-[13px] font-semibold leading-tight truncate ${titleColor}`}>
+                                      {it.title}
+                                    </span>
+                                    {late && (
+                                      <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-[#e5484d]">Atrasado</span>
+                                    )}
+                                  </span>
+                                  {second && (
+                                    <span className={`block text-[11px] leading-tight truncate mt-0.5 ${subColor}`}>{second}</span>
+                                  )}
+                                </span>
+                              </span>
+                            );
+
+                            // Los festivos no se pueden abrir ni editar
+                            if (it.holiday) {
+                              return (
+                                <div key={it.id} className="w-full min-w-0 rounded-[10px] px-3 py-2" style={cardStyle}>
+                                  {body}
+                                </div>
+                              );
+                            }
+
+                            return (
                               <button
                                 key={it.id}
                                 onClick={() => onSelectItem(it)}
-                                className="flex items-center gap-2.5 w-full p-0 border-none bg-transparent cursor-pointer text-left active:scale-[0.98] transition-transform"
+                                className="w-full min-w-0 text-left rounded-[10px] px-3 py-2 border-none cursor-pointer active:scale-[0.99] transition-transform"
+                                style={cardStyle}
                               >
-                                <span className="w-[6px] h-[6px] rounded-full shrink-0" style={{ background: it.color }} />
-                                <div className="flex-1 min-w-0">
-                                  <p className={`text-[13px] font-medium m-0 truncate ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#444]'}`}>{it.title}</p>
-                                </div>
-                                {it.startMin !== undefined && (
-                                  <span className="text-[10px] font-semibold text-[#aaa] tabular-nums shrink-0">
-                                    {formatEventTime(minToHHMM(it.startMin), settings.timeFormat)}
-                                  </span>
-                                )}
+                                {body}
                               </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-[12px] text-[#ccc] m-0">Día sin actividad</p>
+                            );
+                          })
                         )}
-                      </motion.div>
-                    );
-                  })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -137,3 +246,5 @@ export function AgendaView({ itemsByDate, selectedDate, onSelectDate, onSelectIt
     </div>
   );
 }
+
+export const AgendaView = memo(AgendaViewBase);

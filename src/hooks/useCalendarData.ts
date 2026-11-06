@@ -4,12 +4,16 @@ import { useTasks } from './useTasks';
 import { useCalendarEvents, dateKey, timeToMinutes, MONTHS } from './useCalendarEvents';
 import { useFirestoreCollection } from './useFirestoreCollection';
 import { isoToDateKey, todayKey } from './useTimeTracker';
+import { HOLIDAY_COLOR } from '../utils/holidays';
 import type { Activity, CalendarEvent, Task, TaskList, TimeSession } from '../types';
 
 /** Capas de información que el calendario puede mostrar. */
 export type CalendarLayer = 'pending' | 'completed' | 'session' | 'event';
 
 export const ALL_LAYERS: CalendarLayer[] = ['pending', 'completed', 'session', 'event'];
+
+/** Capas que se pintan en las vistas normales del calendario (mes, semana, día, agenda). */
+export const VIEW_LAYERS: CalendarLayer[] = ['pending', 'event'];
 
 export const LAYER_META: Record<CalendarLayer, { label: string; short: string; color: string }> = {
   pending: { label: 'Pendientes', short: 'Tarea', color: '#7f70ff' },
@@ -18,9 +22,24 @@ export const LAYER_META: Record<CalendarLayer, { label: string; short: string; c
   event: { label: 'Eventos', short: 'Evento', color: '#4d7cfe' },
 };
 
-export const DEFAULT_LAYERS: Record<CalendarLayer, boolean> = {
-  pending: true, completed: true, session: true, event: true,
+/** Rosa de los cumpleaños (el mismo con el que se crean en `BirthdayForm`). */
+export const BIRTHDAY_COLOR = '#ff6b81';
+
+/**
+ * Familias de información de un día: una sola barrita (semana) o un solo punto
+ * (mes) por familia, aunque ese día tenga 5 tareas o 3 eventos.
+ * Para nuevas funciones (cumpleaños, festivos…) añade su familia a este mapa y
+ * a `DAY_MARKER_ORDER`.
+ */
+export const DAY_MARKER_META: Record<string, { label: string; color: string }> = {
+  holiday: { label: 'Festivos', color: HOLIDAY_COLOR },
+  task: { label: 'Tasks', color: LAYER_META.pending.color },
+  event: { label: 'Events', color: LAYER_META.event.color },
+  birthday: { label: 'Cumpleaños', color: BIRTHDAY_COLOR },
+  session: { label: 'Registros', color: LAYER_META.session.color },
 };
+
+export const DAY_MARKER_ORDER = ['holiday', 'birthday', 'task', 'event', 'session'];
 
 /**
  * Ítem unificado del calendario. Las tareas y los registros de tiempo se derivan
@@ -34,11 +53,41 @@ export interface CalendarItem {
   endMin?: number;
   title: string;
   subtitle?: string;
-  color: string;
+  color: string;            // color de la familia (tarea pendiente, evento…)
+  accent?: string;          // color de la actividad del ítem, si tiene
   order?: number;
+  birthday?: boolean;       // cumpleaños: se repite cada año
+  holiday?: boolean;        // festivo: se calcula en `utils/holidayItem`
   task?: Task;
   session?: TimeSession;
   event?: CalendarEvent;
+}
+
+/**
+ * Color con el que se pinta un ítem: en las tareas manda el color de su
+ * actividad (tarea-actividad), y si no tiene, el de su familia.
+ */
+export function itemColor(it: CalendarItem): string {
+  const withAccent = it.kind === 'pending' || it.kind === 'completed';
+  return withAccent && it.accent ? it.accent : it.color;
+}
+
+/** Familias presentes ese día, en orden fijo (tareas, eventos, cumpleaños…). */
+export function dayMarkerKeys(items: CalendarItem[]): string[] {
+  const present = new Set<string>();
+  for (const it of items) {
+    if (it.holiday) present.add('holiday');
+    else if (it.birthday) present.add('birthday');
+    else if (it.kind === 'event') present.add('event');
+    else if (it.kind === 'session') present.add('session');
+    else present.add('task');
+  }
+  return DAY_MARKER_ORDER.filter((k) => present.has(k));
+}
+
+/** Colores de los puntos de la rejilla del mes (uno por familia). */
+export function dayMarkers(items: CalendarItem[]): string[] {
+  return dayMarkerKeys(items).map((k) => DAY_MARKER_META[k].color);
 }
 
 // ─── Utilidades de fecha ───
@@ -60,11 +109,11 @@ export function minToHHMM(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-/** Días (lunes → domingo) de la semana que contiene `anchor`. */
-export function weekDaysOf(anchor: Date): string[] {
+/** Días de la semana que contiene `anchor`, empezando por `weekStartsOn` (0 = domingo). */
+export function weekDaysOf(anchor: Date, weekStartsOn = 1): string[] {
   const d = new Date(anchor);
   const day = d.getDay();
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  d.setDate(d.getDate() - ((day - weekStartsOn + 7) % 7));
   const start = dateKey(d);
   return Array.from({ length: 7 }, (_, i) => shiftKey(start, i));
 }
@@ -152,7 +201,7 @@ export function useCalendarData() {
         out.push({
           id: `c-${t.id}`, kind: 'completed', date: isoToDateKey(t.completedAt),
           title: label, subtitle: listName(t.listId),
-          color: LAYER_META.completed.color, task: t,
+          color: LAYER_META.completed.color, accent: activity?.color, task: t,
         });
         continue;
       }
@@ -164,7 +213,7 @@ export function useCalendarData() {
         id: `p-${t.id}`, kind: 'pending', date, startMin,
         endMin: startMin !== undefined ? startMin + 30 : undefined,
         title: label, subtitle: listName(t.listId),
-        color: LAYER_META.pending.color, task: t,
+        color: LAYER_META.pending.color, accent: activity?.color, task: t,
       });
     }
 
@@ -186,7 +235,7 @@ export function useCalendarData() {
         out.push({
           id: `h-${t.id}`, kind: 'pending', date: todayStr,
           title: label, subtitle: listName(t.listId),
-          color: LAYER_META.pending.color, task: t, order: idx,
+          color: LAYER_META.pending.color, accent: activity?.color, task: t, order: idx,
         });
       });
     }
@@ -200,15 +249,28 @@ export function useCalendarData() {
         startMin, endMin: Math.max(startMin + 15, Math.round(startMin + s.duration / 60)),
         title: s.description?.trim() || activity?.name || 'Registro',
         subtitle: activity?.name,
-        color: activity?.color || LAYER_META.session.color, session: s,
+        color: activity?.color || LAYER_META.session.color, accent: activity?.color, session: s,
       });
     }
 
+    const baseYear = new Date().getFullYear();
     for (const e of events) {
+      // Cumpleaños: mismo día y mes en los años del rango visible del calendario (±5 años)
+      if (e.birthday) {
+        const [, mm, dd] = e.date.split('-');
+        for (let y = baseYear - 5; y <= baseYear + 5; y++) {
+          out.push({
+            id: `b-${e.id}-${y}`, kind: 'event', date: `${y}-${mm}-${dd}`,
+            title: e.title, subtitle: 'Cumpleaños', color: e.color, accent: e.color,
+            event: e, birthday: true, order: -1,
+          });
+        }
+        continue;
+      }
       out.push({
         id: `e-${e.id}`, kind: 'event', date: e.date,
         startMin: timeToMinutes(e.start), endMin: timeToMinutes(e.end),
-        title: e.title, subtitle: e.location, color: e.color, event: e,
+        title: e.title, subtitle: e.location, color: e.color, accent: e.color, event: e,
       });
     }
 

@@ -57,7 +57,7 @@ export function NavegacionBar({ activeView, onViewChange, onAdd }: Props) {
           <motion.span
             layoutId="nav-pill"
             className="absolute inset-0 bg-[#f0edff] rounded-2xl -z-10"
-            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
           />
         )}
         <span className="relative z-10 transition-colors duration-200" style={{ color: active ? '#7f70ff' : '#888' }}>

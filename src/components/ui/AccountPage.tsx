@@ -45,7 +45,7 @@ export function AccountPage({ onBack, onOpenSettings }: Props) {
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
       className="absolute top-0 left-0 w-full h-full bg-white z-[1100] flex flex-col overflow-y-auto no-scrollbar"
     >
       {/* Header */}

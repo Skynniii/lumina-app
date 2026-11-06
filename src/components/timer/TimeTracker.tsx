@@ -217,7 +217,7 @@ export function TimeTracker({ onMenuClick, onOpenAccount }: Props) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
               onClick={() => setShowFocus(true)}
               className="absolute bottom-[85px] left-1/2 -translate-x-1/2 w-[90%] max-w-[350px] bg-white rounded-2xl shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] flex items-center gap-3 px-4 py-3 cursor-pointer z-30"
             >

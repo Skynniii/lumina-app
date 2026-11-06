@@ -19,12 +19,12 @@ export function useCalendarEvents() {
 
   const addEvent = useCallback((e: Omit<CalendarEvent, 'id'>): string => {
     const id = `ev-${Date.now()}`;
-    collSet(id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes });
+    collSet(id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes, birthday: e.birthday });
     return id;
   }, [collSet]);
 
   const updateEvent = useCallback((e: CalendarEvent) => {
-    collUpdate(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes });
+    collUpdate(e.id, { title: e.title, date: e.date, start: e.start, end: e.end, color: e.color, location: e.location, notes: e.notes, birthday: e.birthday });
   }, [collUpdate]);
 
   const deleteEvent = useCallback((id: string) => {
@@ -35,10 +35,9 @@ export function useCalendarEvents() {
 }
 
 /** Semanas del mes: array de fechas YYYY-MM-DD (null = celda vacía). */
-export function monthWeeks(y: number, m: number): (string | null)[][] {
+export function monthWeeks(y: number, m: number, weekStartsOn = 1): (string | null)[][] {
   const first = new Date(y, m, 1);
-  let lead = first.getDay() - 1;
-  if (lead < 0) lead = 6;
+  const lead = (first.getDay() - weekStartsOn + 7) % 7;
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const cells: (string | null)[] = [];
   for (let i = 0; i < lead; i++) cells.push(null);

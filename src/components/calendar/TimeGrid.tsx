@@ -1,21 +1,27 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { formatEventTime } from '../../hooks/useCalendarEvents';
-import { minToHHMM, parseKey, type CalendarItem } from '../../hooks/useCalendarData';
+import { itemColor, minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
 
-const HOUR_H = 56;
+const HOUR_H = 42;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const LETTER = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+const TIME_COL = 40;
 
 interface Props {
   days: string[];                     // 1 = vista de día, 7 = vista de semana
   itemsByDate: Map<string, CalendarItem[]>;
-  selectedDate: string;
-  onSelectDate: (d: string) => void;
+  /** Registros de tiempo: se pintan dentro de su rango horario real. */
+  sessionItemsByDate?: Map<string, CalendarItem[]>;
   onSelectItem: (i: CalendarItem) => void;
   detailed?: boolean;
 }
+
+const ClockGlyph = ({ color }: { color: string }) => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+    <circle cx="12" cy="12" r="9" />
+    <polyline points="12 7 12 12 15 14" />
+  </svg>
+);
 
 /** Distribuye los ítems con hora en "carriles" para que los solapados no se tapen. */
 function layout(items: CalendarItem[]) {
@@ -44,18 +50,17 @@ function layout(items: CalendarItem[]) {
 }
 
 /**
- * Rejilla horaria del calendario. Con varios días funciona como vista de semana
- * (columnas compactas por color) y con un día como vista de día (con detalle).
+ * Rejilla horaria a ancho completo: una caja blanca de esquinas redondeadas por
+ * hora y día (como en la referencia), con la línea de la hora actual solo en la
+ * columna del día de hoy.
  */
-export function TimeGrid({ days, itemsByDate, selectedDate, onSelectDate, onSelectItem, detailed = false }: Props) {
+export function TimeGrid({ days, itemsByDate, sessionItemsByDate, onSelectItem, detailed = false }: Props) {
   const { settings } = useSettings();
   const today = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
   const [now, setNow] = useState(() => new Date());
-  const anchorRef = useRef<HTMLDivElement>(null);
-  const sig = days.join(',');
 
   // Cada minuto para la línea de "ahora"
   useEffect(() => {
@@ -63,154 +68,90 @@ export function TimeGrid({ days, itemsByDate, selectedDate, onSelectDate, onSele
     return () => window.clearInterval(id);
   }, []);
 
-  // Al abrir la semana o el día, deja a la vista la jornada actual
-  useEffect(() => {
-    anchorRef.current?.scrollIntoView({ block: 'start' });
-  }, [sig]);
-
-  const colTemplate = `40px repeat(${days.length}, minmax(0, 1fr))`;
+  const colTemplate = `${TIME_COL}px repeat(${days.length}, minmax(0, 1fr))`;
   const showsToday = days.includes(today);
   const nowTop = ((now.getHours() * 60 + now.getMinutes()) / 60) * HOUR_H;
 
-  const allDayByDay = days.map((d) => (itemsByDate.get(d) ?? []).filter((i) => i.startMin === undefined));
-  const hasAllDay = allDayByDay.some((a) => a.length > 0);
-  const allDayMax = detailed ? 3 : 4;
+  /** Etiqueta de la hora según el formato elegido en ajustes (12h / 24h). */
+  const hourLabel = (h: number) =>
+    settings.timeFormat === '24h'
+      ? `${String(h).padStart(2, '0')}:00`
+      : `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
 
   return (
-    <div className="bg-white rounded-[24px] shadow-[6px_6px_12px_#e6e6e6,-6px_-6px_12px_#ffffff] overflow-hidden">
-      {/* Cabecera de días */}
-      <div className="grid border-b border-[#f2f2f5]" style={{ gridTemplateColumns: colTemplate }}>
-        <div />
-        {days.map((d) => {
-          const dt = parseKey(d);
-          const isSel = d === selectedDate;
-          const isToday = d === today;
-          const dayItems = itemsByDate.get(d) ?? [];
-          const pendingCount = dayItems.filter((i) => i.kind === 'pending').length;
-          const eventCount = dayItems.filter((i) => i.kind === 'event').length;
-          const sessionCount = dayItems.filter((i) => i.kind === 'session').length;
-          return (
-            <button
-              key={d}
-              onClick={() => onSelectDate(d)}
-              className={`flex flex-col items-center gap-0.5 py-2 border-none cursor-pointer transition-colors ${isSel ? 'bg-[#f0edff]' : 'bg-transparent'}`}
-            >
-              <span className={`text-[10px] font-semibold ${isSel || isToday ? 'text-[#7f70ff]' : 'text-[#aaa]'}`}>{LETTER[dt.getDay()]}</span>
-              <span className={`text-[13px] leading-none tabular-nums ${isSel ? 'text-[#7f70ff] font-bold' : isToday ? 'text-[#7f70ff] font-semibold' : 'text-[#555] font-medium'}`}>{dt.getDate()}</span>
-              <div className="flex items-center gap-[3px] h-[14px]">
-                {pendingCount > 0 && (
-                  <span className="flex items-center gap-[1px]">
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#7f70ff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /></svg>
-                    <span className="text-[8px] font-bold text-[#7f70ff] leading-none">{pendingCount}</span>
-                  </span>
-                )}
-                {eventCount > 0 && (
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#4d7cfe" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /></svg>
-                )}
-                {sessionCount > 0 && (
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#00b8a9" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+    <div className="bg-[#f2f1f6]">
+      <div className="relative" style={{ height: HOUR_H * 24 }}>
+        {/* Franjas: una caja blanca redondeada por hora y día */}
+        {HOURS.map((h) => (
+          <div
+            key={h}
+            className="absolute inset-x-0 grid gap-x-[3px] px-1"
+            style={{ top: h * HOUR_H, height: HOUR_H, gridTemplateColumns: colTemplate }}
+          >
+            <span className="flex items-start justify-end pr-1.5 pt-[7px] text-[10px] font-semibold text-[#555] tabular-nums">
+              {hourLabel(h)}
+            </span>
+            {days.map((d) => (
+              <div key={d} className="my-[2px] rounded-[6px] bg-white" />
+            ))}
+          </div>
+        ))}
 
-      {/* Fila "todo el día": tareas sin hora, completadas y todo lo que no tiene hora */}
-      {hasAllDay && (
-        <div className="grid border-b border-[#f2f2f5] bg-[#fafafc]" style={{ gridTemplateColumns: colTemplate }}>
-          <div className="flex items-center justify-center text-[9px] font-semibold text-[#aaa] leading-tight text-center px-1">Todo el día</div>
-          {allDayByDay.map((arr, i) => (
-            <div key={days[i]} className="border-l border-[#f2f2f5] p-1 flex flex-col gap-[3px] min-w-0">
-              {arr.slice(0, allDayMax).map((it) =>
-                detailed ? (
-                  <button
-                    key={it.id}
-                    onClick={() => onSelectItem(it)}
-                    className="text-left rounded-md px-1.5 py-0.5 border-none cursor-pointer truncate"
-                    style={{ background: `${it.color}22`, borderLeft: `3px solid ${it.color}` }}
-                  >
-                    <span className={`text-[11px] font-medium ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>{it.title}</span>
-                  </button>
-                ) : (
-                  <button
-                    key={it.id}
-                    onClick={() => onSelectItem(it)}
-                    aria-label={it.title}
-                    className="h-[6px] w-full rounded-full border-none cursor-pointer p-0"
-                    style={{ background: it.color }}
-                  />
-                )
-              )}
-              {arr.length > allDayMax && <span className="text-[9px] text-[#999] text-center leading-none">+{arr.length - allDayMax}</span>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Rejilla horaria */}
-      <div className="relative">
-        <div ref={anchorRef} className="absolute left-0 right-0 h-px" style={{ top: (showsToday ? Math.max(0, now.getHours() - 1) : 7) * HOUR_H }} />
-
-        <div className="relative" style={{ height: HOUR_H * 24 }}>
-          {HOURS.map((h) => (
-            <div key={h} className="absolute left-0 right-0 flex items-start" style={{ top: h * HOUR_H, height: HOUR_H }}>
-              <span className="w-[40px] shrink-0 text-[10px] text-[#bbb] tabular-nums text-center -mt-[6px]">{String(h).padStart(2, '0')}:00</span>
-              <div className="flex-1 border-t border-[#f2f2f5]" />
-            </div>
-          ))}
-
-          <div className="absolute inset-0 grid" style={{ gridTemplateColumns: colTemplate }}>
-            <div />
-            {days.map((d) => {
-              const { blocks, laneCount } = layout(itemsByDate.get(d) ?? []);
-              const colW = 100 / laneCount;
-              return (
-                <div key={d} className="relative border-l border-[#f2f2f5]">
-                  {blocks.map(({ it, lane, start, end }) => {
-                    const top = (start / 60) * HOUR_H;
-                    const height = Math.max(detailed ? 28 : 18, ((end - start) / 60) * HOUR_H);
-                    return (
-                      <motion.button
-                        key={it.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        onClick={() => onSelectItem(it)}
-                        className="absolute rounded-md overflow-hidden text-left px-1.5 py-0.5 border-none cursor-pointer"
-                        style={{
-                          top, height,
-                          left: `calc(${lane * colW}% + 2px)`,
-                          width: `calc(${colW}% - 4px)`,
-                          background: `${it.color}22`,
-                          borderLeft: `3px solid ${it.color}`,
-                        }}
-                      >
+        {/* Contenido: ítems con hora por columna */}
+        <div className="absolute inset-0 grid gap-x-[3px] px-1" style={{ gridTemplateColumns: colTemplate }}>
+          <div />
+          {days.map((d) => {
+            const dayItems = [...(itemsByDate.get(d) ?? []), ...(sessionItemsByDate?.get(d) ?? [])];
+            const { blocks, laneCount } = layout(dayItems);
+            const colW = 100 / laneCount;
+            return (
+              <div key={d} className="relative">
+                {blocks.map(({ it, lane, start, end }) => {
+                  const top = (start / 60) * HOUR_H;
+                  const height = Math.max(detailed ? 28 : 18, ((end - start) / 60) * HOUR_H);
+                  const isSession = it.kind === 'session';
+                  const color = itemColor(it);
+                  return (
+                    <button
+                      key={it.id}
+                      onClick={() => onSelectItem(it)}
+                      className="absolute rounded-lg overflow-hidden text-left px-1.5 py-0.5 border-none cursor-pointer"
+                      style={{
+                        top, height,
+                        left: `calc(${lane * colW}% + 2px)`,
+                        width: `calc(${colW}% - 4px)`,
+                        background: isSession ? `${color}1c` : `${color}22`,
+                        borderLeft: `3px solid ${color}`,
+                      }}
+                    >
+                      <span className="flex items-start gap-1 min-w-0">
+                        {isSession && <span className="mt-[1px]"><ClockGlyph color={color} /></span>}
                         {detailed && (
-                          <>
+                          <span className="flex-1 min-w-0">
                             <span className={`block text-[11px] font-semibold truncate leading-tight ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>{it.title}</span>
                             {height >= 40 && (
                               <span className="block text-[10px] text-[#888] tabular-nums leading-tight truncate">
                                 {formatEventTime(minToHHMM(start), settings.timeFormat)} – {formatEventTime(minToHHMM(end), settings.timeFormat)}
                               </span>
                             )}
-                          </>
+                          </span>
                         )}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
+                      </span>
+                    </button>
+                  );
+                })}
 
-          {/* Línea de la hora actual */}
-          {showsToday && (
-            <div className="absolute left-[40px] right-0 pointer-events-none z-10" style={{ top: nowTop }}>
-              <div className="relative h-0 border-t-[1.5px] border-[#ff4d4d]">
-                <span className="absolute -left-[3px] -top-[3.5px] w-[7px] h-[7px] rounded-full bg-[#ff4d4d]" />
+                {/* Línea de la hora actual: solo en la columna del día de hoy */}
+                {showsToday && d === today && (
+                  <div className="absolute left-0 right-0 pointer-events-none z-20" style={{ top: nowTop }}>
+                    <div className="relative border-t-2 border-[#ff3b30]">
+                      <span className="absolute -left-[3px] -top-[5px] w-[8px] h-[8px] rounded-full bg-[#ff3b30] shadow-[0_0_4px_rgba(255,59,48,0.6)]" />
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })}
         </div>
       </div>
     </div>

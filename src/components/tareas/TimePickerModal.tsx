@@ -179,7 +179,7 @@ export function TimePickerModal({ initialHour, initialMinute, onClose, onSave }:
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
         className="bg-white rounded-[24px] w-full max-w-[320px] shadow-2xl relative overflow-hidden"
       >
         <div className="px-5 pt-5 pb-2">

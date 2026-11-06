@@ -137,14 +137,14 @@ export function ManageListsModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 bg-black/40 z-[2000] flex flex-col justify-end backdrop-blur-sm"
+      className="fixed inset-0 bg-black/40 z-[2000] flex flex-col justify-end"
       onClick={onClose}
     >
       <motion.div
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
         className="bg-[#f7f6f9] rounded-t-[28px] max-h-[85vh] overflow-y-auto no-scrollbar"
         onClick={(e) => e.stopPropagation()}
       >

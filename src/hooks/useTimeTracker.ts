@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useFirestoreCollection, incrementTaskTime } from './useFirestoreCollection';
 import { useUserStorage } from './useUserStorage';
 import { getMeta, subscribeLocal } from './localDB';
+import { saveRunningSession } from '../shared/runningSession';
 import type { Activity, TimeSession, TimerMode } from '../types';
 
 /** Estado del contador en curso. startedAt === null significa pausado. */
@@ -132,29 +133,9 @@ export function useTimeTracker() {
   /** Detiene el cronómetro y guarda la sesión en Firestore. */
   const stop = useCallback(async (): Promise<void> => {
     if (!running || !uid) return;
-    const end = Date.now();
-    const duration = running.accumulated + (running.startedAt ? Math.floor((end - running.startedAt) / 1000) : 0);
     setRunning(null);
-    if (duration < 1) return;
-
-    const sessionData: Omit<TimeSession, 'id'> = {
-      taskId: draft.taskId || undefined,
-      activityId: draft.activityId || '',
-      description: draft.description.trim(),
-      notes: draft.notes.trim() || undefined,
-      startTime: new Date(running.sessionStart).toISOString(),
-      endTime: new Date(end).toISOString(),
-      duration,
-      mode: draft.mode || 'stopwatch',
-      createdAt: new Date(end).toISOString(),
-    };
-    await sessionsColl.add(sessionData);
-
-    // Actualiza el acumulador de la tarea atómicamente
-    if (draft.taskId) {
-      await incrementTaskTime(uid, draft.taskId, duration);
-    }
-  }, [running, draft, uid, setRunning, sessionsColl]);
+    await saveRunningSession(uid, running, draft);
+  }, [running, draft, uid, setRunning]);
 
   /** Guarda una sesión con segundos calculados externamente (temporizador/pomodoro). */
   const saveSession = useCallback(async (seconds: number, mode: TimerMode = 'stopwatch'): Promise<void> => {

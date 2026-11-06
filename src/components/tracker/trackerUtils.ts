@@ -236,13 +236,14 @@ export function getConsistencyData(sessions: TimeSession[], activityId: string):
   today.setHours(0, 0, 0, 0);
   const todayStr = todayKey();
 
-  // Desde el lunes de la semana del 1 de enero hasta hoy (sin días futuros)
-  // Así cada columna del grafo empieza en Lunes y termina en Domingo
-  const yearStart = new Date(today.getFullYear(), 0, 1);
-  const jan1Day = yearStart.getDay(); // 0=domingo, 1=lunes, ...
-  const mondayOffset = jan1Day === 0 ? -6 : 1 - jan1Day;
-  const firstMonday = new Date(yearStart);
-  firstMonday.setDate(yearStart.getDate() + mondayOffset);
+  // Ventana móvil de un año exacto hasta hoy (septiembre→septiembre, enero→enero…),
+  // alineada al lunes para que cada columna del grafo sea una semana completa.
+  const yearAgo = new Date(today);
+  yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+  const startDay = yearAgo.getDay(); // 0=domingo, 1=lunes, ...
+  const mondayOffset = startDay === 0 ? -6 : 1 - startDay;
+  const firstMonday = new Date(yearAgo);
+  firstMonday.setDate(yearAgo.getDate() + mondayOffset);
   const totalDays = Math.floor((today.getTime() - firstMonday.getTime()) / 86400000) + 1;
 
   const days: { date: string; total: number; isFuture: boolean }[] = [];
@@ -314,10 +315,13 @@ export function getBiweeklyLabel(offset = 0): string {
 
 export function getTimeByTasks(sessions: TimeSession[], tasks: Task[], activityId: string): { taskName: string; totalSeconds: number; lastSessionDate: string }[] {
   const actSessions = sessions.filter((s) => s.activityId === activityId);
+  // Se agrupa por el nombre de la tarea: las sesiones de tareas ya eliminadas o
+  // sin título (tareas-actividad) se recogen en una sola fila "Sin tareas".
   const taskMap = new Map<string, { totalSeconds: number; lastSessionDate: string }>();
 
   for (const s of actSessions) {
-    const key = s.taskId ?? 'no-task';
+    const task = s.taskId ? tasks.find((t) => t.id === s.taskId) : undefined;
+    const key = task?.title?.trim() || 'Sin tareas';
     const existing = taskMap.get(key);
     if (existing) {
       existing.totalSeconds += s.duration;
@@ -329,14 +333,9 @@ export function getTimeByTasks(sessions: TimeSession[], tasks: Task[], activityI
     }
   }
 
-  const result = Array.from(taskMap.entries()).map(([key, data]) => {
-    let taskName = 'Sin tareas';
-    if (key !== 'no-task') {
-      const task = tasks.find((t) => t.id === key);
-      taskName = task?.title || 'Sin tareas';
-    }
-    return { taskName, totalSeconds: data.totalSeconds, lastSessionDate: data.lastSessionDate };
-  });
+  const result = Array.from(taskMap.entries()).map(([taskName, data]) => ({
+    taskName, totalSeconds: data.totalSeconds, lastSessionDate: data.lastSessionDate,
+  }));
 
   result.sort((a, b) => new Date(b.lastSessionDate).getTime() - new Date(a.lastSessionDate).getTime());
   return result;

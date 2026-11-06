@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import type { ViewType } from '../types';
 import { useUserStorage } from '../hooks/useUserStorage';
+import type { WeekStart } from '../utils/calendarDates';
 
 export interface Settings {
   theme: 'light' | 'dark';
@@ -14,6 +15,10 @@ export interface Settings {
   newTaskPosition: 'first' | 'last';
   defaultView: ViewType;
   hideNoDateInPrincipal: boolean;
+  weekStart: WeekStart;
+  showWeekNumbers: boolean;
+  showCompletedTasks: boolean;
+  showPastEvents: boolean;
 }
 
 const DEFAULTS: Settings = {
@@ -28,6 +33,10 @@ const DEFAULTS: Settings = {
   newTaskPosition: 'first',
   defaultView: 'cronometro',
   hideNoDateInPrincipal: false,
+  weekStart: 'monday',
+  showWeekNumbers: false,
+  showCompletedTasks: true,
+  showPastEvents: true,
 };
 
 interface Ctx {
@@ -38,7 +47,9 @@ interface Ctx {
 const SettingsContext = createContext<Ctx>({ settings: DEFAULTS, update: () => {} });
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useUserStorage<Settings>('lumina_settings', DEFAULTS);
+  const [stored, setSettings] = useUserStorage<Settings>('lumina_settings', DEFAULTS);
+  // Los ajustes guardados pueden no tener las claves nuevas: se completan con los valores por defecto.
+  const settings = useMemo<Settings>(() => ({ ...DEFAULTS, ...stored }), [stored]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', settings.accentColor);
@@ -46,7 +57,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [settings.accentColor, settings.theme]);
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    setSettings((prev) => ({ ...DEFAULTS, ...prev, [key]: value }));
   };
   return <SettingsContext.Provider value={{ settings, update }}>{children}</SettingsContext.Provider>;
 }

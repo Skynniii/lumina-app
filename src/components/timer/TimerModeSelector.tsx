@@ -28,7 +28,7 @@ export function TimerModeSelector({ mode, onChange }: Props) {
               <motion.div
                 layoutId="timer-mode-bubble"
                 className="absolute inset-0 bg-[#7f70ff] rounded-xl shadow-[2px_4px_10px_rgba(127,112,255,0.2)]"
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
               />
             )}
             <span className="relative z-10">{m.label}</span>
