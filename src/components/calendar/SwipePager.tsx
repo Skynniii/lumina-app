@@ -29,7 +29,10 @@ export function SwipePager({ pageKey, onPrev, onNext, renderPage, className = ''
   const [height, setHeight] = useState(0);
   const midRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
-  const busy = useRef(false);
+  // Sentido de la página hacia la que se está asentando (0 = ninguna).
+  // No se bloquea el arrastre: si el usuario vuelve a deslizar a mitad de la
+  // animación, el gesto nuevo manda y no deja el paginador bloqueado.
+  const pending = useRef<Offset>(0);
 
   // Ancho de la ventana visible (también sirve para el arrastre)
   useLayoutEffect(() => {
@@ -55,21 +58,37 @@ export function SwipePager({ pageKey, onPrev, onNext, renderPage, className = ''
 
   // Al montar y en cada cambio de periodo, la página central ocupa la ventana
   useLayoutEffect(() => {
+    pending.current = 0;
+    // Una animación anterior no debe volver a mover la ventana
+    x.stop();
     if (width > 0) x.set(-width);
   }, [pageKey, width, x]);
 
   const settle = useCallback((dir: Offset) => {
-    if (!width || busy.current) return;
+    if (!width) return;
+    x.stop();
     // Sin página en ese sentido (límite del rango): vuelve al centro
     const blocked = (dir === -1 && !canPrev) || (dir === 1 && !canNext);
     if (dir === 0 || blocked) {
+      pending.current = 0;
       animate(x, -width, { type: 'spring', stiffness: 520, damping: 46 });
       return;
     }
-    busy.current = true;
-    animate(x, dir > 0 ? -2 * width : 0, { type: 'spring', stiffness: 420, damping: 42 }).then(() => {
-      if (dir > 0) onNext(); else onPrev();
-      busy.current = false;
+    pending.current = dir;
+    animate(x, dir > 0 ? -2 * width : 0, {
+      type: 'spring',
+      stiffness: 420,
+      damping: 42,
+      onComplete: () => {
+        // Un gesto nuevo pudo tomar el control mientras se asentaba: en ese
+        // caso solo se recentra, sin cambiar de periodo.
+        const stillOurs = pending.current === dir;
+        pending.current = 0;
+        x.stop();
+        x.set(-width);
+        if (!stillOurs) return;
+        if (dir > 0) onNext(); else onPrev();
+      },
     });
   }, [width, x, onNext, onPrev, canPrev, canNext]);
 
@@ -82,6 +101,7 @@ export function SwipePager({ pageKey, onPrev, onNext, renderPage, className = ''
         dragMomentum={false}
         dragDirectionLock
         style={{ x, width: width * 3 || undefined, height: height || undefined }}
+        onDragStart={() => { pending.current = 0; x.stop(); }}
         onDragEnd={(_, info) => {
           const threshold = width * 0.22;
           if (info.offset.x < -threshold || info.velocity.x < -420) settle(1);

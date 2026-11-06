@@ -5,7 +5,6 @@ import {
   DAY_MARKER_META, dayMarkerKeys, parseKey, type CalendarItem,
 } from '../../hooks/useCalendarData';
 import { weekdayShort } from '../../utils/calendarDates';
-import { MarqueeText } from './MarqueeText';
 
 interface Props {
   days: string[]; // 7 fechas YYYY-MM-DD (según el inicio de semana)
@@ -82,19 +81,21 @@ export function WeekHeader({ days, itemsByDate, selectedDate, completedKeys, onO
                 const Icon = BAR_ICONS[k];
                 // Tareas de un día ya pasado: atrasadas, en rojo
                 const color = k === 'task' && isOverdueDay ? OVERDUE_COLOR : meta.color;
+                // En móvil la columna es tan estrecha que la etiqueta no cabe:
+                // solo el icono (el color ya identifica la familia).
                 return (
                   <span
                     key={k}
-                    className="flex items-center gap-1 rounded-full pl-1.5 pr-2 py-[4px] w-full min-w-0"
+                    className="flex items-center justify-center sm:justify-start gap-1 rounded-full px-1 sm:pl-1.5 sm:pr-2 py-[4px] w-full min-w-0"
                     style={{ background: `${color}1a` }}
                   >
                     {Icon && <span className="shrink-0 flex"><Icon color={color} /></span>}
-                    <MarqueeText
-                      text={meta.label}
-                      className="flex-1"
-                      textClassName="text-[12px] font-bold leading-none"
-                      textStyle={{ color }}
-                    />
+                    <span
+                      className="hidden sm:block flex-1 min-w-0 truncate text-[12px] font-bold leading-none"
+                      style={{ color }}
+                    >
+                      {meta.label}
+                    </span>
                   </span>
                 );
               })}
