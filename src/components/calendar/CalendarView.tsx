@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings } from '../../context/SettingsContext';
+import { weekStartIndex } from '../../utils/calendarDates';
 import { MONTHS, dateKey } from '../../hooks/useCalendarEvents';
 import { incrementTaskTime } from '../../hooks/useFirestoreCollection';
 import { todayKey } from '../../hooks/useTimeTracker';
@@ -45,6 +47,7 @@ const MONTH_RANGE_YEARS = 10;
 export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
+  const { settings } = useSettings();
   const data = useCalendarData();
   const { taskApi, sessionApi, eventsApi, itemsByDate, lists: rawLists, tasks, sessions, activities, events } = data;
   const lists = useMemo(() => sortListsForDisplay(rawLists), [rawLists]);
@@ -128,16 +131,32 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
     return () => window.removeEventListener('app-add', handler);
   }, []);
 
+  // Qué información entra al calendario según los ajustes de la sección
+  const calendarItemsByDate = useMemo(() => {
+    if (settings.showCompletedTasks && settings.showPastEvents) return itemsByDate;
+    const t = todayKey();
+    const map = new Map<string, CalendarItem[]>();
+    for (const [d, arr] of itemsByDate) {
+      const kept = arr.filter((i) => {
+        if (i.kind === 'completed' && !settings.showCompletedTasks) return false;
+        if (i.kind === 'event' && !settings.showPastEvents && d < t) return false;
+        return true;
+      });
+      if (kept.length > 0) map.set(d, kept);
+    }
+    return map;
+  }, [itemsByDate, settings.showCompletedTasks, settings.showPastEvents]);
+
   // En las vistas normales solo se pintan tareas pendientes y eventos;
   // lo completado y los registros viven en "Detalles del día".
   const visibleByDate = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
-    for (const [d, arr] of itemsByDate) {
+    for (const [d, arr] of calendarItemsByDate) {
       const shown = arr.filter((i) => VIEW_LAYERS.includes(i.kind));
       if (shown.length > 0) map.set(d, shown);
     }
     return map;
-  }, [itemsByDate]);
+  }, [calendarItemsByDate]);
 
   // Registros de tiempo por día, para pintarlos en su franja horaria en semana/día
   const sessionsByDate = useMemo(() => {
@@ -154,9 +173,11 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   // Días con tareas completadas: en la rejilla del mes, el pasado se marca distinto
   const completedKeys = useMemo(() => {
     const set = new Set<string>();
-    for (const it of data.items) if (it.kind === 'completed') set.add(it.date);
+    if (settings.showCompletedTasks) {
+      for (const it of data.items) if (it.kind === 'completed') set.add(it.date);
+    }
     return set;
-  }, [data.items]);
+  }, [data.items, settings.showCompletedTasks]);
 
   // Tareas pendientes de días anteriores: se muestran en el día de hoy como "Atrasado"
   const overdueItems = useMemo(() => {
@@ -165,17 +186,17 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
   }, [data.items]);
 
   // "Detalles del día" recibe todo lo del día (pendientes, completadas y registros)
-  const dayItems = itemsByDate.get(selectedDate) ?? [];
-  const weekDays = useMemo(() => weekDaysOf(anchor), [anchor]);
+  const dayItems = calendarItemsByDate.get(selectedDate) ?? [];
+  const weekStartDay = weekStartIndex(settings.weekStart);
+  const weekDays = useMemo(() => weekDaysOf(anchor, weekStartDay), [anchor, weekStartDay]);
 
   const title = useMemo(() => `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`, [anchor]);
 
-  // "Hoy" lleva siempre a la agenda, con el día de hoy de primero.
+  // "Hoy" lleva al día de hoy en la vista en la que esté el usuario.
   const goToday = useCallback(() => {
     setAnchor(new Date());
     setSelectedDate(todayKey());
     setTodayPulse((n) => n + 1);
-    setMode('agenda');
   }, []);
 
   // Orden de las vistas: agenda → mes → semana → día
@@ -280,26 +301,23 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
             transition={{ duration: 0.26, ease: 'easeOut' }}
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar pb-[110px] pt-2"
           >
-            <div className="px-2">
-              <SwipePager
-                pageKey={`${anchor.getFullYear()}-${anchor.getMonth()}`}
-                canPrev={canPrevMonth}
-                canNext={canNextMonth}
-                onPrev={() => shiftMonth(-1)}
-                onNext={() => shiftMonth(1)}
-                renderPage={(off) => (
-                  <div className="px-1">
-                    <MonthGrid
-                      anchorMonth={new Date(anchor.getFullYear(), anchor.getMonth() + off, 1)}
-                      selectedDate={selectedDate}
-                      onSelectDate={selectDate}
-                      itemsByDate={visibleByDate}
-                      completedKeys={completedKeys}
-                    />
-                  </div>
-                )}
-              />
-            </div>
+            {/* Sin márgenes laterales ni esquinas: al deslizar solo se mueven los números */}
+            <SwipePager
+              pageKey={`${anchor.getFullYear()}-${anchor.getMonth()}`}
+              canPrev={canPrevMonth}
+              canNext={canNextMonth}
+              onPrev={() => shiftMonth(-1)}
+              onNext={() => shiftMonth(1)}
+              renderPage={(off) => (
+                <MonthGrid
+                  anchorMonth={new Date(anchor.getFullYear(), anchor.getMonth() + off, 1)}
+                  selectedDate={selectedDate}
+                  onSelectDate={selectDate}
+                  itemsByDate={calendarItemsByDate}
+                  completedKeys={completedKeys}
+                />
+              )}
+            />
             <div className="px-2 pt-3 flex flex-col gap-3">
               <MonthDayInfo
                 date={selectedDate}
@@ -335,13 +353,14 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
               onPrev={() => setAnchor((a) => parseKey(shiftKey(dateKey(a), -7)))}
               onNext={() => setAnchor((a) => parseKey(shiftKey(dateKey(a), 7)))}
               renderPage={(off) => {
-                const days = off === 0 ? weekDays : weekDaysOf(parseKey(shiftKey(weekDays[0], off * 7)));
+                const days = off === 0 ? weekDays : weekDaysOf(parseKey(shiftKey(weekDays[0], off * 7)), weekStartDay);
                 return (
                   <>
                     <WeekHeader
                       days={days}
                       itemsByDate={visibleByDate}
                       selectedDate={selectedDate}
+                      completedKeys={completedKeys}
                       onOpenDay={openDay}
                     />
                     <TimeGrid
@@ -376,6 +395,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                     <DayHeadline
                       date={key}
                       items={visibleByDate.get(key) ?? []}
+                      overdueItems={key === todayKey() ? overdueItems : []}
                       onSelectItem={openItem}
                     />
                     <TimeGrid
@@ -388,7 +408,7 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
                     <div className="px-2 pt-3">
                       <DayResumen
                         date={key}
-                        items={itemsByDate.get(key) ?? []}
+                        items={calendarItemsByDate.get(key) ?? []}
                         allTasks={tasks}
                         allEvents={events}
                         lists={lists}

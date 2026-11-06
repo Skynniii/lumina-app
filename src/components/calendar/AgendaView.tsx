@@ -5,6 +5,7 @@ import { formatEventTime, dateKey, MONTHS } from '../../hooks/useCalendarEvents'
 import { LAYER_META, minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
 import { todayKey } from '../../hooks/useTimeTracker';
 import { smoothScrollTo } from '../../utils/smoothScroll';
+import { weekStartIndex, weekdayShort } from '../../utils/calendarDates';
 import { MonthArt } from './MonthArt';
 
 interface Props {
@@ -16,8 +17,6 @@ interface Props {
   /** Contenedor con scroll de la agenda (para situar el día de hoy). */
   scrollRef: RefObject<HTMLDivElement | null>;
 }
-
-const SHORT_WEEKDAY = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 /** Años de agenda hacia atrás y hacia adelante desde el mes actual. */
 const YEARS_AROUND = 5;
@@ -51,6 +50,8 @@ const CakeIcon = ({ color }: { color: string }) => (
 function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, scrollRef }: Props) {
   const { settings } = useSettings();
   const today = todayKey();
+  /** 0 = domingo, 1 = lunes (ajuste "Día de inicio de semana"). */
+  const weekStartDay = weekStartIndex(settings.weekStart);
   const todayRef = useRef<HTMLDivElement>(null);
 
   const months = useMemo<AgendaMonth[]>(() => {
@@ -66,6 +67,8 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
       const weeks: AgendaWeek[] = [];
       let currentWeek: AgendaDay[] = [];
       let weekStart: Date | null = null;
+      // Último día de la semana, según el ajuste de inicio de semana
+      const weekEnd = (weekStartDay + 6) % 7;
 
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(year, month, day);
@@ -75,9 +78,9 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
         // Solo se listan los días con algo y el día de hoy (aunque esté vacío)
         if (items.length > 0 || key === today) currentWeek.push({ key, date, items });
 
-        // Cerrar semana en domingo o último día del mes
-        if (date.getDay() === 0 || day === daysInMonth) {
-          if (currentWeek.length > 0 && weekStart) {
+        // Cerrar semana en el último día de la semana o el último del mes
+        if (date.getDay() === weekEnd || day === daysInMonth) {
+          if (weekStart) {
             const ws: Date = weekStart;
             const we = date;
             const label = ws.getMonth() === we.getMonth()
@@ -93,7 +96,7 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
       result.push({ year, month, weeks });
     }
     return result;
-  }, [itemsByDate, today]);
+  }, [itemsByDate, today, weekStartDay]);
 
   /** Deja el día de hoy como primero de la agenda. */
   const scrollToToday = useCallback((smooth: boolean) => {
@@ -150,7 +153,7 @@ function AgendaViewBase({ itemsByDate, onSelectItem, onOpenDay, todayPulse = 0, 
                         className="w-9 shrink-0 flex flex-col items-center p-0 pt-0.5 border-none bg-transparent cursor-pointer active:scale-95 transition-transform"
                       >
                         <span className={`text-[11px] font-medium leading-none ${isToday ? 'text-[#7f70ff]' : 'text-[#8b8b97]'}`}>
-                          {SHORT_WEEKDAY[date.getDay()]}
+                          {weekdayShort(settings.language, date.getDay())}
                         </span>
                         <span className={`text-[22px] font-bold leading-tight tabular-nums ${isToday ? 'text-[#7f70ff]' : 'text-[#333]'}`}>
                           {date.getDate()}

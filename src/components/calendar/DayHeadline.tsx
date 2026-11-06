@@ -4,6 +4,8 @@ import { parseKey, type CalendarItem } from '../../hooks/useCalendarData';
 interface Props {
   date: string; // YYYY-MM-DD
   items: CalendarItem[];
+  /** Tareas atrasadas: solo en el día de hoy, marcadas como "Atrasado". */
+  overdueItems?: CalendarItem[];
   onSelectItem: (i: CalendarItem) => void;
 }
 
@@ -42,8 +44,9 @@ function FamilyIcon({ item }: { item: CalendarItem }) {
  * derecha, y debajo las tareas y eventos del día alineados con la columna de
  * las cajas blancas (no con la de las horas).
  */
-export function DayHeadline({ date, items, onSelectItem }: Props) {
+export function DayHeadline({ date, items, overdueItems = [], onSelectItem }: Props) {
   const dt = parseKey(date);
+  const rows = [...overdueItems, ...items];
 
   return (
     <div className="flex flex-col gap-2.5 pt-3 pb-3">
@@ -67,7 +70,7 @@ export function DayHeadline({ date, items, onSelectItem }: Props) {
       </div>
 
       {/* Fila 2: tareas y eventos del día, alineados con la columna del día */}
-      {items.length > 0 && (
+      {rows.length > 0 && (
         <div className="pr-1" style={{ paddingLeft: DAY_COL_OFFSET }}>
           <motion.div
             initial={{ width: '20%' }}
@@ -75,21 +78,25 @@ export function DayHeadline({ date, items, onSelectItem }: Props) {
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col gap-1.5 overflow-hidden"
           >
-            {items.map((it) => (
-              <motion.button
-                key={it.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                onClick={() => onSelectItem(it)}
-                className="flex items-center gap-2 w-full min-w-0 rounded-full pl-2 pr-3 py-[5px] border-none cursor-pointer text-left active:scale-[0.99] transition-transform"
-                style={{ background: `${it.color}26` }}
-              >
-                <span className="shrink-0 flex"><FamilyIcon item={it} /></span>
-                <span className={`flex-1 min-w-0 text-[13px] font-medium truncate ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>
-                  {it.title}
-                </span>
-              </motion.button>
-            ))}
+            {rows.map((it) => {
+              const late = overdueItems.some((o) => o.id === it.id);
+              return (
+                <motion.button
+                  key={it.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  onClick={() => onSelectItem(it)}
+                  className="flex items-center gap-2 w-full min-w-0 rounded-full pl-2 pr-3 py-[5px] border-none cursor-pointer text-left active:scale-[0.99] transition-transform"
+                  style={{ background: late ? '#e5484d1a' : `${it.color}26` }}
+                >
+                  <span className="shrink-0 flex"><FamilyIcon item={it} /></span>
+                  {late && <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-[#e5484d]">Atrasado</span>}
+                  <span className={`flex-1 min-w-0 text-[13px] font-medium truncate ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>
+                    {it.title}
+                  </span>
+                </motion.button>
+              );
+            })}
           </motion.div>
         </div>
       )}

@@ -1,19 +1,21 @@
 import type { ReactElement } from 'react';
 import { motion } from 'framer-motion';
+import { useSettings } from '../../context/SettingsContext';
 import { dateKey } from '../../hooks/useCalendarEvents';
 import {
   DAY_MARKER_META, dayMarkerKeys, parseKey, type CalendarItem,
 } from '../../hooks/useCalendarData';
+import { weekdayShort } from '../../utils/calendarDates';
 import { MarqueeText } from './MarqueeText';
 
 interface Props {
-  days: string[]; // 7 fechas YYYY-MM-DD (lunes → domingo)
+  days: string[]; // 7 fechas YYYY-MM-DD (según el inicio de semana)
   itemsByDate: Map<string, CalendarItem[]>;
   selectedDate: string;
+  /** Días con tareas completadas: se marca un punto bajo el número. */
+  completedKeys?: Set<string>;
   onOpenDay: (key: string) => void;
 }
-
-const LETTER = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 
 const DAY_NUM_TRANSITION = { type: 'spring' as const, stiffness: 260, damping: 30 };
 
@@ -38,7 +40,8 @@ const BAR_ICONS: Record<string, (p: { color: string }) => ReactElement> = {
  * familia de información (Tasks, Events, Registros…) aunque haya varias.
  * Tocar el número abre la vista de día con la transición animada.
  */
-export function WeekHeader({ days, itemsByDate, selectedDate, onOpenDay }: Props) {
+export function WeekHeader({ days, itemsByDate, selectedDate, completedKeys, onOpenDay }: Props) {
+  const { settings } = useSettings();
   const today = dateKey();
 
   return (
@@ -51,8 +54,8 @@ export function WeekHeader({ days, itemsByDate, selectedDate, onOpenDay }: Props
         const keys = dayMarkerKeys(itemsByDate.get(d) ?? []);
         return (
           <div key={d} className="flex flex-col items-center gap-1 pt-1.5 pb-2 min-w-0">
-            <span className={`text-[10px] font-semibold leading-none ${isToday || isSel ? 'text-[#7f70ff]' : 'text-[#aaa]'}`}>
-              {LETTER[dt.getDay()]}
+            <span className={`text-[10px] font-semibold leading-none uppercase ${isToday || isSel ? 'text-[#7f70ff]' : 'text-[#aaa]'}`}>
+              {weekdayShort(settings.language, dt.getDay())}
             </span>
             <button
               onClick={() => onOpenDay(d)}
@@ -69,6 +72,11 @@ export function WeekHeader({ days, itemsByDate, selectedDate, onOpenDay }: Props
                 {dt.getDate()}
               </motion.span>
             </button>
+            {/* Tareas completadas: punto morado bajo el número */}
+            <span
+              className="w-[4px] h-[4px] rounded-full -mt-[3px]"
+              style={{ background: completedKeys?.has(d) ? '#7f70ff' : 'transparent' }}
+            />
             <div className="w-full flex flex-col gap-1 px-[2px] mt-[2px]">
               {keys.map((k) => {
                 const meta = DAY_MARKER_META[k];

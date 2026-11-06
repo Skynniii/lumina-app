@@ -35,10 +35,9 @@ export function useCalendarEvents() {
 }
 
 /** Semanas del mes: array de fechas YYYY-MM-DD (null = celda vacía). */
-export function monthWeeks(y: number, m: number): (string | null)[][] {
+export function monthWeeks(y: number, m: number, weekStartsOn = 1): (string | null)[][] {
   const first = new Date(y, m, 1);
-  let lead = first.getDay() - 1;
-  if (lead < 0) lead = 6;
+  const lead = (first.getDay() - weekStartsOn + 7) % 7;
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const cells: (string | null)[] = [];
   for (let i = 0; i < lead; i++) cells.push(null);

@@ -91,11 +91,11 @@ export function minToHHMM(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-/** Días (lunes → domingo) de la semana que contiene `anchor`. */
-export function weekDaysOf(anchor: Date): string[] {
+/** Días de la semana que contiene `anchor`, empezando por `weekStartsOn` (0 = domingo). */
+export function weekDaysOf(anchor: Date, weekStartsOn = 1): string[] {
   const d = new Date(anchor);
   const day = d.getDay();
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  d.setDate(d.getDate() - ((day - weekStartsOn + 7) % 7));
   const start = dateKey(d);
   return Array.from({ length: 7 }, (_, i) => shiftKey(start, i));
 }
