@@ -7,6 +7,7 @@ import { useDeviceCapability } from '../../context/DeviceCapabilityContext';
 import { playCompleteSound } from '../../utils/sound';
 import { hapticMedium, hapticHeavy } from '../../utils/haptic';
 import { Sparkles } from './Sparkles';
+import { ActivityCheckRing } from './ActivityCheckRing';
 import { useUserStorage } from '../../hooks/useUserStorage';
 import type { RunningTimer, TrackerDraft } from '../../hooks/useTimeTracker';
 import { saveRunningSession, removeTrackedActivityTask } from '../../shared/runningSession';
@@ -185,17 +186,30 @@ export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle
     onUpdate(task.id, { isImportant: !task.isImportant });
   };
 
-  // Tarea-actividad en curso: el círculo detiene el cronómetro, guarda el
-  // registro y retira la tarea de la lista (misma regla que el Timer).
-  const handleStopActivityTimer = async (e: React.MouseEvent) => {
+  // Tarea-actividad en curso: el check completa la actividad. Detiene el
+  // cronómetro, guarda el registro y retira la tarea de la lista (misma regla
+  // que el Timer), con la animación de completado de cualquier tarea.
+  // Mientras se completa, el check sigue visible aunque el cronómetro ya se
+  // haya detenido (evita que el botón vuelva al play durante la animación).
+  const showActivityCheck = isTimerActive || sparkle;
+
+  const handleCompleteActivityTimer = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isChecked) return;
     const { running, draft } = tracker;
-    if (!running || !user?.uid) return;
-    hapticMedium();
-    tracker.setRunning(null);
-    tracker.setDraft((d) => ({ ...d, taskId: undefined, avanceTaskId: undefined }));
-    await saveRunningSession(user.uid, running, draft);
-    await removeTrackedActivityTask(task.id);
+    hapticHeavy();
+    setOptimistic(true);
+    setSparkle(true);
+    if (settings.sounds) playCompleteSound();
+    if (running && user?.uid) {
+      tracker.setRunning(null);
+      tracker.setDraft((d) => ({ ...d, taskId: undefined, avanceTaskId: undefined }));
+      void saveRunningSession(user.uid, running, draft);
+    }
+    setTimeout(() => {
+      setSparkle(false);
+      void removeTrackedActivityTask(task.id);
+    }, 450);
   };
 
   const inner = (
@@ -218,16 +232,18 @@ export const TareaItem = memo(forwardRef<HTMLLIElement, Props>(({ task, onToggle
       {isActivityOnly ? (
         <motion.button
           type="button"
-          onClick={isTimerActive ? handleStopActivityTimer : (e) => { e.stopPropagation(); onStartActivity?.(task); }}
-          title={isTimerActive ? 'Detener y guardar' : 'Empezar en el Timer'}
+          onClick={showActivityCheck ? handleCompleteActivityTimer : (e) => { e.stopPropagation(); onStartActivity?.(task); }}
+          title={showActivityCheck ? 'Completar actividad' : 'Empezar en el Timer'}
           className="relative flex items-center justify-center w-[20px] h-[20px] flex-none mr-3 bg-transparent border-none p-0 cursor-pointer"
           animate={{ opacity: completingImportant ? 0 : 1, scale: completingImportant ? 0.6 : 1 }}
           transition={{ duration: 0.45, ease: 'easeInOut' }}
         >
-          {isTimerActive ? (
+          {showActivityCheck ? (
             <>
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[20px] h-[20px] rounded-full anim-timer-ring" style={{ background: playColor }} />
-              <span className="relative w-[10px] h-[10px] rounded-full anim-timer-dot" style={{ background: playColor }} />
+              {sparkle && <Sparkles />}
+              <span className="absolute inset-0 rounded-full transition-colors duration-200" style={{ backgroundColor: isChecked ? playColor : 'transparent' }} />
+              {!isChecked && <ActivityCheckRing color={playColor} />}
+              <svg className={`relative w-3.5 h-3.5 text-white pointer-events-none transition-opacity duration-200 ${isChecked ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
             </>
           ) : (
             <>

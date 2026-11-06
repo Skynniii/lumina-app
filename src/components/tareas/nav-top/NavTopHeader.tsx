@@ -16,7 +16,6 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const metrics = useRef<{ left: number; width: number }[]>([]);
-  const scrollTarget = useRef(0);
   const lpTimer = useRef<number | null>(null);
   const didLongPress = useRef(false);
 
@@ -61,18 +60,13 @@ export function NavTopHeader({ lists, activeListId, onSelectList, onAddList, onM
         lineRef.current.style.width = `${width}px`;
       }
 
-      // La pestaña activa se mantiene visible, pero sin pelear con el scroll
-      // del usuario: si sale de los bordes, la cinta se desliza hasta centrarla
-      // (scroll suave) en vez de saltar de golpe.
-      const visibleLeft = box.scrollLeft;
-      const visibleRight = visibleLeft + box.offsetWidth;
-      if (left < visibleLeft + 12 || left + width > visibleRight - 12) {
-        const max = box.scrollWidth - box.offsetWidth;
-        const target = Math.max(0, Math.min(left + width / 2 - box.offsetWidth / 2, max));
-        if (Math.abs(target - scrollTarget.current) > 1) {
-          scrollTarget.current = target;
-          box.scrollTo({ left: target, behavior: 'smooth' });
-        }
+      // La cinta se mueve en el mismo frame que el gesto: la pestaña activa va
+      // siempre centrada, así la línea nunca se sale de la pantalla. Se asigna
+      // scrollLeft directo (sin scroll suave) para que no llegue con retraso.
+      const max = box.scrollWidth - box.clientWidth;
+      if (max > 0) {
+        const target = Math.max(0, Math.min(left + width / 2 - box.clientWidth / 2, max));
+        if (Math.abs(box.scrollLeft - target) > 0.5) box.scrollLeft = target;
       }
     };
 
