@@ -1,4 +1,4 @@
-import { parseKey, type CalendarItem } from '../../hooks/useCalendarData';
+import { itemColor, parseKey, type CalendarItem } from '../../hooks/useCalendarData';
 
 interface Props {
   date: string; // YYYY-MM-DD
@@ -27,11 +27,11 @@ const CakeIcon = ({ color }: { color: string }) => (
 );
 
 /** Icono de la familia del ítem: tarea, evento, cumpleaños o registro. */
-function FamilyIcon({ item }: { item: CalendarItem }) {
-  if (item.birthday) return <CakeIcon color={item.color} />;
-  if (item.kind === 'event') return <EventIcon color={item.color} />;
-  if (item.kind === 'session') return <SessionIcon color={item.color} />;
-  return <TaskIcon color={item.color} />;
+function FamilyIcon({ item, color }: { item: CalendarItem; color: string }) {
+  if (item.birthday) return <CakeIcon color={color} />;
+  if (item.kind === 'event') return <EventIcon color={color} />;
+  if (item.kind === 'session') return <SessionIcon color={color} />;
+  return <TaskIcon color={color} />;
 }
 
 /**
@@ -62,14 +62,15 @@ export function DayHeadline({ date, items, overdueItems = [], onSelectItem }: Pr
           <div className="flex flex-col gap-1.5 overflow-hidden">
             {rows.map((it) => {
               const late = overdueItems.some((o) => o.id === it.id);
+              const color = itemColor(it);
               return (
                 <button
                   key={it.id}
                   onClick={() => onSelectItem(it)}
                   className="flex items-center gap-2 w-full min-w-0 rounded-full pl-2 pr-3 py-[5px] border-none cursor-pointer text-left active:scale-[0.99] transition-transform"
-                  style={{ background: late ? '#e5484d1a' : `${it.color}26` }}
+                  style={{ background: late ? '#e5484d1a' : `${color}26` }}
                 >
-                  <span className="shrink-0 flex"><FamilyIcon item={it} /></span>
+                  <span className="shrink-0 flex"><FamilyIcon item={it} color={color} /></span>
                   {late && <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-[#e5484d]">Atrasado</span>}
                   <span className={`flex-1 min-w-0 text-[13px] font-medium truncate ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>
                     {it.title}

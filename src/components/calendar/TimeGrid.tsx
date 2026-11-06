@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { formatEventTime } from '../../hooks/useCalendarEvents';
-import { minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
+import { itemColor, minToHHMM, type CalendarItem } from '../../hooks/useCalendarData';
 
 const HOUR_H = 42;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -110,6 +110,7 @@ export function TimeGrid({ days, itemsByDate, sessionItemsByDate, onSelectItem, 
                   const top = (start / 60) * HOUR_H;
                   const height = Math.max(detailed ? 28 : 18, ((end - start) / 60) * HOUR_H);
                   const isSession = it.kind === 'session';
+                  const color = itemColor(it);
                   return (
                     <button
                       key={it.id}
@@ -119,12 +120,12 @@ export function TimeGrid({ days, itemsByDate, sessionItemsByDate, onSelectItem, 
                         top, height,
                         left: `calc(${lane * colW}% + 2px)`,
                         width: `calc(${colW}% - 4px)`,
-                        background: isSession ? `${it.color}1c` : `${it.color}22`,
-                        borderLeft: `3px solid ${it.color}`,
+                        background: isSession ? `${color}1c` : `${color}22`,
+                        borderLeft: `3px solid ${color}`,
                       }}
                     >
                       <span className="flex items-start gap-1 min-w-0">
-                        {isSession && <span className="mt-[1px]"><ClockGlyph color={it.color} /></span>}
+                        {isSession && <span className="mt-[1px]"><ClockGlyph color={color} /></span>}
                         {detailed && (
                           <span className="flex-1 min-w-0">
                             <span className={`block text-[11px] font-semibold truncate leading-tight ${it.kind === 'completed' ? 'text-[#a0a0a0] line-through' : 'text-[#333]'}`}>{it.title}</span>

@@ -56,6 +56,14 @@ export interface CalendarItem {
   event?: CalendarEvent;
 }
 
+/**
+ * Color con el que se pinta un ítem: en las tareas manda el color de su
+ * actividad (tarea-actividad), y si no tiene, el de su familia.
+ */
+export function itemColor(it: CalendarItem): string {
+  return it.kind === 'pending' && it.accent ? it.accent : it.color;
+}
+
 /** Familias presentes ese día, en orden fijo (tareas, eventos, registros…). */
 export function dayMarkerKeys(items: CalendarItem[]): string[] {
   const present = new Set<string>();

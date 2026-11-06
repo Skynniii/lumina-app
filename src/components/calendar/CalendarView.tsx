@@ -478,7 +478,8 @@ export function CalendarView({ onMenuClick, onOpenAccount, onNavigate }: Props) 
         initialDate={selectedDate}
         initialEvent={eventForm?.mode === 'edit' ? eventForm.event : undefined}
         onSave={(e) => {
-          if (eventForm?.mode === 'edit' && eventForm.event) eventsApi.updateEvent({ ...e, id: eventForm.event.id });
+          // Se conservan los campos que el formulario no maneja (p. ej. `birthday`)
+          if (eventForm?.mode === 'edit' && eventForm.event) eventsApi.updateEvent({ ...eventForm.event, ...e, id: eventForm.event.id });
           else eventsApi.addEvent(e);
         }}
       />
